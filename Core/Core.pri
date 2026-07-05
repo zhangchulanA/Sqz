@@ -5,6 +5,7 @@ HEADERS += \
     $$PWD/SqzProp.h \
     $$PWD/SqzQuick.h \
     $$PWD/SqzService.h \
+    $$PWD/SqzState.h \
     $$PWD/SqzVar.h \
     $$PWD/SqzWidget.h
 
@@ -15,6 +16,7 @@ SOURCES += \
     $$PWD/SqzProp.cpp \
     $$PWD/SqzQuick.cpp \
     $$PWD/SqzService.cpp \
+    $$PWD/SqzState.cpp \
     $$PWD/SqzVar.cpp \
     $$PWD/SqzWidget.cpp
 
