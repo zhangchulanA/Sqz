@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     Logger::instance().init("./log","chatlog",10,true);
     SqzHub::SetThreadPrefix(MODULE_PREFIX);
     Sqz.PrintRegClass();
-    //    Sqz.CreateWidget("TestWidget");
+//        Sqz.CreateWidget("TestWidget");
 //    Sqz.CreateWidget("SqzViewTest");
 
 //    Sqz.CreateQmlWidget("LoginWindow");

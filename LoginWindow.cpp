@@ -4,4 +4,4 @@ LoginWindow::LoginWindow(QObject *parent) : SqzQuick(parent)
 {
 logerror;
 }
-SQZQUICK_NOARG(LoginWindow)
+//SQZQUICK_NOARG(LoginWindow)

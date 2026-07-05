@@ -8,7 +8,7 @@
 #include "SqzVar.h"
 #include "MsgBox.h"
 #include "SuperTableAll.h"
-
+#include "PropertyAnimator.h"
 
 Q_DECLARE_METATYPE(QHostAddress)
 
@@ -147,4 +147,9 @@ void TestWidget::ReceiveUdpData(const QVariantList &list)
     QByteArray data = list[2].toByteArray();
     logdebug <<address.toString()<<port<<data;
 }
-SQZWIDGET_NOARG(TestWidget)
+SQZOBJECT_NOARG(TestWidget)
+
+void TestWidget::on_pushButton_2_clicked()
+{
+
+}

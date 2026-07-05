@@ -250,7 +250,7 @@ private:
 #endif
 
 /** @brief 注册无参 Widget 类 */
-#define SQZWIDGET_NOARG(Cls) \
+#define SQZOBJECT_NOARG(Cls) \
     static void _auto_reg_##Cls() \
 { \
     constexpr bool isQObj = std::is_base_of<QObject, Cls>::value; \

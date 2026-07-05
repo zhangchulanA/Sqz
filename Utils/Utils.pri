@@ -2,9 +2,11 @@
 
 HEADERS += \
     $$PWD/other/ChainBranch.h \
+    $$PWD/other/EventAggregator.h \
     $$PWD/other/FormValidator.h \
     $$PWD/other/PluginInterface.h \
     $$PWD/other/PluginManager.h \
+    $$PWD/other/PropertyAnimator.h \
     $$PWD/other/Random.h \
     $$PWD/other/SafeTimer.h \
     $$PWD/other/Singleton.h \
@@ -23,9 +25,11 @@ HEADERS += \
 
 SOURCES += \
     $$PWD/other/ChainBranch.cpp \
+    $$PWD/other/EventAggregator.cpp \
     $$PWD/other/FormValidator.cpp \
     $$PWD/other/PluginInterface.cpp \
     $$PWD/other/PluginManager.cpp \
+    $$PWD/other/PropertyAnimator.cpp \
     $$PWD/other/Random.cpp \
     $$PWD/other/Singleton.cpp \
     $$PWD/other/ThreadPool.cpp \

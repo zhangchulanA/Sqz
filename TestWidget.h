@@ -39,6 +39,8 @@ class TestWidget : public FramelessWidget
 private slots:
     void on_pushButton_clicked();
     void ReceiveUdpData(const QVariantList& list);
+    void on_pushButton_2_clicked();
+
 private:
     Ui::TestWidget *ui;
 

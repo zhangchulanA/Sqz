@@ -11,3 +11,6 @@ SOURCES += \
     $$PWD/SuperTableAll.cpp
 
 FORMS += \
+
+
+include(SqzUiKit/SqzUiKit.pri)
