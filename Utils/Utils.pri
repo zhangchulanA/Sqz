@@ -1,9 +1,12 @@
 
 
 HEADERS += \
+    $$PWD/other/Async.h \
     $$PWD/other/ChainBranch.h \
+    $$PWD/other/DataJoiner.h \
     $$PWD/other/EventAggregator.h \
     $$PWD/other/FormValidator.h \
+    $$PWD/other/ObjectPool.h \
     $$PWD/other/PluginInterface.h \
     $$PWD/other/PluginManager.h \
     $$PWD/other/PropertyAnimator.h \
@@ -24,7 +27,9 @@ HEADERS += \
     $$PWD/utils/UiUtils.h
 
 SOURCES += \
+#    $$PWD/other/Async.cpp \
     $$PWD/other/ChainBranch.cpp \
+    $$PWD/other/DataJoiner.cpp \
     $$PWD/other/EventAggregator.cpp \
     $$PWD/other/FormValidator.cpp \
     $$PWD/other/PluginInterface.cpp \

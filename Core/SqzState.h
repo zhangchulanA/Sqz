@@ -105,4 +105,6 @@ private:
     int m_nextWatcherId = 0;
 };
 
+#define SqzStateIns SqzState::Instance()
+
 #endif // SQZSTATE_H

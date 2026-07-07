@@ -20,6 +20,7 @@
 #include "SuperTableAll.h"
 #include "UiUtils.h"
 #include "RadioLink.h"
+#include "SqzState.h"
 
 using namespace std::chrono_literals;
 int main(int argc, char *argv[])
@@ -36,7 +37,9 @@ int main(int argc, char *argv[])
     Sqz.CreateWidget("MainWindowTest");
     RadioLink manager;
 
+    SqzStateIns->Set("key",444);
 
+    logdebug << SqzStateIns->Value("key").toInt();
 
 
 
