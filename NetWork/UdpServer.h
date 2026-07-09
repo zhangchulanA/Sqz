@@ -6,8 +6,10 @@
 #include <QNetworkSession>
 #include <QTimer>
 #include <QUdpSocket>
+#include "SqzGlobal.h"
 
-class UdpServer : public QObject
+namespace Sqz::NetWork {
+class SQZ_FRAMEWORK_API UdpServer : public QObject
 {
     Q_OBJECT
 
@@ -73,4 +75,5 @@ private:
 
 
 };
+}
 #endif // UDPSERVER_H

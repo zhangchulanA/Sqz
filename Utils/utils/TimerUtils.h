@@ -6,7 +6,7 @@
 #include <functional>
 #include <chrono>
 #include <deque>
-
+#include "SqzGlobal.h"
 /**
  * @brief 定时器工具类（修复版）
  *
@@ -43,7 +43,9 @@
  *
  * @note 使用前引入 using namespace std::chrono_literals; 时间可以写成 2s
  */
-class TimerUtils : public QObject
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API TimerUtils : public QObject
 {
     Q_OBJECT
 
@@ -203,5 +205,5 @@ TimerUtils& TimerUtils::setInterval(std::chrono::duration<Rep, Period> interval)
     auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(interval).count();
     return setInterval(static_cast<int>(msec));
 }
-
+}
 #endif // TIMERUTILS_H

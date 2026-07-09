@@ -7,7 +7,7 @@
 #include <QTimer>
 #include <functional>
 #include <type_traits>
-
+#include "SqzGlobal.h"
 /**
  * @namespace SafeTimer
  * @brief 提供安全的单次定时器 API，当指定的上下文对象销毁时自动取消定时器。
@@ -38,7 +38,7 @@
  * 如果不需要生命周期保护（即定时器始终触发，无论对象是否存在），
  * 可以将 context 参数设为 nullptr。
  */
-namespace SafeTimer {
+namespace Sqz::Utils {
 
 /**
  * @brief 单次定时器，带生命周期保护。
@@ -183,6 +183,6 @@ QMetaObject::Connection singleShot(int msec, const Receiver* receiver, Method me
     });
 }
 
-} // namespace SafeTimer
+} // namespace Sqz::Utils
 
 #endif // SAFETIMER_H

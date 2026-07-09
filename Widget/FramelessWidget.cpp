@@ -14,6 +14,7 @@
  * @brief TitleBar构造函数，初始化标题栏布局和控件
  * @param parent 父控件指针
  */
+namespace Sqz::Widget {
 TitleBar::TitleBar(QWidget *parent) : QWidget(parent)
 {
     m_barHeight = 32;
@@ -914,4 +915,5 @@ void FramelessWidget::onCloseClicked()
 void FramelessWidget::onTitleDoubleClick()
 {
     onMaxClicked();
+}
 }

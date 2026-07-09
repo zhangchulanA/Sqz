@@ -55,13 +55,16 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QDebug>
+#include "SqzGlobal.h"
 
-class SqzDbMgr;
+namespace Sqz::Database{
+
+class SQZ_FRAMEWORK_API SqzDbMgr;
 
 // ===================================================================
 // ScopedConnection - 自动归还连接的RAII包装类
 // ===================================================================
-class ScopedConnection {
+class SQZ_FRAMEWORK_API ScopedConnection {
 public:
     explicit ScopedConnection(SqzDbMgr& mgr);
     ~ScopedConnection();
@@ -79,7 +82,7 @@ private:
 // ===================================================================
 // DatabaseConfig - 数据库配置（链式调用）
 // ===================================================================
-struct DatabaseConfig {
+struct  DatabaseConfig {
     QString type = "QSQLITE";
     QString host = "localhost";
     int port = 0;
@@ -120,7 +123,7 @@ struct DatabaseConfig {
  *
  * 安全说明：值会被参数绑定，自动防注入
  */
-struct WhereCondition {
+struct SQZ_FRAMEWORK_API WhereCondition {
     enum Operator {
         Equal = 0,
         NotEqual,
@@ -147,7 +150,7 @@ struct WhereCondition {
 // ===================================================================
 // SqzDbMgr - 数据库管理器
 // ===================================================================
-class SqzDbMgr : public QObject
+class SQZ_FRAMEWORK_API SqzDbMgr : public QObject
 {
     Q_OBJECT
 
@@ -339,5 +342,5 @@ inline ScopedConnection::~ScopedConnection() {
 }
 inline QSqlDatabase& ScopedConnection::db() { return m_db; }
 inline bool ScopedConnection::isValid() const { return m_db.isValid(); }
-
+}
 #endif // SQZDBMGR_H

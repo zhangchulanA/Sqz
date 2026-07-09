@@ -10,6 +10,7 @@
 #include "Logger.h"
 
 
+namespace Sqz::Utils {
 Translator::Translator(QObject* parent)
     : QObject(parent)
     , m_uiLocked(false)
@@ -409,4 +410,5 @@ bool Translator::checkJsonValidity(const QByteArray& fileData)
     QJsonParseError err;
     QJsonDocument doc = QJsonDocument::fromJson(fileData, &err);
     return (err.error == QJsonParseError::NoError && doc.isObject() && !doc.object().isEmpty());
+}
 }

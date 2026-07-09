@@ -11,7 +11,7 @@
 #include <QVariant>
 #include <QStringList>
 #include <QMutex>
-
+#include "SqzGlobal.h"
 /**
  * @brief 完整修复版 JSON 工具类（Qt 5.12.9 跨平台）
  * @details
@@ -21,7 +21,9 @@
  * - 已修复：深度赋值/删除失效、XML 数组丢失、URL 未编码、全局错误非线程安全等
  * @note 纯静态类，禁止实例化
  */
-class JsonUtils
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API JsonUtils
 {
 public:
     JsonUtils() = delete;
@@ -148,5 +150,5 @@ private:
     static QString m_lastError;
     static QMutex m_errorMutex;   // 保护 m_lastError 的互斥锁
 };
-
+}
 #endif // JSONUTILS_H

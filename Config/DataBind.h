@@ -17,7 +17,7 @@
 #include <QList>
 #include <functional>
 #include <QMetaProperty>
-
+#include "SqzGlobal.h"
 /**
  * @namespace DataBind
  * @brief 通用数据与UI双向绑定工具集
@@ -83,7 +83,7 @@
  * @note 所有模板函数都在头文件中实现，不需要额外的 .cpp 文件
  * @note 绑定关系在数据对象或控件销毁时自动断开，无需手动管理
  */
-namespace DataBind {
+namespace Sqz::Config {
 
 // ============================================================================
 // 一、内部辅助函数（必须先定义，供后面的 bind 函数使用）
@@ -711,6 +711,6 @@ void bindAll(DataType *data, const QList<WidgetType*> &widgets) {
     }
 }
 
-} // namespace DataBind
+} // namespace Sqz::Config
 
 #endif // DATABIND_H

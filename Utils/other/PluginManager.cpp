@@ -3,6 +3,7 @@
 #include <QFileInfo>
 #include <QDebug>
 
+namespace Sqz::Utils {
 PluginManager& PluginManager::GetInstance()
 {
     static PluginManager ins;
@@ -169,4 +170,5 @@ PluginInterface* PluginManager::getLoadedPluginByBizName(const QString &bizPlugi
     if(m_loadedPluginMap.contains(bizPluginName))
         return m_loadedPluginMap[bizPluginName].second;
     return nullptr;
+}
 }

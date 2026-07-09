@@ -5,7 +5,7 @@
 #include <QStringList>
 #include <QByteArray>
 #include <QMap>
-
+#include "SqzGlobal.h"
 /**
  * @brief 字符串工具类（完整修复版，Qt 5.12.9 跨平台）
  * @details
@@ -15,7 +15,9 @@
  * - 所有静态方法，线程安全，无外部依赖
  * @note 纯静态类，禁止实例化
  */
-class StringUtils
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API StringUtils
 {
 public:
     StringUtils() = delete;
@@ -139,5 +141,5 @@ public:
     // ============================================================
     static int similarity(const QString &a, const QString &b);
 };
-
+}
 #endif // STRINGUTILS_H

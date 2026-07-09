@@ -5,7 +5,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
-
+namespace Sqz::Database{
 // ==================== 静态成员初始化 ====================
 QMap<QString, SqzDbMgr*> SqzDbMgr::s_instances;
 QMutex SqzDbMgr::s_instanceMutex;
@@ -613,4 +613,5 @@ QString SqzDbMgr::buildWhereClause(const QVector<WhereCondition>& where,
         outBindings[paramName] = cond.value;
     }
     return conditions.join(" AND ");
+}
 }

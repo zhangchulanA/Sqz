@@ -6,7 +6,7 @@
 #include <QMap>
 #include <QString>
 #include "PluginInterface.h"
-
+#include "SqzGlobal.h"
 /**
  * @brief 智能按需插件管理器
  * 核心特性：
@@ -15,7 +15,10 @@
  * 3. 真正懒加载：用一个加载一个，不用不占内存
  * 4. 支持按业务名卸载、查询
  */
-class PluginManager : public QObject
+
+namespace Sqz::Utils {
+using namespace Sqz::Utils;
+class SQZ_FRAMEWORK_API PluginManager : public QObject
 {
     Q_OBJECT
 public:
@@ -56,5 +59,5 @@ private:
     // 映射2：业务自定义名 → 加载器 + 插件实例（真正加载后才存入）
     QMap<QString, QPair<QPluginLoader*, PluginInterface*>> m_loadedPluginMap;
 };
-
+}
 #endif

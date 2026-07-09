@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <QUrl>
 
+
+namespace Sqz::Utils {
 // 静态成员初始化
 QString JsonUtils::m_lastError = "";
 QMutex JsonUtils::m_errorMutex;
@@ -611,4 +613,5 @@ QVariantList JsonUtils::getAllLeafValues(const QJsonObject &obj)
     QVariantList out;
     getLeafsRecursive(obj, out);
     return out;
+}
 }

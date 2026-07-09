@@ -13,7 +13,7 @@
 #include <QtConcurrent>
 #include <QCoreApplication>
 #include <QDebug>
-
+#include "SqzGlobal.h"
 /**
  * @brief 工业级全局线程池（单例模式）
  * @details 该类基于 Qt 的 QThreadPool 和 QtConcurrent 封装，旨在解决 Qt 程序中耗时操作阻塞主线程导致的界面卡顿问题。
@@ -82,7 +82,10 @@
  *
  * @note 需要 C++17 支持，请在 .pro 文件中添加：CONFIG += c++17
  */
-class ThreadPool : public QObject
+
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API ThreadPool : public QObject
 {
     Q_OBJECT
 public:
@@ -513,5 +516,5 @@ private:
 
     bool m_paused = false;  //!< 线程池暂停标志，true 时拒绝新任务提交
 };
-
+}
 #endif // THREADPOOL_H

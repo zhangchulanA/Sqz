@@ -10,6 +10,7 @@
  * @param parent 父对象
  * 初始化QAbstractTableModel父类，无额外初始化逻辑
  */
+namespace Sqz::Widget {
 SuperTableModel::SuperTableModel(QObject *parent)
     : QAbstractTableModel(parent)
 {
@@ -638,4 +639,5 @@ void SuperTableWidget::setHeaderHeight(int h)
 void SuperTableWidget::setTableStyleSheet(const QString &qss)
 {
     this->setStyleSheet(qss);
+}
 }

@@ -1,5 +1,5 @@
 #include "EventAggregator.h"
-
+namespace Sqz::Utils {
 void EventAggregator::clear(QObject* sender)
 {
     if (!sender) {
@@ -126,4 +126,5 @@ void EventAggregator::execute(const QString& id)
         }
         break;
     }
+}
 }

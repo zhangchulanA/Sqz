@@ -8,6 +8,7 @@
 // 构造与析构
 // ==============================================
 
+namespace Sqz::Utils {
 IniUtils::IniUtils(const QString& filePath, bool autoSync)
     : m_filePath(filePath)
     , m_autoSync(autoSync)
@@ -323,4 +324,5 @@ void IniUtils::clearAll()
     if (m_autoSync) {
         doSyncToFile();
     }
+}
 }

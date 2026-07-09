@@ -5,7 +5,7 @@
 #include <QDateTime>
 #include <QDate>
 #include <QTime>
-
+#include "SqzGlobal.h"
 /**
  * @brief 时间工具类（完整修复版，Qt 5.12.9 跨平台）
  * @details
@@ -24,7 +24,9 @@
  *
  * @note 所有静态方法，线程安全，无需实例化
  */
-class TimeUtils
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API TimeUtils
 {
 public:
     // ==============================================
@@ -260,5 +262,5 @@ public:
      */
     static QString uniqueTimeStr();
 };
-
+}
 #endif // TIMEUTILS_H

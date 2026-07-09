@@ -8,7 +8,7 @@
 #include <QRegExp>
 #include <QTimer>
 #include <QDebug>
-
+namespace Sqz::Utils {
 // 静态成员初始化：默认错误样式（红色边框 + 淡红背景）
 QString FormValidator::s_defaultErrorStyle = "border: 1px solid red; background-color: #ffeeee;";
 
@@ -292,4 +292,5 @@ ValidateFunc Rules::custom(std::function<bool(const QString&)> check, const QStr
             return ValidationResult(true);
         return ValidationResult(false, msg);
     };
+}
 }

@@ -5,14 +5,16 @@
 #include <QUdpSocket>
 #include <QMap>
 #include <QFile>
-
+#include "SqzGlobal.h"
 /**
  * @brief UDP 客户端/服务端（支持普通数据报和文件传输）
  *
  * 文件传输采用分片发送（默认 1400 字节/片），接收端自动重组并保存到临时目录。
  * 支持发送进度、取消发送。
  */
-class UdpSocket : public QObject
+
+namespace Sqz::NetWork {
+class SQZ_FRAMEWORK_API UdpSocket : public QObject
 {
     Q_OBJECT
 public:
@@ -57,5 +59,5 @@ private:
     };
     QMap<QString, ReceiveContext> m_receiveMap;
 };
-
+}
 #endif // UDPSOCKET_H

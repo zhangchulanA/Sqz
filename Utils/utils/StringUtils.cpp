@@ -13,6 +13,7 @@
 // 1. 空值与空白处理
 // =============================
 
+namespace Sqz::Utils {
 bool StringUtils::isEmpty(const QString &str)
 {
     return str.isEmpty();
@@ -511,4 +512,5 @@ int StringUtils::similarity(const QString &a, const QString &b)
     int maxLen = qMax(n, m);
     int similarityPercent = (maxLen - distance) * 100 / maxLen;
     return qBound(0, similarityPercent, 100);
+}
 }

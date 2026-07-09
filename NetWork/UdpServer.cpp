@@ -5,9 +5,10 @@
 #include <Logger.h>
 #include <SqzBus.h>
 #include <QMetaType>
-#define log (qDebug()<<"["<<__LINE__<<__FUNCTION__<<"]")
 
 Q_DECLARE_METATYPE(QHostAddress)
+namespace Sqz::NetWork {
+
 
 UdpServer::UdpServer()
 {
@@ -189,4 +190,4 @@ void UdpServer::groupRecvData()
 {
     ReceiveGroupData();
 }
-
+}

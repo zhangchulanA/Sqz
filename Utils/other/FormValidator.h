@@ -9,15 +9,17 @@
 #include <QString>
 #include <QTimer>
 #include <functional>
+#include "SqzGlobal.h"
 
-class FormValidator;
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API FormValidator;
 
 /**
  * @brief 校验结果结构体
  *
  * 包含校验是否通过（ok）以及失败时的错误提示信息（errorMessage）。
  */
-struct ValidationResult {
+struct SQZ_FRAMEWORK_API ValidationResult {
     bool ok;                // 是否通过校验
     QString errorMessage;   // 校验失败时的提示文字
 
@@ -38,7 +40,7 @@ typedef std::function<ValidationResult(const QString& text)> ValidateFunc;
  *
  * 提供常用的校验规则，方便快速构建。
  */
-class Rules {
+class SQZ_FRAMEWORK_API Rules {
 public:
     // 非空校验（不允许空白字符）
     static ValidateFunc notNull(const QString& errMsg = QString("此项不能为空"));
@@ -63,7 +65,7 @@ public:
  * 存储控件相关的校验规则列表、原始样式表、去抖定时器等。
  * 用于内部维护。
  */
-struct ControlValidation {
+struct SQZ_FRAMEWORK_API ControlValidation {
     QPointer<QWidget> widget;          // 待校验的控件指针（弱引用，防止悬空）
     QList<ValidateFunc> rules;          // 该控件的所有校验规则（按添加顺序执行）
     QString originalStyleSheet;         // 控件原始的样式表，用于恢复
@@ -118,7 +120,7 @@ struct ControlValidation {
  * - 对于 QComboBox，校验基于 currentText()，需要确保有有效的文本。
  * - 联动校验（如确认密码）建议通过自定义规则访问其他控件的值来实现。
  */
-class FormValidator : public QObject
+class SQZ_FRAMEWORK_API FormValidator : public QObject
 {
     Q_OBJECT
 public:
@@ -300,5 +302,5 @@ private:
      */
     void applyValidationResult(QWidget* widget, const ValidationResult& result);
 };
-
+}
 #endif // FORMVALIDATOR_H

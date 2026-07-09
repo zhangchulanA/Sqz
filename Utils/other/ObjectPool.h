@@ -7,7 +7,7 @@
 #include <QMutexLocker>
 #include <QAtomicInt>
 #include <functional>
-
+#include "SqzGlobal.h"
 /* ============================================================
    ObjectPool<T>：对象复用池（Header-Only，线程安全）
 
@@ -27,9 +27,9 @@
    }
    ------------------------------------------------------------
    ============================================================ */
-
+namespace Sqz::Utils {
 template<typename T>
-class ObjectPool {
+class  ObjectPool {
 public:
     /*!
      * \brief 构造函数
@@ -202,5 +202,5 @@ private:
 
     std::function<void(T*)> m_resetFunction;  // 自定义重置函数
 };
-
+}
 #endif // OBJECTPOOL_H

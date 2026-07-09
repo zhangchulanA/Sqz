@@ -5,8 +5,8 @@
 #include <QWidget>
 #include <QPointer>
 #include <QPoint>
-
-class FramelessAttacher : public QObject
+#include "SqzGlobal.h"
+class SQZ_FRAMEWORK_API FramelessAttacher : public QObject
 {
     Q_OBJECT
 public:

@@ -10,7 +10,7 @@
 #include <QStack>
 
 // ========================== 创建 ==========================
-
+namespace Sqz::Utils {
 bool FileUtils::createFile(const QString &filePath)
 {
     if (isFileExist(filePath)) {
@@ -534,4 +534,5 @@ bool FileUtils::createDesktopLink(const QString &filePath, const QString &linkNa
                           QFile::ExeUser | QFile::ExeGroup | QFile::ExeOther);
     return true;
 #endif
+}
 }

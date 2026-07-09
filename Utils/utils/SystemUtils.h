@@ -4,7 +4,7 @@
 #include <QString>
 #include <QStringList>
 #include <QDateTime>
-
+#include "SqzGlobal.h"
 /**
  * @brief 系统工具类（完整修复版，Qt 5.12.9 跨平台）
  * @details
@@ -14,7 +14,9 @@
  * - 支持 Windows 7/8/10/11、Ubuntu 及其他 Linux 发行版
  * @note 纯静态类，禁止实例化
  */
-class SystemUtils
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API SystemUtils
 {
 public:
     SystemUtils() = delete;
@@ -105,5 +107,5 @@ public:
     static bool rebootSystem();             // 重启
     static bool logoutUser();               // 注销当前用户
 };
-
+}
 #endif // SYSTEMUTILS_H

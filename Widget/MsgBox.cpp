@@ -8,7 +8,7 @@
 #include <QCloseEvent>
 
 // ==================== 构造 / 析构 ====================
-
+namespace Sqz::Widget {
 MsgBox::MsgBox(QWidget *parent)
     : QDialog(parent),
       m_iconLabel(nullptr),
@@ -250,4 +250,5 @@ void MsgBox::closeEvent(QCloseEvent *event)
     if (m_timer->isActive())
         m_timer->stop();
     event->accept();
+}
 }

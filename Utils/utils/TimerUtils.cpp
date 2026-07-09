@@ -5,6 +5,7 @@
 // 构造与析构
 // ═══════════════════════════════════════════════════════════════
 
+namespace Sqz::Utils {
 TimerUtils::TimerUtils(QObject *parent)
     : QObject(parent)
     , m_timer(new QTimer(this))
@@ -363,4 +364,5 @@ void TimerUtils::cancelResumeTimer()
     if (m_resumeTimer->isActive()) {
         m_resumeTimer->stop();
     }
+}
 }

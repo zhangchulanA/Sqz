@@ -1,6 +1,6 @@
 #include "UiBuilder.h"
 
-namespace UiBuilder
+namespace Sqz::Widget
 {
     //===== LabelBuilder =====
     LabelBuilder::LabelBuilder(QLabel* w) : m_target(w) {}

@@ -9,11 +9,10 @@
 #include "ThreadPool.h"
 #include "Logger.h"
 #include "TimerUtils.h"
-#include "TestWidget.h"
+
 #include "CustomSearchBox.h"
 #include "FlexData.h"
 #include "ProtocolSchema.h"
-#include "TableBuilder.h"
 #include "ChainBranch.h"
 #include <FluentCard.h>
 #include "MsgBox.h"
@@ -21,32 +20,31 @@
 #include "UiUtils.h"
 #include "RadioLink.h"
 #include "SqzState.h"
-
+#include <QAbstractNativeEventFilter>
+#include <QX11Info>
 using namespace std::chrono_literals;
+
+
+
 int main(int argc, char *argv[])
 {
 
     QApplication a(argc, argv);
     Logger::instance().init("./log","chatlog",10,true);
     SqzHub::SetThreadPrefix(MODULE_PREFIX);
-    Sqz.PrintRegClass();
+    SqzIn.PrintRegClass();
 //        Sqz.CreateWidget("TestWidget");
 //    Sqz.CreateWidget("SqzViewTest");
 
 //    Sqz.CreateQmlWidget("LoginWindow");
-    Sqz.CreateWidget("MainWindowTest");
-    RadioLink manager;
-
-    SqzStateIns->Set("key",444);
-
-    logdebug << SqzStateIns->Value("key").toInt();
-
+//    Sqz.CreateWidget("MainWindowTest");
 
 
     // 运行事件循环
     int ret = a.exec();
 
     // 程序退出前主动清理（可选）
-    Sqz.CloseAll();
+    SqzIn.CloseAll();
+
     return  ret;
 }

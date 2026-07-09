@@ -9,6 +9,7 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QUuid>
+#include "SqzGlobal.h"
 
 class FlexDataPrivate;
 
@@ -92,7 +93,7 @@ class FlexDataPrivate;
  * config.deserialize(bin);
  * @endcode
  */
-class FlexData
+class SQZ_FRAMEWORK_API FlexData
 {
 public:
     // 公开类型枚举
@@ -302,8 +303,6 @@ inline FlexData& FlexData::chainAppend(const FlexData& value) {
     return *this;
 }
 
-// 注册元类型，以便在 QVariant 和信号槽中使用
-Q_DECLARE_METATYPE(FlexData)
 
 // 模板 get 实现（必须放在头文件中）
 template<typename T>
@@ -320,5 +319,8 @@ T FlexData::get(const T& defaultValue) const
     if (std::is_same<T, QList<FlexData>>::value) return static_cast<T>(toArray());
     return defaultValue;
 }
+
+// 注册元类型，以便在 QVariant 和信号槽中使用
+Q_DECLARE_METATYPE(FlexData)
 
 #endif // FLEXDATA_H

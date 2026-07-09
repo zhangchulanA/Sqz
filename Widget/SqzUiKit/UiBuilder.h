@@ -11,11 +11,11 @@
 #include <QProgressBar>
 #include <QFont>
 #include <Qt>
-
-namespace UiBuilder
+#include "SqzGlobal.h"
+namespace Sqz::Widget
 {
     // 文本标签
-    class LabelBuilder
+    class SQZ_FRAMEWORK_API LabelBuilder
     {
     public:
         explicit LabelBuilder(QLabel* w);
@@ -37,7 +37,7 @@ namespace UiBuilder
     };
 
     // 普通按钮
-    class ButtonBuilder
+    class SQZ_FRAMEWORK_API ButtonBuilder
     {
     public:
         explicit ButtonBuilder(QPushButton* w);
@@ -56,7 +56,7 @@ namespace UiBuilder
     };
 
     // 单行输入框
-    class LineEditBuilder
+    class SQZ_FRAMEWORK_API LineEditBuilder
     {
     public:
         explicit LineEditBuilder(QLineEdit* w);
@@ -76,7 +76,7 @@ namespace UiBuilder
     };
 
     // 复选框
-    class CheckBoxBuilder
+    class SQZ_FRAMEWORK_API CheckBoxBuilder
     {
     public:
         explicit CheckBoxBuilder(QCheckBox* w);
@@ -93,7 +93,7 @@ namespace UiBuilder
     };
 
     // 分组容器
-    class GroupBoxBuilder
+    class SQZ_FRAMEWORK_API GroupBoxBuilder
     {
     public:
         explicit GroupBoxBuilder(QGroupBox* w);
@@ -109,7 +109,7 @@ namespace UiBuilder
     };
 
     // 下拉选择框
-    class ComboBoxBuilder
+    class SQZ_FRAMEWORK_API ComboBoxBuilder
     {
     public:
         explicit ComboBoxBuilder(QComboBox* w);
@@ -127,7 +127,7 @@ namespace UiBuilder
     };
 
     // 进度条
-    class ProgressBarBuilder
+    class SQZ_FRAMEWORK_API ProgressBarBuilder
     {
     public:
         explicit ProgressBarBuilder(QProgressBar* w);
@@ -145,13 +145,13 @@ namespace UiBuilder
     };
 
     // 入口函数，生成临时链式对象
-    inline LabelBuilder build(QLabel* w)             { return LabelBuilder(w); }
-    inline ButtonBuilder build(QPushButton* w)       { return ButtonBuilder(w); }
-    inline LineEditBuilder build(QLineEdit* w)      { return LineEditBuilder(w); }
-    inline CheckBoxBuilder build(QCheckBox* w)       { return CheckBoxBuilder(w); }
-    inline GroupBoxBuilder build(QGroupBox* w)       { return GroupBoxBuilder(w); }
-    inline ComboBoxBuilder build(QComboBox* w)       { return ComboBoxBuilder(w); }
-    inline ProgressBarBuilder build(QProgressBar* w) { return ProgressBarBuilder(w); }
+    SQZ_FRAMEWORK_API inline LabelBuilder build(QLabel* w)             { return LabelBuilder(w); }
+    SQZ_FRAMEWORK_API inline ButtonBuilder build(QPushButton* w)       { return ButtonBuilder(w); }
+    SQZ_FRAMEWORK_API inline LineEditBuilder build(QLineEdit* w)      { return LineEditBuilder(w); }
+    SQZ_FRAMEWORK_API inline CheckBoxBuilder build(QCheckBox* w)       { return CheckBoxBuilder(w); }
+    SQZ_FRAMEWORK_API inline GroupBoxBuilder build(QGroupBox* w)       { return GroupBoxBuilder(w); }
+    SQZ_FRAMEWORK_API inline ComboBoxBuilder build(QComboBox* w)       { return ComboBoxBuilder(w); }
+    SQZ_FRAMEWORK_API inline ProgressBarBuilder build(QProgressBar* w) { return ProgressBarBuilder(w); }
 }
 
 #endif // UIBUILDER_H

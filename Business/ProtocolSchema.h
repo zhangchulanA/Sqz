@@ -36,8 +36,8 @@
 #include <QJsonObject>
 #include <QString>
 #include <QVector>
-
-class ProtocolSchema
+#include "SqzGlobal.h"
+class SQZ_FRAMEWORK_API ProtocolSchema
 {
 public:
     // 字节序（只有多字节整数 >8 位时才有效）

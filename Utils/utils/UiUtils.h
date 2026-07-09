@@ -35,9 +35,11 @@
 #include <QGuiApplication>
 #include <QPoint>
 #include <QTransform>
+#include "SqzGlobal.h"
 
+namespace Sqz::Utils {
 // 弹窗提示类型
-enum class TipType
+enum class SQZ_FRAMEWORK_API TipType
 {
     Success,
     Warn,
@@ -46,7 +48,7 @@ enum class TipType
 };
 
 // Toast悬浮窗弹出位置（6个方位）
-enum class ToastPos
+enum class SQZ_FRAMEWORK_API ToastPos
 {
     TopLeft,     // 左上角
     TopRight,    // 右上角
@@ -102,7 +104,7 @@ private:
 };
 
 // UI静态工具类，全部静态方法
-class UiUtils
+class SQZ_FRAMEWORK_API UiUtils
 {
 public:
     // ==================== 窗口通用（原有） ====================
@@ -304,5 +306,5 @@ void UiUtils::recursiveFindWidgets(QWidget *parent, QList<T*> &results)
             recursiveFindWidgets(childWidget, results);
     }
 }
-
+}
 #endif // UiUtils_H

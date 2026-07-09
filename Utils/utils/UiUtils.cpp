@@ -10,6 +10,7 @@
 #include <QFileDialog>
 #include <QDateTime>
 
+namespace Sqz::Utils {
 // ===================== ToastWidget 实现 =====================
 ToastWidget::ToastWidget(const QString &msg, TipType type, ToastPos pos, int showMs)
     : QWidget(nullptr, Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool),
@@ -735,4 +736,5 @@ void UiUtils::dumpWidgetTree(QWidget *w, int indent)
         QWidget *cw = qobject_cast<QWidget*>(ch);
         if (cw) dumpWidgetTree(cw, indent + 1);
     }
+}
 }

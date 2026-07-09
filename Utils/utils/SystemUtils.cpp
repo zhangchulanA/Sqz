@@ -28,6 +28,7 @@
 // 程序路径
 //=============================================================================
 
+namespace Sqz::Utils {
 QString SystemUtils::appDirPath()
 {
     return QCoreApplication::applicationDirPath();
@@ -448,4 +449,5 @@ bool SystemUtils::logoutUser()
     qWarning() << "SystemUtils::logoutUser: No known logout command found for this desktop environment";
     return false;
 #endif
+}
 }

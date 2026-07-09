@@ -8,13 +8,13 @@
 #include <QRectF>
 #include <QPointer>
 #include <QPainterPath>
-
-namespace PainterKit
+#include "SqzGlobal.h"
+namespace Sqz::Widget
 {
     /**
      * RAII守卫，自动保存&恢复绘图上下文，防止画笔状态污染
      */
-    class PainterGuard
+    class SQZ_FRAMEWORK_API PainterGuard
     {
     public:
         // 绑定绘图对象，自动保存上下文
@@ -49,27 +49,27 @@ namespace PainterKit
     };
 
     // 快速创建临时守卫对象
-    inline PainterGuard guard(QPainter* p)
+    SQZ_FRAMEWORK_API inline PainterGuard guard(QPainter* p)
     {
         return PainterGuard(p);
     }
 
     // 绘制四角统一圆角矩形
-    void drawRoundRect(QPainter* painter, const QRectF& rect, int radius);
+    SQZ_FRAMEWORK_API void drawRoundRect(QPainter* painter, const QRectF& rect, int radius);
 
     // 绘制四角独立圆角矩形，四个角半径可分别控制
-    void drawPartialRoundRect(QPainter* painter, const QRectF& rect,
+    SQZ_FRAMEWORK_API void drawPartialRoundRect(QPainter* painter, const QRectF& rect,
         int rTopLeft, int rTopRight, int rBottomLeft, int rBottomRight);
 
     // 绘制水平渐变填充矩形
-    void drawHGradientRect(QPainter* painter, const QRectF& rect,
+    SQZ_FRAMEWORK_API void drawHGradientRect(QPainter* painter, const QRectF& rect,
         const QColor& startColor, const QColor& endColor);
 
     // 在矩形内部居中绘制文字
-    void drawCenterText(QPainter* painter, const QRectF& rect, const QString& text);
+    SQZ_FRAMEWORK_API void drawCenterText(QPainter* painter, const QRectF& rect, const QString& text);
 
     // 绘制虚线边框矩形
-    void drawDashedBorder(QPainter* painter, const QRectF& rect, int dashLen = 4);
+    SQZ_FRAMEWORK_API void drawDashedBorder(QPainter* painter, const QRectF& rect, int dashLen = 4);
 }
 
 #endif // PAINTERKIT_H

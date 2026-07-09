@@ -5,6 +5,7 @@
  *
  * Qt 推荐使用 QRandomGenerator::global()
  */
+namespace Sqz::Utils {
 QRandomGenerator *Random::rng()
 {
     return QRandomGenerator::global();
@@ -95,4 +96,5 @@ QString Random::randomName()
                  + QString::number(intRange(10, 999));
 
     return name;
+}
 }

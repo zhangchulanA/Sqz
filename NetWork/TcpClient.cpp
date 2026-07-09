@@ -8,6 +8,7 @@
 #include <QDateTime>
 #include <QThread>
 
+namespace Sqz::NetWork {
 TcpClientWorker::TcpClientWorker(QObject *parent)
     : QObject(parent)
 {
@@ -415,4 +416,5 @@ void TcpClient::onWorkerFileProgress(qint64 sent, qint64 total)
 void TcpClient::onWorkerFileFinished(bool success, const QString &err)
 {
     emit fileSendFinished(success, err);
+}
 }

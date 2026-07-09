@@ -9,6 +9,9 @@
 #include <memory>
 #include <QAbstractSocket>
 #include <QTcpSocket>
+#include "SqzGlobal.h"
+
+namespace Sqz::NetWork {
 
 
 /**
@@ -17,7 +20,7 @@
  * 负责所有 socket 操作、文件分块发送/接收、重连逻辑。
  * 通过信号与主线程的 TcpClient 通信。
  */
-class TcpClientWorker : public QObject
+class SQZ_FRAMEWORK_API TcpClientWorker : public QObject
 {
     Q_OBJECT
 public:
@@ -85,17 +88,13 @@ private:
 
 
 
-
-
-
-
 /**
  * @brief TCP 客户端（主线程接口）
  *
  * 所有网络操作均在子线程中执行，不会阻塞主线程。
  * 支持普通消息收发、文件传输（分块发送、进度回调、取消）、自动重连。
  */
-class TcpClient : public QObject
+class SQZ_FRAMEWORK_API TcpClient : public QObject
 {
     Q_OBJECT
 public:
@@ -152,5 +151,5 @@ private:
     TcpClientWorker *m_worker = nullptr;
     qint64 m_chunkSize = 64 * 1024;   // 默认 64KB，可通过 setFileChunkSize() 修改
 };
-
+} //Sqz::NetWork
 #endif // TCPCLIENT_H

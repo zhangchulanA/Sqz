@@ -14,7 +14,7 @@
 #include <QString>
 #include <QTimer>         // 新增：定时器（动画/防抖）
 #include <QColor>         // 新增：颜色处理
-
+#include "SqzGlobal.h"
 /**
  * @class TitleBar
  * @brief 自定义标题栏控件类
@@ -30,7 +30,8 @@
  * 5. 浅灰色默认背景，适配浅色UI体系，避免白底突兀；
  * 6. 新增右键菜单支持、标题对齐方式、按钮状态控制、透明度调节等扩展能力。
  */
-class TitleBar : public QWidget
+namespace Sqz::Widget {
+class SQZ_FRAMEWORK_API TitleBar : public QWidget
 {
     Q_OBJECT
     Q_PROPERTY(int opacity READ opacity WRITE setOpacity) // 新增：透明度属性（支持动画）
@@ -221,7 +222,7 @@ private:
  * 8. 最大化自适应：最大化时自动去除边距，还原时恢复，视觉无断层；
  * 9. 新增扩展能力：窗口动画、置顶、缩放防抖、多显示器适配、全局透明度调节等。
  */
-class FramelessWidget : public QWidget
+class SQZ_FRAMEWORK_API FramelessWidget : public QWidget
 {
     Q_OBJECT
     Q_PROPERTY(qreal windowOpacity READ windowOpacity WRITE setWindowOpacity) // 新增：窗口透明度属性
@@ -496,5 +497,5 @@ private:
     QTimer* m_resizeTimer;              // 缩放防抖定时器
     QRect m_targetGeo;                  // 缩放目标区域（防抖用）
 };
-
+}
 #endif // FRAMELESSWIDGET_H

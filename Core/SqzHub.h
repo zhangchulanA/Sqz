@@ -283,6 +283,6 @@ private:
     } \
     FORCE_LINK_THIS(_reg_flag_arg_##Cls) static bool _reg_flag_arg_##Cls = (_auto_reg_arg_##Cls(), true);
 
-#define Sqz   SqzHub::Instance()
+#define SqzIn   SqzHub::Instance()
 
 #endif // SqzHub_H

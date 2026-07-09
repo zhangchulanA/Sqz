@@ -16,6 +16,8 @@
 #include <QDebug>
 #include <QRegExp>
 // ============================= 私有数据类 FlexDataPrivate =============================
+
+
 class FlexDataPrivate : public QSharedData
 {
 public:
@@ -972,3 +974,4 @@ QString FlexData::dump(int indent) const {
     }
     return QString();
 }
+

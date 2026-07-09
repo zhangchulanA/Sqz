@@ -24,7 +24,8 @@ HEADERS += \
     $$PWD/utils/SystemUtils.h \
     $$PWD/utils/TimeUtils.h \
     $$PWD/utils/TimerUtils.h \
-    $$PWD/utils/UiUtils.h
+    $$PWD/utils/UiUtils.h \
+    $$PWD/utils/VariantUtil.h
 
 SOURCES += \
 #    $$PWD/other/Async.cpp \

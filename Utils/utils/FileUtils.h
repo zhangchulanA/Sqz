@@ -5,7 +5,7 @@
 #include <QFileInfoList>
 #include <QDir>
 #include <QByteArray>
-
+#include "SqzGlobal.h"
 /**
  * @brief 跨平台超级文件工具类（修复版）
  * @details
@@ -15,7 +15,9 @@
  * - 修复了跨设备移动、递归删除栈溢出、MD5大文件内存爆炸、快捷方式生成等问题
  * @note 适用于 Qt 5.12.9+
  */
-class FileUtils
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API FileUtils
 {
 public:
     FileUtils() = delete;   // 纯静态类，禁止实例化
@@ -202,5 +204,5 @@ private:
     static bool moveFileCrossDevice(const QString &src, const QString &dst, bool overwrite);
     static bool moveDirCrossDevice(const QString &src, const QString &dst, bool overwrite);
 };
-
+}
 #endif // FILEUTILS_H

@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QString>
 #include <QJsonObject>
+#include "SqzGlobal.h"
 /**
  * @brief 插件统一顶层抽象接口类
  * @author 自定义
@@ -16,8 +17,8 @@
  * @note 5. 接口文件放置系统公共目录，所有插件工程与主程序共享同一份契约
  * @note 6. 新增通用功能直接在此类扩展纯虚函数，所有插件统一适配
  */
-
-class PluginInterface :public QObject
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API PluginInterface :public QObject
 {
 public:
     virtual ~PluginInterface() = default;
@@ -47,8 +48,9 @@ public:
 };
 
 #define PluginInterface_IID "com.my.plugin.v1" //"com.my.plugin.v1"字符串自定义 每个插件唯一
-Q_DECLARE_INTERFACE(PluginInterface, PluginInterface_IID)
 
+}
+Q_DECLARE_INTERFACE(Sqz::Utils::PluginInterface, PluginInterface_IID)
 #endif
 
 // 导出插件标识，固定写法

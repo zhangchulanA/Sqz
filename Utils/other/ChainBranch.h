@@ -19,7 +19,7 @@
 
 #include <functional>
 #include <QString>
-
+#include "SqzGlobal.h"
 /**
  * @class   ChainBranch
  * @brief   链式分支选择器主类
@@ -27,7 +27,9 @@
  *          2. 分支顺序即判断优先级，从上到下依次匹配
  *          3. 所有分支命中后自动短路，不会重复执行
  */
-class ChainBranch
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API ChainBranch
 {
 public:
     /********************************************************************************************
@@ -266,5 +268,5 @@ private:
  */
 using CBH = ChainBranch;
 #endif // CHAINBRANCH_NO_GLOBAL_ALIAS
-
+}
 #endif // CHAINBRANCH_H

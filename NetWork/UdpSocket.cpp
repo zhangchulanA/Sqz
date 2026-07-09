@@ -5,6 +5,7 @@
 #include <QNetworkDatagram>
 #include <QTimer>
 
+namespace Sqz::NetWork {
 UdpSocket::UdpSocket(QObject *parent)
     : QObject(parent)
 {
@@ -184,4 +185,5 @@ void UdpSocket::sendNextChunk()
     emit fileSendProgress(m_sendFileSent, m_sendFileTotal);
 
     QTimer::singleShot(0, this, &UdpSocket::sendNextChunk);
+}
 }

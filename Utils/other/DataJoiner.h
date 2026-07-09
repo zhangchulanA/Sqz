@@ -4,7 +4,7 @@
 #include <QMap>
 #include <QVariant>
 #include <functional>
-
+#include "SqzGlobal.h"
 /* ============================================================
    DataJoiner：多路数据合并工具（Namespace 风格，无需实例化）
 
@@ -23,7 +23,7 @@
    6. 凑齐后自动触发 OnReady，任务自动销毁
    ============================================================ */
 
-namespace DataJoiner {
+namespace Sqz::Utils {
 
 // 回调函数类型
 using ReadyCallback = std::function<void(const QMap<QString, QVariant>&)>;
@@ -33,44 +33,44 @@ using TimeoutCallback = std::function<void(const QMap<QString, QVariant>&)>;
 
 // 开始一个合并任务：需要等待 expectedCount 路数据
 // 返回任务 ID（>0），失败返回 -1
-int Begin(int expectedCount);
+SQZ_FRAMEWORK_API int Begin(int expectedCount);
 
 // 取消任务（立即停止，不再触发任何回调）
-void Cancel(int taskId);
+SQZ_FRAMEWORK_API void Cancel(int taskId);
 
 // 重置任务（清空已收数据，重新开始等待）
-void Reset(int taskId);
+SQZ_FRAMEWORK_API void Reset(int taskId);
 
 /* ---------- 回调设置 ---------- */
 
 // 设置"凑齐"回调：当所有路数到齐时触发
-void OnReady(int taskId, ReadyCallback callback);
+SQZ_FRAMEWORK_API void OnReady(int taskId, ReadyCallback callback);
 
 // 设置"超时"回调：超过设定时间未凑齐时触发
-void OnTimeout(int taskId, TimeoutCallback callback);
+SQZ_FRAMEWORK_API void OnTimeout(int taskId, TimeoutCallback callback);
 
 // 设置超时时间（毫秒），默认无限等待
-void SetTimeout(int taskId, int ms);
+SQZ_FRAMEWORK_API void SetTimeout(int taskId, int ms);
 
 /* ---------- 核心操作 ---------- */
 
 // 喂入一路数据（tag 是来源标识，如 "GPS"、"ACCEL"）
-void Feed(int taskId, const QString& tag, const QVariant& data);
+SQZ_FRAMEWORK_API void Feed(int taskId, const QString& tag, const QVariant& data);
 
 /* ---------- 状态查询（调试用） ---------- */
 
 // 查询任务是否已凑齐
-bool IsReady(int taskId);
+SQZ_FRAMEWORK_API bool IsReady(int taskId);
 
 // 查询任务当前已收到几路数据
-int ReceivedCount(int taskId);
+SQZ_FRAMEWORK_API int ReceivedCount(int taskId);
 
 // 查询当前有多少个活跃任务
-int ActiveCount();
+SQZ_FRAMEWORK_API int ActiveCount();
 
 // 重置所有任务（清空全部状态，慎用）
-void ResetAll();
+SQZ_FRAMEWORK_API void ResetAll();
 
-} // namespace DataJoiner
+} // namespace Sqz::Utils
 
 #endif // DATAJOINER_H

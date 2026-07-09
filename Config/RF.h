@@ -12,8 +12,11 @@
 #include <QString>
 #include <functional>
 #include <type_traits>
+#include "SqzGlobal.h"
 
 #define llog (qDebug()<<"["<<__LINE__<<__FUNCTION__<<"]")
+
+namespace Sqz::Config {
 
 
 inline QString LogData(const QByteArray& data){
@@ -124,5 +127,7 @@ public: \
                          _w, [_w](const auto& val){ _w->setter(val); }); \
         _w->setter(_o->prop()); \
     } while(false)
+
+}
 
 #endif // RF_H

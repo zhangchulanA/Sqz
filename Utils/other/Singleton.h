@@ -3,7 +3,9 @@
 
 #include <QMutex>
 #include <QMutexLocker>
+#include "SqzGlobal.h"
 //        Q_GLOBAL_STATIC(OfflineASR,OfflineASR)
+namespace Sqz::Utils{
 template <typename T>
 class Singleton
 {
@@ -45,6 +47,6 @@ T* Singleton<T>::m_instance = nullptr;
 
 template <typename T>
 QMutex Singleton<T>:: m_mutex;
-
+}
 
 #endif // SINGLETON_H

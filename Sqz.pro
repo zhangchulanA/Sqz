@@ -1,5 +1,5 @@
 
-QT       += core gui network sql xml concurrent qml quick quickwidgets
+QT       += core gui network sql xml concurrent qml quick quickwidgets x11extras
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -33,7 +33,8 @@ RCC_DIR         = $$OUT_PWD/rcc
 UI_DIR          = $$OUT_PWD/ui
 
 #LIBS += -lasound
-
+LIBS += -lX11
+DEFINES += QT_X11EXTRAS_LIB
 INCLUDEPATH +=  $$PWD/Log \
                 $$PWD/Core \
                 $$PWD/Database \
@@ -41,7 +42,8 @@ INCLUDEPATH +=  $$PWD/Log \
                 $$PWD/Widget \
                 $$PWD/Config \
                 $$PWD/NetWork \
-                $$PWD/Business
+                $$PWD/Business \
+                $$PWD/Global
 
 include(Business/Business.pri)
 include(Config/Config.pri)
@@ -53,21 +55,18 @@ include(Log/Log.pri)
 include(Style/Style.pri)
 include(Utils/Utils.pri)
 include(NetWork/NetWork.pri)
+include(Global/Global.pri)
 
 SOURCES += \
-    LoginWindow.cpp \
-    MainWindowTest.cpp \
-    TestWidget.cpp \
+#    TestWidget.cpp \
     main.cpp
 
 HEADERS += \
-    LoginWindow.h \
-    MainWindowTest.h \
-    TestWidget.h
+#    TestWidget.h
 
 FORMS += \
-    MainWindowTest.ui \
-    TestWidget.ui
+#    MainWindowTest.ui \
+#    TestWidget.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -83,6 +82,7 @@ win32 {
 unix {
     QMAKE_CXXFLAGS += -Wall -Wextra
     QMAKE_LFLAGS += -rdynamic
+
 
     QMAKE_POST_LINK += $$PWD/MakeRun.sh $$VERSION $$PWD
     # 可选：强制UTF-8

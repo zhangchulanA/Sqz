@@ -6,14 +6,17 @@
 #include <QScreen>
 #include <QGuiApplication>
 #include <QDebug>
+#include "SqzGlobal.h"
 
+
+namespace Sqz::Utils {
 /**
  * @brief 全局轻量半透明遮罩（多屏兼容版）
  * 作用：语言切换过渡防闪烁/防撕裂，支持手动开关
  * 特性：鼠标穿透、无边框、置顶、双平台兼容、零性能损耗、自动适应多屏及屏幕变化
  * 适配：Qt 5.12 Windows/Ubuntu
  */
-class TranslatorMask : public QWidget
+class SQZ_FRAMEWORK_API TranslatorMask : public QWidget
 {
     Q_OBJECT
     static TranslatorMask* s_instance;
@@ -97,5 +100,5 @@ private:
         }
     }
 };
-
+}
 #endif // TRANSLATORMASK_H

@@ -12,11 +12,14 @@
 #include <QPointer>
 #include <algorithm>
 #include "TranslatorMask.h"
+#include "SqzGlobal.h"
 
+
+namespace Sqz::Utils {
 /**
  * @brief 工业级翻译管理单例（优化版：多屏、线程安全、懒加载、锁粒度细、自动注销）
  */
-class Translator : public QObject
+class SQZ_FRAMEWORK_API Translator : public QObject
 {
     Q_OBJECT
 public:
@@ -98,5 +101,5 @@ private:
 // 全局翻译宏
 #define TR(key) Translator::instance().translate(key)
 #define MyTranslator Translator::instance()
-
+}
 #endif // TRANSLATOR_H

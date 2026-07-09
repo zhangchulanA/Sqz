@@ -7,7 +7,7 @@
 #include <QStringList>
 #include <QMap>
 #include <QByteArray>
-
+#include "SqzGlobal.h"
 /**
  * @brief 增强版 INI 配置文件读写工具类
  * @details
@@ -20,7 +20,9 @@
  * @note 适用于 Qt 5.12.9+
  * @warning 禁止拷贝对象，请使用指针或引用传递
  */
-class IniUtils
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API IniUtils
 {
 public:
     /**
@@ -343,5 +345,5 @@ private:
     mutable QMutex  m_mutex;        ///< 线程互斥锁（非递归，性能更优）
     bool            m_autoSync;     ///< 是否自动同步标志
 };
-
+}
 #endif // INIUTILS_H

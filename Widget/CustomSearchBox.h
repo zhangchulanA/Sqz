@@ -20,7 +20,7 @@
 #include <QSettings>
 #include <QCompleter>
 #include <QFont>
-
+#include "SqzGlobal.h"
 /*!
  * \class CustomSearchBox
  * \brief 一个功能完整的搜索框控件，集成历史记录、自动补全、自适应样式。
@@ -44,7 +44,7 @@
  * });
  * @endcode
  */
-class CustomSearchBox : public QWidget
+class SQZ_FRAMEWORK_API CustomSearchBox : public QWidget
 {
     Q_OBJECT
     Q_PROPERTY(QString text READ text WRITE setText NOTIFY textChanged)

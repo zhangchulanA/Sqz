@@ -7,7 +7,9 @@
 #include <QTimer>
 #include <functional>
 #include <QMetaProperty>
+#include "SqzGlobal.h"
 
+namespace Sqz::Utils {
 // 前向声明
 class AnimationBuilder;
 class AnimationGroupBuilder;
@@ -15,7 +17,7 @@ class AnimationGroupBuilder;
 // ============================================================
 // 核心动画类：继承 QVariantAnimation，支持任意类型属性动画
 // ============================================================
-class PropertyAnimator : public QVariantAnimation
+class SQZ_FRAMEWORK_API PropertyAnimator : public QVariantAnimation
 {
     Q_OBJECT
 
@@ -180,5 +182,5 @@ public:
     /** 返回 OutBack 缓动曲线（弹性效果） */
     static QEasingCurve easeOutBack();
 };
-
+}
 #endif // PROPERTYANIMATOR_H

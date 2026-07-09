@@ -22,7 +22,7 @@
 #include <QHash>
 #include <functional>
 #include <stdexcept>
-
+#include "SqzGlobal.h"
 // 状态回调类型：无参数，无返回值
 using StateCallback = std::function<void()>;
 
@@ -33,7 +33,7 @@ using GuardCondition = std::function<bool()>;
 using Action = std::function<void()>;
 
 // 状态机异常类
-class StateMachineError : public std::runtime_error {
+class SQZ_FRAMEWORK_API StateMachineError : public std::runtime_error {
 public:
     explicit StateMachineError(const QString& msg)
         : std::runtime_error(msg.toStdString()), m_msg(msg) {}
@@ -43,7 +43,7 @@ private:
 };
 
 // 转换规则结构体
-struct Transition {
+struct SQZ_FRAMEWORK_API Transition {
     QString event;          // 触发事件名
     QString fromState;      // 源状态
     QString toState;        // 目标状态
@@ -52,7 +52,7 @@ struct Transition {
 };
 
 // 有限状态机主类
-class StateMachine {
+class SQZ_FRAMEWORK_API StateMachine {
 public:
     StateMachine() {}
     ~StateMachine() {}

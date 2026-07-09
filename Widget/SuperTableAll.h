@@ -10,7 +10,7 @@
 #include <QString>
 #include <QColor>
 #include <functional>
-
+#include "SqzGlobal.h"
 /**
  * @brief 超级表格组件总头文件
  * 该组件是基于Qt的QTableView封装的高性能、高扩展表格控件，包含数据模型(SuperTableModel)、绘制代理(SuperTableDelegate)、外层封装控件(SuperTableWidget)三部分
@@ -31,7 +31,8 @@
  * @brief 单元格类型枚举
  * 定义表格支持的所有单元格展示类型
  */
-enum class TableCellType
+namespace Sqz::Widget {
+enum class SQZ_FRAMEWORK_API TableCellType
 {
     Text,        // 普通文本单元格（默认类型）
     CheckBox,    // 复选框单元格（展示勾选/未勾选状态，支持点击切换）
@@ -43,7 +44,7 @@ enum class TableCellType
  * @brief 表格单行数据结构
  * 存储一行中所有列的键值对数据，提供便捷的get/set方法访问指定列数据
  */
-struct TableRowData
+struct SQZ_FRAMEWORK_API TableRowData
 {
     QMap<QString, QVariant> cells; // 列名-值 映射表，存储该行所有列数据
 
@@ -66,7 +67,7 @@ struct TableRowData
  * @brief 表格列配置结构
  * 定义每一列的属性，包括名称、标题、类型、宽度、是否隐藏、是否可排序等
  */
-struct TableColumnConfig
+struct SQZ_FRAMEWORK_API TableColumnConfig
 {
     QString name;          // 列唯一标识（对应TableRowData中的key）
     QString title;         // 列表头显示文本
@@ -88,7 +89,7 @@ using RowColorFunc = std::function<QColor(const TableRowData&)>;
  * 继承自QAbstractTableModel，实现Qt MVC架构中的数据模型层，负责数据存储、筛选、编辑、数据交互等核心逻辑
  * 核心职责：管理原始数据和展示数据、处理筛选逻辑、提供数据读写接口、通知视图数据变更
  */
-class SuperTableModel : public QAbstractTableModel
+class SQZ_FRAMEWORK_API SuperTableModel : public QAbstractTableModel
 {
     Q_OBJECT
 public:
@@ -237,7 +238,7 @@ private:
  * 继承自QStyledItemDelegate，负责单元格的自定义绘制和交互处理
  * 核心职责：实现不同类型单元格（复选框、进度条、状态标签）的绘制逻辑，处理复选框点击交互
  */
-class SuperTableDelegate : public QStyledItemDelegate
+class SQZ_FRAMEWORK_API SuperTableDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
 public:
@@ -320,7 +321,7 @@ private:
  * 继承自QTableView，整合数据模型和绘制代理，提供简洁的对外接口，封装底层实现细节
  * 核心职责：对外提供统一的表格操作接口，初始化表格默认样式和行为，简化上层使用
  */
-class SuperTableWidget : public QTableView
+class SQZ_FRAMEWORK_API SuperTableWidget : public QTableView
 {
     Q_OBJECT
 public:
@@ -429,7 +430,7 @@ private:
     SuperTableModel* m_model;       // 表格数据模型
     SuperTableDelegate* m_delegate; // 表格绘制代理
 };
-
+}
 #endif // SUPERTABLEALL_H
 
 

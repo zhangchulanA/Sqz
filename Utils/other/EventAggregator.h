@@ -10,6 +10,7 @@
 #include <QMetaMethod>
 #include <type_traits>
 #include <QDebug>
+#include "SqzGlobal.h"
 
 /**
  * @brief 事件聚合器（全局单例）
@@ -34,7 +35,9 @@
  *   SQZ_MERGE(ageSpin, &QSpinBox::valueChanged, [](...) { saveForm(); }, 200);
  * @endcode
  */
-class EventAggregator : public QObject
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API EventAggregator : public QObject
 {
     Q_OBJECT
 public:
@@ -172,5 +175,5 @@ private:
 
 #define SQZ_EVT_CLEAR_ALL() \
     EventAggregator::ClearAll()
-
+}
 #endif // EVENTAGGREGATOR_H

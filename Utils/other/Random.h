@@ -7,7 +7,7 @@
 #include <QString>
 #include <QVector>
 #include <QUuid>
-
+#include "SqzGlobal.h"
 /**
  * @brief Random 工具类
  *
@@ -20,7 +20,8 @@
  *
  * 所有方法均为静态方法，直接使用即可
  */
-class Random
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API Random
 {
 public:
     /**
@@ -83,5 +84,5 @@ public:
 private:
     static QRandomGenerator *rng();
 };
-
+}
 #endif // RANDOM_H

@@ -8,6 +8,7 @@
 #include <QMutex>
 #include <functional>
 #include "Singleton.h"
+#include "SqzGlobal.h"
 /**
  * @brief 超时守护器 - 管理多个独立 key 的数据接收超时检测
  *
@@ -24,7 +25,10 @@
  *
  * 线程安全：所有公共函数均已加锁，可在任意线程调用
  */
-class TimeoutKeeper : public QObject , public Singleton<TimeoutKeeper>
+
+
+namespace Sqz::Utils {
+class SQZ_FRAMEWORK_API TimeoutKeeper : public QObject , public Singleton<TimeoutKeeper>
 {
     Q_OBJECT
 
@@ -149,5 +153,5 @@ private:
     int m_defaultTimeoutMs;               // 自动注册时的默认超时阈值（毫秒）
     bool m_started;                       // 是否已启动检测
 };
-
+}
 #endif // TIMEOUTKEEPER_H
