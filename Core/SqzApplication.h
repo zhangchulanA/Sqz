@@ -14,6 +14,9 @@ public:
     ~SqzApplication();
 
 public:
+
+    QApplication *App();
+
     int exec();
     //设置主窗口
     void SetMainWidget(const QString& name);
@@ -27,7 +30,7 @@ public:
 
     void Close();
 private:
-    QApplication m_app;
+    QApplication *m_app;
 };
 
 #endif // SQZAPPLICATION_H

@@ -1,6 +1,6 @@
 
-QT       += core gui network sql xml concurrent qml quick quickwidgets x11extras
-
+QT       += core gui
+#QT       += core gui network sql xml concurrent qml quick quickwidgets svg
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -10,6 +10,7 @@ INCLUDEPATH += /opt/QtFluentWidgets/include/Fluent
 LIBS += -L/opt/QtFluentWidgets/lib -lQtFluentWidgets
 
 VERSION = 1.0.0
+DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 DEFINES += SQZNAME=\\\"Sqz\\\"
 CONFIG(debug,debug|release){
     #debug专属配置

@@ -1,4 +1,4 @@
-
+QT       +=  network
 HEADERS += \
     $$PWD/RadioLink.h \
     $$PWD/TcpClient.h \

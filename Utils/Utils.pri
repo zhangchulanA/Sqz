@@ -1,4 +1,4 @@
-
+QT       += svg concurrent
 
 HEADERS += \
     $$PWD/other/Async.h \
@@ -11,6 +11,7 @@ HEADERS += \
     $$PWD/other/PluginManager.h \
     $$PWD/other/PropertyAnimator.h \
     $$PWD/other/Random.h \
+    $$PWD/other/ResourceHub.h \
     $$PWD/other/SafeTimer.h \
     $$PWD/other/Singleton.h \
     $$PWD/other/ThreadPool.h \
@@ -37,6 +38,7 @@ SOURCES += \
     $$PWD/other/PluginManager.cpp \
     $$PWD/other/PropertyAnimator.cpp \
     $$PWD/other/Random.cpp \
+    $$PWD/other/ResourceHub.cpp \
     $$PWD/other/Singleton.cpp \
     $$PWD/other/ThreadPool.cpp \
     $$PWD/other/TimeoutKeeper.cpp \

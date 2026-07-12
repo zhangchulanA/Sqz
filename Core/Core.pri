@@ -1,3 +1,5 @@
+QT       += qml quick quickwidgets
+
 HEADERS += \
     $$PWD/SqzApplication.h \
     $$PWD/SqzBus.h \
