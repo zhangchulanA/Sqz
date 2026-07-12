@@ -43,8 +43,9 @@
 #include <functional>
 #include <QMetaObject>
 #include <QThread>
-
-class SqzBus : public QObject
+#include "SqzGlobal.h"
+namespace Sqz {
+class SQZ_FRAMEWORK_API SqzBus : public QObject
 {
     Q_OBJECT
 
@@ -250,5 +251,5 @@ private:
     QSet<QObject*>                      _blockedReceivers;    // 被临时屏蔽的对象，其回调不会被执行
     mutable QMutex                      _mutex;               // 线程安全锁
 };
-
+}
 #endif // SqzBus_H

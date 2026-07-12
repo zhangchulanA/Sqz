@@ -36,7 +36,7 @@
  * @endcode
  */
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API EventAggregator : public QObject
 {
     Q_OBJECT

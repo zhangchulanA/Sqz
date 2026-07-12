@@ -2,7 +2,7 @@
 #include <QThread>
 #include <QtConcurrent>
 
-namespace Sqz::Utils {
+namespace Sqz {
 // 全局单例（保留但不再用于实例获取，仅用于兼容可能的旧代码）
 ThreadPool* ThreadPool::m_instance = nullptr;
 

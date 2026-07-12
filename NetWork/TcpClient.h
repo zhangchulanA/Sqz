@@ -11,7 +11,7 @@
 #include <QTcpSocket>
 #include "SqzGlobal.h"
 
-namespace Sqz::NetWork {
+namespace Sqz {
 
 
 /**

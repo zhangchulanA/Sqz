@@ -5,7 +5,7 @@
 #include <QMutexLocker>
 #include "SqzGlobal.h"
 //        Q_GLOBAL_STATIC(OfflineASR,OfflineASR)
-namespace Sqz::Utils{
+namespace Sqz{
 template <typename T>
 class Singleton
 {

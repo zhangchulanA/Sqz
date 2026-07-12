@@ -10,7 +10,7 @@
 #include "Logger.h"
 
 
-namespace Sqz::Utils {
+namespace Sqz {
 Translator::Translator(QObject* parent)
     : QObject(parent)
     , m_uiLocked(false)

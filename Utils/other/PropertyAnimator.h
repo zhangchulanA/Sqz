@@ -9,10 +9,10 @@
 #include <QMetaProperty>
 #include "SqzGlobal.h"
 
-namespace Sqz::Utils {
+namespace Sqz {
 // 前向声明
-class AnimationBuilder;
-class AnimationGroupBuilder;
+class SQZ_FRAMEWORK_API AnimationBuilder;
+class SQZ_FRAMEWORK_API AnimationGroupBuilder;
 
 // ============================================================
 // 核心动画类：继承 QVariantAnimation，支持任意类型属性动画

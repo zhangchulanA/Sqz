@@ -23,6 +23,8 @@
 #include <functional>
 #include <stdexcept>
 #include "SqzGlobal.h"
+
+namespace Sqz {
 // 状态回调类型：无参数，无返回值
 using StateCallback = std::function<void()>;
 
@@ -258,5 +260,5 @@ private:
     QString                   m_initialState;
     QString                   m_currentState;
 };
-
+}
 #endif // STATE_MACHINE_H

@@ -5,7 +5,7 @@
 #include <QNetworkDatagram>
 #include <QTimer>
 
-namespace Sqz::NetWork {
+namespace Sqz {
 UdpSocket::UdpSocket(QObject *parent)
     : QObject(parent)
 {

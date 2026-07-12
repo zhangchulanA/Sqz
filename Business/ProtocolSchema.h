@@ -37,6 +37,10 @@
 #include <QString>
 #include <QVector>
 #include "SqzGlobal.h"
+
+namespace Sqz {
+
+
 class SQZ_FRAMEWORK_API ProtocolSchema
 {
 public:
@@ -168,5 +172,5 @@ private:
         return field.startByte * 8 + field.startBit;
     }
 };
-
+}
 #endif // PROTOCOLSCHEMA_H

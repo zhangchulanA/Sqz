@@ -13,10 +13,12 @@
 #include "SqzProp.h"
 #include "QQmlEngine"
 #include "QtQuick/QQuickView"
+#include "SqzGlobal.h"
 
+namespace Sqz {
 // 辅助宏：拼接模块前缀和类名
 #define MAKE_FULL_NAME(Cls) \
-    (QString(MODULE_PREFIX).isEmpty() ? QString(#Cls) : QString(MODULE_PREFIX) + "::" + #Cls)
+    (QString(SQZNAME).isEmpty() ? QString(#Cls) : QString(SQZNAME) + "::" + #Cls)
 
 /** @brief 全局读写锁（线程安全，避免静态初始化顺序问题） */
 inline QReadWriteLock& GetFactoryLock()
@@ -26,7 +28,7 @@ inline QReadWriteLock& GetFactoryLock()
 }
 
 /** @brief 类元数据：存储创建/销毁函数及类型信息 */
-struct ClassMeta
+struct SQZ_FRAMEWORK_API ClassMeta
 {
     std::function<void*()> creator;              ///< 创建函数
     std::function<void(void* ptr)> deleter;      ///< 销毁函数
@@ -39,9 +41,9 @@ using CreatorWithArg = std::function<void*(const QVariantList& args)>;
 /**
  * @brief 通用单例工厂，通过类名字符串创建/管理 QWidget、QObject、QML 对象。
  *        支持线程前缀隔离，读写锁保证线程安全。
- *  pro : DEFINES += MODULE_PREFIX=\\\"Sqz\\\"
+ *  pro : DEFINES += SQZNAME=\\\"Sqz\\\"
  */
-class SqzHub : public SqzProp
+class SQZ_FRAMEWORK_API SqzHub : public QObject
 {
     Q_OBJECT
     friend class SqzQuick;
@@ -284,5 +286,5 @@ private:
     FORCE_LINK_THIS(_reg_flag_arg_##Cls) static bool _reg_flag_arg_##Cls = (_auto_reg_arg_##Cls(), true);
 
 #define SqzIn   SqzHub::Instance()
-
+}
 #endif // SqzHub_H

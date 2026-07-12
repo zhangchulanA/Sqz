@@ -37,7 +37,7 @@
 #include <QTransform>
 #include "SqzGlobal.h"
 
-namespace Sqz::Utils {
+namespace Sqz {
 // 弹窗提示类型
 enum class SQZ_FRAMEWORK_API TipType
 {

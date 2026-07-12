@@ -8,7 +8,7 @@
 #include <QUdpSocket>
 #include "SqzGlobal.h"
 
-namespace Sqz::NetWork {
+namespace Sqz {
 class SQZ_FRAMEWORK_API UdpServer : public QObject
 {
     Q_OBJECT

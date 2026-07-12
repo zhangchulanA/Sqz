@@ -1,7 +1,7 @@
 #include "TimeoutKeeper.h"
 #include <QDebug>
 
-namespace Sqz::Utils {
+namespace Sqz {
 TimeoutKeeper::TimeoutKeeper(QObject *parent)
     : QObject(parent)
     , m_defaultTimeoutMs(5000)

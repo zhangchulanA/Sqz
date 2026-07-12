@@ -5,7 +5,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
-namespace Sqz::Database{
+namespace Sqz{
 // ==================== 静态成员初始化 ====================
 QMap<QString, SqzDbMgr*> SqzDbMgr::s_instances;
 QMutex SqzDbMgr::s_instanceMutex;

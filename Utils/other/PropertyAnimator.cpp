@@ -9,7 +9,7 @@
 // ============================================================
 // PropertyAnimator 实现
 // ============================================================
-namespace Sqz::Utils {
+namespace Sqz {
 /** 构造函数：初始化成员变量，连接 finished 信号到内部槽 */
 PropertyAnimator::PropertyAnimator(QObject* target, QObject* parent)
     : QVariantAnimation(parent)

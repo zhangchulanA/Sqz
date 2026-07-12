@@ -57,7 +57,7 @@
 #include <QDebug>
 #include "SqzGlobal.h"
 
-namespace Sqz::Database{
+namespace Sqz{
 
 class SQZ_FRAMEWORK_API SqzDbMgr;
 

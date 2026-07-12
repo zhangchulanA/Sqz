@@ -21,7 +21,7 @@
  * @warning 禁止拷贝对象，请使用指针或引用传递
  */
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API IniUtils
 {
 public:

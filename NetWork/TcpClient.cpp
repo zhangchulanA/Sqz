@@ -8,7 +8,7 @@
 #include <QDateTime>
 #include <QThread>
 
-namespace Sqz::NetWork {
+namespace Sqz {
 TcpClientWorker::TcpClientWorker(QObject *parent)
     : QObject(parent)
 {

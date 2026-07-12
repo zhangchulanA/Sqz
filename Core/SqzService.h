@@ -11,8 +11,10 @@
  */
 #include <QObject>
 #include "SqzHub.h"
+#include "SqzGlobal.h"
 
-class SqzService : public QObject
+namespace Sqz {
+class SQZ_FRAMEWORK_API SqzService : public QObject
 {
     Q_OBJECT
     friend class SqzHub;
@@ -22,28 +24,28 @@ public:
 
     // ========== 通用单例操作（与 SqzView 同名但后缀为 Service） ==========
 
-    /// @brief 呼叫服务（创建并激活服务实例）
-    void CallService(const QString& className);
+    /// @brief 打开服务（不存在则创建，存在则激活）
+    void OpenService(const QString& className);
 
-    /// @brief 杀掉服务（立即销毁指定实例）
-    void KillService(const QString& className);
+    /// @brief 关闭服务（立即销毁）
+    void CloseService(const QString& className);
 
-    /// @brief 延迟杀掉服务（下一事件循环安全销毁，推荐使用）
-    void KillServiceLater(const QString& className);
+    /// @brief 延迟关闭服务（下一事件循环安全销毁，推荐使用）
+    void CloseServiceLater(const QString& className);
 
-    /// @brief 重启服务（销毁后重新创建实例）
-    void RebootService(const QString& className);
+    /// @brief 重启服务（关闭后重新打开）
+    void RestartService(const QString& className);
 
-    /// @brief 是否有服务（检查指定实例是否存在）
+    /// @brief 检查服务是否存在
     bool HasService(const QString& className) const;
 
     // ========== 快捷操作（操作自身） ==========
 
     /// @brief 呼叫自身服务
-    void CallSelfService();
+    void OpenThis();
 
     /// @brief 杀掉自身服务
-    void KillSelfService();
+    void CloseThis();
 protected:
     /**
      * 生命周期回调（由 SqzHub 调用）
@@ -62,5 +64,5 @@ protected:
     /// @brief 获取qml路径（必须实现）
     virtual QString qmlSource() const = 0;
 };
-
+}
 #endif // SqzService_H

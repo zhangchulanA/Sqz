@@ -7,7 +7,7 @@
 #include <QMetaType>
 
 Q_DECLARE_METATYPE(QHostAddress)
-namespace Sqz::NetWork {
+namespace Sqz {
 
 
 UdpServer::UdpServer()

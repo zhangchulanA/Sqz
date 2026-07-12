@@ -16,7 +16,7 @@
 
 #define llog (qDebug()<<"["<<__LINE__<<__FUNCTION__<<"]")
 
-namespace Sqz::Config {
+namespace Sqz {
 
 
 inline QString LogData(const QByteArray& data){

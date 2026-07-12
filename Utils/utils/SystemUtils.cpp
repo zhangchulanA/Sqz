@@ -28,7 +28,7 @@
 // 程序路径
 //=============================================================================
 
-namespace Sqz::Utils {
+namespace Sqz {
 QString SystemUtils::appDirPath()
 {
     return QCoreApplication::applicationDirPath();

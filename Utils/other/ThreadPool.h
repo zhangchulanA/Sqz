@@ -84,7 +84,7 @@
  */
 
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API ThreadPool : public QObject
 {
     Q_OBJECT

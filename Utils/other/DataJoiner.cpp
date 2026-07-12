@@ -5,7 +5,7 @@
 #include <QMap>
 #include <QDebug>
 
-namespace Sqz::Utils {
+namespace Sqz {
 
 // ==================== 内部数据结构 ====================
 
@@ -16,8 +16,8 @@ struct Task {
     QTimer* timer;                     // 超时定时器
     bool isReady = false;
 
-    Sqz::Utils::ReadyCallback onReady;
-    Sqz::Utils::TimeoutCallback onTimeout;
+    Sqz::ReadyCallback onReady;
+    Sqz::TimeoutCallback onTimeout;
 
     Task(int _id, int count) : id(_id), expectedCount(count) {
         timer = new QTimer();

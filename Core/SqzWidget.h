@@ -12,8 +12,10 @@
  */
 #include <QWidget>
 #include "SqzHub.h"
+#include "SqzGlobal.h"
 
-class SqzWidget : public QWidget
+namespace  Sqz {
+class SQZ_FRAMEWORK_API SqzWidget : public QWidget
 {
     Q_OBJECT
     friend class SqzHub;
@@ -24,57 +26,50 @@ public:
 
     // ========== 通用单例操作（与 SqzWidget/SqzService 同名） ==========
 
-    /// @brief 呼叫视图（创建并激活窗口/服务实例）
-    void CallView(const QString& className);
+    /// @brief 打开视图（不存在则创建，存在则激活）
+    void OpenView(const QString& className);
 
-    /// @brief 杀掉视图（立即销毁指定实例）
-    void KillView(const QString& className);
+    /// @brief 关闭视图（立即销毁）
+    void CloseView(const QString& className);
 
-    /// @brief 延迟杀掉视图（下一事件循环安全销毁）
-    void KillViewLater(const QString& className);
+    /// @brief 延迟关闭视图（下一事件循环安全销毁）
+    void CloseViewLater(const QString& className);
 
-    /// @brief 重启视图（销毁后重新创建实例）
-    void RebootView(const QString& className);
+    /// @brief 重启视图（关闭后重新打开）
+    void RestartView(const QString& className);
 
-    /// @brief 是否有视图（检查指定实例是否存在）
+    /// @brief 检查视图是否存在
     bool HasView(const QString& className) const;
 
-    // ========== 窗口专属操作 ==========
+    // ========== 视图显隐/位置操作 ==========
 
-    /// @brief 停放视图（隐藏窗口但不销毁）
-    void ParkView(const QString& className);
+    /// @brief 隐藏视图（不销毁）
+    void HideView(const QString& className);
 
-    /// @brief 弹出视图（显示窗口并提升到最前）
-    void PopView(const QString& className);
+    /// @brief 显示视图（并提升到最前）
+    void ShowView(const QString& className);
 
-    /// @brief 翻转视图（切换窗口的显示/隐藏状态）
-    void FlipView(const QString& className);
+    /// @brief 切换视图显隐状态
+    void ToggleView(const QString& className);
 
-    /// @brief 视图是否上线（检查窗口是否可见）
-    bool IsViewUp(const QString& className) const;
+    /// @brief 视图是否可见
+    bool IsViewVisible(const QString& className) const;
 
-    /// @brief 固定视图（设置窗口置顶或取消置顶）
-    void PinView(const QString& className, bool topMost);
+    /// @brief 设置视图置顶
+    void SetViewTopMost(const QString& className, bool topMost);
 
-    /// @brief 缩放视图（调整窗口大小）
-    void ScaleView(const QString& className, int w, int h);
+    /// @brief 调整视图大小
+    void ResizeView(const QString& className, int w, int h);
 
-    /// @brief 移动视图（调整窗口位置）
+    /// @brief 移动视图位置
     void MoveView(const QString& className, int x, int y);
 
     // ========== 快捷操作（操作自身） ==========
 
-    /// @brief 呼叫自身视图
-    void CallSelfView();
-
-    /// @brief 杀掉自身视图
-    void KillSelfView();
-
-    /// @brief 停放自身视图
-    void ParkSelfView();
-
-    /// @brief 弹出自身视图
-    void PopSelfView();
+    void OpenThis();      // 打开自身
+    void CloseThis();     // 关闭自身
+    void HideThis();      // 隐藏自身
+    void ShowThis();      // 显示自身
 
 protected:
     /**
@@ -92,5 +87,5 @@ protected:
     virtual QString className() const = 0;
 
 };
-
+}
 #endif // SqzWidget_H

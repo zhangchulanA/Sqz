@@ -16,8 +16,8 @@
  * 4. 支持按业务名卸载、查询
  */
 
-namespace Sqz::Utils {
-using namespace Sqz::Utils;
+namespace Sqz {
+using namespace Sqz;
 class SQZ_FRAMEWORK_API PluginManager : public QObject
 {
     Q_OBJECT

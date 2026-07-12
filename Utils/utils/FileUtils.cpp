@@ -10,7 +10,7 @@
 #include <QStack>
 
 // ========================== 创建 ==========================
-namespace Sqz::Utils {
+namespace Sqz {
 bool FileUtils::createFile(const QString &filePath)
 {
     if (isFileExist(filePath)) {

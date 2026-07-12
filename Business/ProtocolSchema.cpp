@@ -5,6 +5,7 @@
 #include <limits>
 #include <cmath>
 
+namespace Sqz {
 // ==================== 辅助静态函数 ====================
 static inline quint64 maskBits(int bitLength) {
     return (bitLength == 64) ? ~0ULL : (1ULL << bitLength) - 1;
@@ -544,4 +545,5 @@ QByteArray ProtocolSchema::packToArray(const QJsonObject& values, QString* error
     QByteArray result;
     if (!pack(values, result, errorMsg)) result.clear();
     return result;
+}
 }

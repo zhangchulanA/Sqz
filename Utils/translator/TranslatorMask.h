@@ -9,7 +9,7 @@
 #include "SqzGlobal.h"
 
 
-namespace Sqz::Utils {
+namespace Sqz {
 /**
  * @brief 全局轻量半透明遮罩（多屏兼容版）
  * 作用：语言切换过渡防闪烁/防撕裂，支持手动开关

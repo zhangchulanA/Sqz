@@ -2,23 +2,23 @@
 #include "SqzQuick.h"
 
 #include <QQmlComponent>
-
+namespace Sqz {
 SqzQuick::SqzQuick(QObject* parent) : QObject(parent) {}
 SqzQuick::~SqzQuick() {
 
 }
 
 // ---------- 通用单例操作 ----------
-void SqzQuick::CallView(const QString& className) {
+void SqzQuick::OpenView(const QString& className) {
     SqzHub::Instance().CreateQuick(className);
 }
-void SqzQuick::KillView(const QString& className) {
+void SqzQuick::CloseView(const QString& className) {
     SqzHub::Instance().CloseObj(className);
 }
-void SqzQuick::KillViewLater(const QString& className) {
+void SqzQuick::CloseViewLater(const QString& className) {
     SqzHub::Instance().CloseObjLater(className);
 }
-void SqzQuick::RebootView(const QString& className) {
+void SqzQuick::RestartView(const QString& className) {
     SqzHub::Instance().ResetObj(className);
 }
 bool SqzQuick::HasView(const QString& className) const {
@@ -26,27 +26,27 @@ bool SqzQuick::HasView(const QString& className) const {
 }
 
 // ---------- 窗口专属操作 ----------
-void SqzQuick::ParkView(const QString& className) {
+void SqzQuick::HideView(const QString& className) {
     SqzHub::Instance().HideQuick(className);
 }
 
-void SqzQuick::PopView(const QString& className) {
+void SqzQuick::ShowView(const QString& className) {
     SqzHub::Instance().ShowQuick(className);
 }
 
-void SqzQuick::FlipView(const QString& className) {
+void SqzQuick::ToggleView(const QString& className) {
     SqzHub::Instance().ToggleQuick(className);
 }
 
-bool SqzQuick::IsViewUp(const QString& className) const {
+bool SqzQuick::IsViewVisible(const QString& className) const {
     return SqzHub::Instance().IsQuickVisible(className);
 }
 
-void SqzQuick::PinView(const QString& className, bool topMost) {
+void SqzQuick::SetViewTopMost(const QString& className, bool topMost) {
     SqzHub::Instance().SetQuickTop(className, topMost);
 }
 
-void SqzQuick::ScaleView(const QString& className, int w, int h) {
+void SqzQuick::ResizeView(const QString& className, int w, int h) {
     SqzHub::Instance().SetQuickSize(className, w, h);
 }
 
@@ -55,11 +55,10 @@ void SqzQuick::MoveView(const QString& className, int x, int y) {
 }
 
 // ---------- 快捷操作 ----------
-void SqzQuick::CallSelfView() { CallView(className()); }
-void SqzQuick::KillSelfView() { KillView(className()); }
-void SqzQuick::ParkSelfView() { ParkView(className()); }
-void SqzQuick::PopSelfView()  { PopView(className()); }
-
+void SqzQuick::OpenThis() { OpenView(className()); }
+void SqzQuick::CloseThis() { CloseView(className()); }
+void SqzQuick::HideThis() { HideView(className()); }
+void SqzQuick::ShowThis()  { ShowView(className()); }
 
 void SqzQuick::initializeView()
 {
@@ -96,4 +95,5 @@ void SqzQuick::initializeView()
     m_initialized = true;
 
     onInit();
+}
 }

@@ -1,6 +1,6 @@
 #include "SqzState.h"
 #include <QDebug>
-
+namespace Sqz {
 // ==================== 单例 ====================
 SqzState* SqzState::Instance() {
     static SqzState instance;
@@ -193,4 +193,5 @@ void SqzState::Notify(const QString& key, const QVariant& value, const QString& 
             w.Callback(value);
         }
     }
+}
 }

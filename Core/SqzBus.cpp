@@ -3,6 +3,7 @@
 // ==============================
 // 单例实现
 // ==============================
+namespace Sqz {
 SqzBus *SqzBus::instance()
 {
     static SqzBus s_bus;
@@ -285,4 +286,5 @@ void SqzBus::onReceiverDestroyed(QObject *obj)
         else
             ++it;
     }
+}
 }

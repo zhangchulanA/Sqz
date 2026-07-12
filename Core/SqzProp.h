@@ -20,10 +20,11 @@
 #include <QMetaProperty>
 #include "Logger.h"
 #include "RF.h"
+#include "SqzGlobal.h"
 
-class SqzHub;
+namespace Sqz {
 
-class SqzProp : public QObject
+class SQZ_FRAMEWORK_API SqzProp : public QObject
 {
     Q_OBJECT
     friend class SqzHub;
@@ -63,3 +64,4 @@ private:
     mutable QReadWriteLock m_lock;                     // 保护对象池
     QHash<QObject*, QPointer<QObject>> m_objects;      // 对象池（QPointer自动失效）
 };
+}

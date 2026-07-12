@@ -15,7 +15,7 @@
 #include "SqzGlobal.h"
 
 
-namespace Sqz::Utils {
+namespace Sqz {
 /**
  * @brief 工业级翻译管理单例（优化版：多屏、线程安全、懒加载、锁粒度细、自动注销）
  */

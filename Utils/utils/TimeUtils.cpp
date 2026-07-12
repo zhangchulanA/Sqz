@@ -4,7 +4,7 @@
 // 1. 当前时间
 // ==============================
 
-namespace Sqz::Utils {
+namespace Sqz {
 QString TimeUtils::currentDateTime()
 {
     return QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");

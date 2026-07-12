@@ -22,7 +22,7 @@
  * @note 纯静态类，禁止实例化
  */
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API JsonUtils
 {
 public:

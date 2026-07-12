@@ -5,10 +5,10 @@
 #include "SqzService.h"
 #include "SqzQuick.h"
 #include "SqzMainWindow.h"
-
+namespace Sqz {
 thread_local QString SqzHub::t_prefix;
 // 构造函数
-SqzHub::SqzHub(QObject *parent) : SqzProp(parent)
+SqzHub::SqzHub(QObject *parent) : QObject(parent)
 {
 
 }
@@ -28,7 +28,7 @@ SqzHub::~SqzHub()
     }
     for (int i = 0; i < deleteList.size(); ++i) {
         QObject* obj = static_cast<QObject*>(deleteList[i]);
-        UnReg(obj);
+//        UnReg(obj);
         if (obj) {
             if (auto* view = qobject_cast<SqzWidget*>(obj))
                 view->onClose();
@@ -41,7 +41,7 @@ SqzHub::~SqzHub()
         }
         SafeDelete(deleteList[i], metaList[i].isQObject, true);
     }
-    m_objects.clear(); // SqzProp 的跟踪容器清理
+//    m_objects.clear(); // SqzProp 的跟踪容器清理
 }
 
 ClassMeta SqzHub::getMetaForClass(const QString &fullname)
@@ -71,7 +71,7 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
             if (isWidget) {
                 QWidget* w = static_cast<QWidget*>(existing);
                 w->show(); w->raise(); w->activateWindow();
-                Reg(static_cast<QObject*>(existing)); // 确保已注册（内部有去重）
+//                Reg(static_cast<QObject*>(existing)); // 确保已注册（内部有去重）
             }
             return existing;
         }
@@ -114,7 +114,7 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
             if (isWidget) {
                 QWidget* w = static_cast<QWidget*>(existing);
                 w->show(); w->raise(); w->activateWindow();
-                Reg(static_cast<QObject*>(existing));
+//                Reg(static_cast<QObject*>(existing));
             }
             return existing;
         }
@@ -132,7 +132,7 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
         });
 
         // 8. 注册到 SqzProp 的对象跟踪
-        Reg(static_cast<QObject*>(raw));
+//        Reg(static_cast<QObject*>(raw));
         // 9.新增：调用 onInit
         if (auto* view = qobject_cast<SqzWidget*>(obj))
             view->onInit();
@@ -266,7 +266,7 @@ QObject *SqzHub::CreateQuick(const QString &ClassName)
             QMetaObject::invokeMethod(obj, "show");
             QMetaObject::invokeMethod(obj, "raise");
             QMetaObject::invokeMethod(obj, "requestActivate");
-            Reg(obj);
+//            Reg(obj);
             return obj;
         }
     }
@@ -309,7 +309,7 @@ QObject *SqzHub::CreateQuick(const QString &ClassName)
             view->window()->raise();
             view->window()->requestActivate();
         }
-        Reg(qmlObj);
+//        Reg(qmlObj);
         return qmlObj;
     }
     m_singlePool[fullname] = raw;
@@ -320,7 +320,7 @@ QObject *SqzHub::CreateQuick(const QString &ClassName)
         m_singlePool.remove(fullname);
     });
 
-    Reg(qmlObj);
+//    Reg(qmlObj);
 
     // 显示窗口
     if (view->window()) {
@@ -356,7 +356,7 @@ QWidget *SqzHub::CreateWidgetWithArg(const QString &ClassName, const QVariantLis
         if (m_singlePool.contains(fullname)) {
             QWidget* w = static_cast<QWidget*>(m_singlePool[fullname]);
             w->show(); w->raise(); w->activateWindow();
-            Reg(w);
+//            Reg(w);
             return w;
         }
     }
@@ -396,7 +396,7 @@ QWidget *SqzHub::CreateWidgetWithArg(const QString &ClassName, const QVariantLis
             widget->deleteLater(); // 丢弃新对象
             QWidget* existing = static_cast<QWidget*>(m_singlePool[fullname]);
             existing->show(); existing->raise(); existing->activateWindow();
-            Reg(existing);
+//            Reg(existing);
             return existing;
         }
         m_singlePool[fullname] = widget;
@@ -408,7 +408,7 @@ QWidget *SqzHub::CreateWidgetWithArg(const QString &ClassName, const QVariantLis
         m_singlePool.remove(fullname);
     });
 
-    Reg(widget);
+//    Reg(widget);
     widget->show(); widget->raise(); widget->activateWindow();
     return widget;
 }
@@ -458,7 +458,7 @@ QObject *SqzHub::CreateObjectWithArg(const QString &ClassName, const QVariantLis
         m_singlePool.remove(fullname);
     });
 
-    Reg(obj);
+//    Reg(obj);
     return obj;
 }
 
@@ -485,7 +485,7 @@ void SqzHub::CloseObj(const QString& ClassName)
     }
 
     QObject* obj = static_cast<QObject*>(ptr);
-    UnReg(obj);
+//    UnReg(obj);
     // ---------- 调用 onBeforeClose ----------
     if (obj) {
         if (auto* view = qobject_cast<SqzWidget*>(obj))
@@ -895,7 +895,7 @@ void SqzHub::CloseAll()
     }
     for (int i = 0; i < deleteList.size(); ++i) {
         QObject* obj = static_cast<QObject*>(deleteList[i]);
-        UnReg(obj);   // 先注销，避免后续访问
+//        UnReg(obj);   // 先注销，避免后续访问
         // ---------- 调用 onBeforeClose ----------
         if (obj) {
             if (auto* view = qobject_cast<SqzWidget*>(obj))
@@ -910,7 +910,7 @@ void SqzHub::CloseAll()
         // 强制立即删除
         SafeDelete(deleteList[i], metaList[i].isQObject, true);
     }
-    m_objects.clear(); // 清理 SqzProp 的跟踪容器（已无有效对象）
+//    m_objects.clear(); // 清理 SqzProp 的跟踪容器（已无有效对象）
 }
 
 // 清空注册表
@@ -957,4 +957,5 @@ SqzHub::PrefixScope::PrefixScope(const QString &prefix) : m_oldPrefix(t_prefix)
 SqzHub::PrefixScope::~PrefixScope()
 {
     t_prefix = m_oldPrefix;
+}
 }

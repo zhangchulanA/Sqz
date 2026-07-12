@@ -27,7 +27,7 @@
  */
 
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API TimeoutKeeper : public QObject , public Singleton<TimeoutKeeper>
 {
     Q_OBJECT

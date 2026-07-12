@@ -6,7 +6,7 @@
 #include <QUrl>
 
 
-namespace Sqz::Utils {
+namespace Sqz {
 // 静态成员初始化
 QString JsonUtils::m_lastError = "";
 QMutex JsonUtils::m_errorMutex;

@@ -25,7 +25,7 @@
  * @note 所有静态方法，线程安全，无需实例化
  */
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API TimeUtils
 {
 public:

@@ -9,11 +9,14 @@
 #include <QTimer>
 #include <QSet>
 #include <functional>
+#include "SqzGlobal.h"
 
 /* ============================================================
    数据包裹结构体：存储值 + 时间戳 + 来源 + 有效性
    ============================================================ */
-struct DataItem {
+
+namespace Sqz {
+struct SQZ_FRAMEWORK_API DataItem {
     QVariant Value;          // 存储任意类型数据
     QDateTime Timestamp;     // 存入时间（自动生成）
     QString Source;          // 数据来源（如 "COM1", "计算模块"）
@@ -37,7 +40,7 @@ struct DataItem {
 /* ============================================================
    SqzState 主类：全局数据中心，线程安全
    ============================================================ */
-class SqzState : public QObject {
+class SQZ_FRAMEWORK_API SqzState : public QObject {
     Q_OBJECT
 public:
     // 单例
@@ -106,5 +109,5 @@ private:
 };
 
 #define SqzStateIns SqzState::Instance()
-
+}
 #endif // SQZSTATE_H

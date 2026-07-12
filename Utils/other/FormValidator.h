@@ -11,7 +11,7 @@
 #include <functional>
 #include "SqzGlobal.h"
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API FormValidator;
 
 /**

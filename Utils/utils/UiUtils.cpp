@@ -10,7 +10,7 @@
 #include <QFileDialog>
 #include <QDateTime>
 
-namespace Sqz::Utils {
+namespace Sqz {
 // ===================== ToastWidget 实现 =====================
 ToastWidget::ToastWidget(const QString &msg, TipType type, ToastPos pos, int showMs)
     : QWidget(nullptr, Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool),

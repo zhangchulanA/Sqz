@@ -15,7 +15,7 @@
 
 #include "SqzGlobal.h"
 
-namespace Sqz::Utils {
+namespace Sqz {
 
 // ---------- 前置声明 ----------
 template <typename T>
@@ -636,7 +636,7 @@ private:
     int                   m_timeoutMs;
 };
 
-} // namespace Sqz::Utils
+} // namespace Sqz
 
 // ============================================================================
 // 使用示例（注释掉，编译时取消注释即可测试）
@@ -647,7 +647,7 @@ private:
 #include <QDebug>
 #include <QThread>
 
-using namespace Sqz::Utils;
+using namespace Sqz;
 
 int main(int argc, char *argv[])
 {

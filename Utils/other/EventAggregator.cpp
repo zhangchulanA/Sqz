@@ -1,5 +1,5 @@
 #include "EventAggregator.h"
-namespace Sqz::Utils {
+namespace Sqz {
 void EventAggregator::clear(QObject* sender)
 {
     if (!sender) {

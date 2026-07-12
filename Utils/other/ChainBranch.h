@@ -28,7 +28,7 @@
  *          3. 所有分支命中后自动短路，不会重复执行
  */
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API ChainBranch
 {
 public:

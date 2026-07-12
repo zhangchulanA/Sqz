@@ -23,7 +23,7 @@
    6. 凑齐后自动触发 OnReady，任务自动销毁
    ============================================================ */
 
-namespace Sqz::Utils {
+namespace Sqz {
 
 // 回调函数类型
 using ReadyCallback = std::function<void(const QMap<QString, QVariant>&)>;
@@ -71,6 +71,6 @@ SQZ_FRAMEWORK_API int ActiveCount();
 // 重置所有任务（清空全部状态，慎用）
 SQZ_FRAMEWORK_API void ResetAll();
 
-} // namespace Sqz::Utils
+} // namespace Sqz
 
 #endif // DATAJOINER_H

@@ -5,7 +5,7 @@
  *
  * Qt 推荐使用 QRandomGenerator::global()
  */
-namespace Sqz::Utils {
+namespace Sqz {
 QRandomGenerator *Random::rng()
 {
     return QRandomGenerator::global();

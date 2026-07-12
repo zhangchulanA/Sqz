@@ -27,7 +27,7 @@
    }
    ------------------------------------------------------------
    ============================================================ */
-namespace Sqz::Utils {
+namespace Sqz {
 template<typename T>
 class  ObjectPool {
 public:

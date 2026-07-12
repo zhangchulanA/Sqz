@@ -16,7 +16,7 @@
  * @note 适用于 Qt 5.12.9+
  */
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API FileUtils
 {
 public:

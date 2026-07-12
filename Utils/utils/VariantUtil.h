@@ -5,7 +5,7 @@
 #include <QDebug>
 #include "SqzGlobal.h"
 
-namespace Sqz::Utils
+namespace Sqz
 {
     // 安全转换，返回是否成功，输出参数接收结果
     template<typename T>

@@ -38,7 +38,7 @@
  * 如果不需要生命周期保护（即定时器始终触发，无论对象是否存在），
  * 可以将 context 参数设为 nullptr。
  */
-namespace Sqz::Utils {
+namespace Sqz {
 
 /**
  * @brief 单次定时器，带生命周期保护。
@@ -183,6 +183,6 @@ QMetaObject::Connection singleShot(int msec, const Receiver* receiver, Method me
     });
 }
 
-} // namespace Sqz::Utils
+} // namespace Sqz
 
 #endif // SAFETIMER_H

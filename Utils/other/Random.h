@@ -20,7 +20,7 @@
  *
  * 所有方法均为静态方法，直接使用即可
  */
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API Random
 {
 public:

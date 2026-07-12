@@ -10,7 +10,7 @@ INCLUDEPATH += /opt/QtFluentWidgets/include/Fluent
 LIBS += -L/opt/QtFluentWidgets/lib -lQtFluentWidgets
 
 VERSION = 1.0.0
-DEFINES += MODULE_PREFIX=\\\"Sqz\\\"
+DEFINES += SQZNAME=\\\"Sqz\\\"
 CONFIG(debug,debug|release){
     #debug专属配置
     TEMPLATE = app
@@ -59,14 +59,19 @@ include(Global/Global.pri)
 
 SOURCES += \
 #    TestWidget.cpp \
+#    RetransmitManager.cpp \
+    SqzTest.cpp \
     main.cpp
 
 HEADERS += \
-#    TestWidget.h
+#    RetransmitManager.h \
+ \#    TestWidget.h
+    SqzTest.h
 
 FORMS += \
 #    MainWindowTest.ui \
-#    TestWidget.ui
+ \#    TestWidget.ui
+    SqzTest.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -89,8 +94,7 @@ unix {
     # QMAKE_CXXFLAGS += -finput-charset=UTF-8 -fexec-charset=UTF-8
 }
 
-RESOURCES += \
-    QML.qrc
+RESOURCES +=
 
 
 DISTFILES += \

@@ -13,7 +13,7 @@
 // 1. 空值与空白处理
 // =============================
 
-namespace Sqz::Utils {
+namespace Sqz {
 bool StringUtils::isEmpty(const QString &str)
 {
     return str.isEmpty();

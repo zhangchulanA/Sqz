@@ -3,7 +3,7 @@
 #include <QDateTime>
 #include "RF.h"
 #include "Logger.h"
-using namespace Sqz::Config;
+using namespace Sqz;
 int RadioLink::MAX_RETRY_COUNT = 5;
 
 RadioLink::RadioLink(QObject *parent)

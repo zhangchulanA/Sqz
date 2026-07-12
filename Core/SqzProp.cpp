@@ -1,7 +1,7 @@
 // SqzProp.cpp
 #include "SqzProp.h"
 #include <QDebug>
-
+namespace Sqz {
 // ==================== 构造/析构 ====================
 
 SqzProp::SqzProp(QObject* parent) : QObject(parent) {}
@@ -101,4 +101,5 @@ void SqzProp::Dump() const
         for (auto pit = propMap.begin(); pit != propMap.end(); ++pit)
             logdebug << "    " << pit.key() << ":" << pit.value();
     }
+}
 }

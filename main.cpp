@@ -21,24 +21,16 @@
 #include "RadioLink.h"
 #include "SqzState.h"
 #include <QAbstractNativeEventFilter>
-#include <QX11Info>
-using namespace std::chrono_literals;
+#include <SqzApplication.h>
 
-
+using namespace Sqz;
 
 int main(int argc, char *argv[])
 {
 
-    QApplication a(argc, argv);
-    Logger::instance().init("./log","chatlog",10,true);
-    SqzHub::SetThreadPrefix(MODULE_PREFIX);
-    SqzIn.PrintRegClass();
-//        Sqz.CreateWidget("TestWidget");
-//    Sqz.CreateWidget("SqzViewTest");
+    SqzApplication a(argc,argv);
 
-//    Sqz.CreateQmlWidget("LoginWindow");
-//    Sqz.CreateWidget("MainWindowTest");
-
+    a.SetMainWidget("SqzTest");
 
     // 运行事件循环
     int ret = a.exec();

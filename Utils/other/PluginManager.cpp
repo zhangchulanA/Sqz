@@ -3,7 +3,7 @@
 #include <QFileInfo>
 #include <QDebug>
 
-namespace Sqz::Utils {
+namespace Sqz {
 PluginManager& PluginManager::GetInstance()
 {
     static PluginManager ins;

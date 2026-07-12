@@ -13,7 +13,7 @@
  * 支持发送进度、取消发送。
  */
 
-namespace Sqz::NetWork {
+namespace Sqz {
 class SQZ_FRAMEWORK_API UdpSocket : public QObject
 {
     Q_OBJECT

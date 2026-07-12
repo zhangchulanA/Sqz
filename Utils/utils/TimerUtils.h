@@ -44,7 +44,7 @@
  * @note 使用前引入 using namespace std::chrono_literals; 时间可以写成 2s
  */
 
-namespace Sqz::Utils {
+namespace Sqz {
 class SQZ_FRAMEWORK_API TimerUtils : public QObject
 {
     Q_OBJECT

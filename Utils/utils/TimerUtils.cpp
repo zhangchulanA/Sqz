@@ -5,7 +5,7 @@
 // 构造与析构
 // ═══════════════════════════════════════════════════════════════
 
-namespace Sqz::Utils {
+namespace Sqz {
 TimerUtils::TimerUtils(QObject *parent)
     : QObject(parent)
     , m_timer(new QTimer(this))
