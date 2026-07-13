@@ -11,7 +11,7 @@ LIBS += -L/opt/QtFluentWidgets/lib -lQtFluentWidgets
 
 VERSION = 1.0.0
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
-DEFINES += SQZNAME=\\\"Sqz\\\"
+DEFINES += SQZ_Prefix=\\\"Sqz\\\"
 CONFIG(debug,debug|release){
     #debug专属配置
     TEMPLATE = app

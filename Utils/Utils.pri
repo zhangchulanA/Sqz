@@ -13,6 +13,7 @@ HEADERS += \
     $$PWD/other/Random.h \
     $$PWD/other/ResourceHub.h \
     $$PWD/other/SafeTimer.h \
+    $$PWD/other/ShortcutManager.h \
     $$PWD/other/Singleton.h \
     $$PWD/other/ThreadPool.h \
     $$PWD/other/TimeoutKeeper.h \
@@ -39,6 +40,7 @@ SOURCES += \
     $$PWD/other/PropertyAnimator.cpp \
     $$PWD/other/Random.cpp \
     $$PWD/other/ResourceHub.cpp \
+    $$PWD/other/ShortcutManager.cpp \
     $$PWD/other/Singleton.cpp \
     $$PWD/other/ThreadPool.cpp \
     $$PWD/other/TimeoutKeeper.cpp \

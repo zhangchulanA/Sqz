@@ -28,15 +28,9 @@ using namespace Sqz;
 int main(int argc, char *argv[])
 {
 
-    SqzApplication a(argc,argv);
+    SqzApplication a(argc,argv,"Sqz");
 
     a.SetMainWidget("SqzTest");
 
-    // 运行事件循环
-    int ret = a.exec();
-
-    // 程序退出前主动清理（可选）
-    SqzIn.CloseAll();
-
-    return  ret;
+    return  a.exec();
 }
