@@ -119,16 +119,13 @@ private:
     ~ShortcutManager();
 
     bool registerShortcutInternal(const ShortcutInfo& info);
-    void registerSingleKeyShortcut(const ShortcutInfo& info);
     void unregisterShortcut(const QString& id);
     bool parseKeySequence(const QString& keyStr, ShortcutInfo& info) const;
     bool isSingleKey(const QString& keyStr) const;
-    void setupEventFilter();
     bool detectConflict(const QKeySequence& key, const QString& excludeId) const;
-    bool eventFilter(QObject* obj, QEvent* event) override;
 
     // ============================================================
-    // ⭐ 关键修复：GlobalShortcutImpl 完整定义（放在 private 区域）
+    // GlobalShortcutImpl 定义
     // ============================================================
     class GlobalShortcutImpl : public QAbstractNativeEventFilter
     {
@@ -159,16 +156,13 @@ private:
     QMap<QString, ShortcutInfo> m_shortcuts;
     QSet<QString> m_disabledShortcuts;
     QMap<QString, QList<QString>> m_contextShortcuts;
-    QMap<int, QList<QString>> m_singleKeyMap;
     QString m_activeContext;
     QWidget* m_parentWindow = nullptr;
     bool m_allEnabled = true;
-    bool m_eventFilterInstalled = false;
 
-    // ⭐ 关键修复：使用原始指针，不是 unique_ptr
     GlobalShortcutImpl* m_globalImpl = nullptr;
 
     static ShortcutManager* s_instance;
 };
 
-} // namespace Sqz::Utils
+} // namespace Sqz

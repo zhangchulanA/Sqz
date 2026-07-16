@@ -34,8 +34,6 @@ RCC_DIR         = $$OUT_PWD/rcc
 UI_DIR          = $$OUT_PWD/ui
 
 #LIBS += -lasound
-LIBS += -lX11
-DEFINES += QT_X11EXTRAS_LIB
 INCLUDEPATH +=  $$PWD/Log \
                 $$PWD/Core \
                 $$PWD/Database \
@@ -44,7 +42,13 @@ INCLUDEPATH +=  $$PWD/Log \
                 $$PWD/Config \
                 $$PWD/NetWork \
                 $$PWD/Business \
-                $$PWD/Global
+                $$PWD/Global \
+                $$PWD/Net \
+                $$PWD/Net/Base \
+                $$PWD/Net/Channel \
+                $$PWD/Net/Core \
+                $$PWD/Net/Request \
+                $$PWD/Net/Server
 
 include(Business/Business.pri)
 include(Config/Config.pri)
@@ -57,6 +61,7 @@ include(Style/Style.pri)
 include(Utils/Utils.pri)
 include(NetWork/NetWork.pri)
 include(Global/Global.pri)
+include(Net/Net.pri)
 
 SOURCES += \
 #    TestWidget.cpp \

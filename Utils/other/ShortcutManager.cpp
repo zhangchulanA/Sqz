@@ -28,13 +28,12 @@ ShortcutManager* ShortcutManager::Instance()
 
 ShortcutManager::ShortcutManager(QObject* parent)
     : QObject(parent)
-    , m_globalImpl(new GlobalShortcutImpl(this))  // ⭐ 使用 new 创建
+    , m_globalImpl(new GlobalShortcutImpl(this))
 {
 }
 
 ShortcutManager::~ShortcutManager()
 {
-    // ⭐ 清理全局快捷键实现
     if (m_globalImpl) {
         delete m_globalImpl;
         m_globalImpl = nullptr;
@@ -279,9 +278,6 @@ QString ShortcutManager::MenuText(const QString& id) const
 ShortcutManager& ShortcutManager::SetParentWindow(QWidget* parent)
 {
     m_parentWindow = parent;
-    if (parent) {
-        setupEventFilter();
-    }
     return *this;
 }
 
@@ -374,33 +370,26 @@ QString ShortcutManager::KeyFriendlyName(Qt::Key key)
 
 bool ShortcutManager::registerShortcutInternal(const ShortcutInfo& info)
 {
-    if (info.isSingleKey) {
-        registerSingleKeyShortcut(info);
-        return true;
-    } else {
-        if (!m_parentWindow) {
-            qWarning() << "注册组合键需要先设置父窗口: SetParentWindow()";
-            return false;
-        }
-
-        auto* shortcut = new QShortcut(info.keySequence, m_parentWindow);
-        shortcut->setContext(Qt::ApplicationShortcut);
-
-        QObject::connect(shortcut, &QShortcut::activated, [this, info]() {
-            if (m_allEnabled && info.enabled) {
-                if (info.callback) info.callback();
-                emit shortcutTriggered(info.id);
-            }
-        });
-
-        m_shortcuts[info.id].shortcut = shortcut;
-        return true;
+    // ⭐ 方案一：统一使用 QShortcut 处理所有快捷键（包括单键）
+    if (!m_parentWindow) {
+        qWarning() << "注册快捷键需要先设置父窗口: SetParentWindow()";
+        return false;
     }
-}
 
-void ShortcutManager::registerSingleKeyShortcut(const ShortcutInfo& info)
-{
-    m_singleKeyMap[info.nativeKey].append(info.id);
+    auto* shortcut = new QShortcut(info.keySequence, m_parentWindow);
+    shortcut->setContext(Qt::ApplicationShortcut);  // 全局生效
+
+    QObject::connect(shortcut, &QShortcut::activated, [this, info]() {
+        if (m_allEnabled && info.enabled) {
+            if (info.callback) info.callback();
+            emit shortcutTriggered(info.id);
+        }
+    });
+
+    // 保存 shortcut 指针
+    m_shortcuts[info.id].shortcut = shortcut;
+
+    return true;
 }
 
 void ShortcutManager::unregisterShortcut(const QString& id)
@@ -416,12 +405,6 @@ void ShortcutManager::unregisterShortcut(const QString& id)
         info.shortcut = nullptr;
     }
 
-    if (info.isSingleKey) {
-        for (auto it = m_singleKeyMap.begin(); it != m_singleKeyMap.end(); ++it) {
-            it.value().removeAll(id);
-        }
-    }
-
     if (info.isGlobal && m_globalImpl) {
         m_globalImpl->unregisterShortcut(id);
     }
@@ -433,19 +416,11 @@ void ShortcutManager::unregisterShortcut(const QString& id)
 bool ShortcutManager::parseKeySequence(const QString& keyStr, ShortcutInfo& info) const
 {
     QString normalized = keyStr.trimmed();
-    info.isSingleKey = isSingleKey(normalized);
 
-    if (info.isSingleKey) {
-        QKeySequence seq(normalized);
-
-        if (!seq.isEmpty()) {
-            info.qtKey = static_cast<Qt::Key>(seq[0]);
-            info.nativeKey = seq[0];
-            info.keySequence = QKeySequence(info.qtKey);
-            info.modifiers = Qt::NoModifier;
-            return true;
-        }
-
+    // ⭐ 方案一：所有快捷键都使用 QKeySequence 解析
+    QKeySequence seq(normalized);
+    if (seq.isEmpty()) {
+        // 尝试手动解析单键
         static QMap<QString, Qt::Key> keyMap = {
             {"Space", Qt::Key_Space},
             {"Esc", Qt::Key_Escape},
@@ -472,9 +447,9 @@ bool ShortcutManager::parseKeySequence(const QString& keyStr, ShortcutInfo& info
 
         if (keyMap.contains(normalized)) {
             info.qtKey = keyMap[normalized];
-            info.nativeKey = QKeySequence(info.qtKey)[0];
             info.keySequence = QKeySequence(info.qtKey);
             info.modifiers = Qt::NoModifier;
+            info.isSingleKey = true;
             return true;
         }
 
@@ -482,28 +457,25 @@ bool ShortcutManager::parseKeySequence(const QString& keyStr, ShortcutInfo& info
             QChar c = normalized[0];
             if (c.isLetterOrNumber()) {
                 info.qtKey = static_cast<Qt::Key>(c.toUpper().unicode());
-                info.nativeKey = QKeySequence(info.qtKey)[0];
                 info.keySequence = QKeySequence(info.qtKey);
                 info.modifiers = Qt::NoModifier;
+                info.isSingleKey = true;
                 return true;
             }
         }
 
         return false;
-    } else {
-        QKeySequence seq(normalized);
-        if (seq.isEmpty()) {
-            return false;
-        }
-
-        info.keySequence = seq;
-        info.qtKey = static_cast<Qt::Key>(seq[0]);
-        info.nativeKey = seq[0];
-
-        int keyInt = seq[0];
-        info.modifiers = static_cast<Qt::KeyboardModifier>(keyInt & Qt::KeyboardModifierMask);
-        return true;
     }
+
+    // 解析成功
+    info.keySequence = seq;
+    info.qtKey = static_cast<Qt::Key>(seq[0]);
+    int keyInt = seq[0];
+    info.modifiers = static_cast<Qt::KeyboardModifier>(keyInt & Qt::KeyboardModifierMask);
+    info.isSingleKey = (info.modifiers == Qt::NoModifier &&
+                        info.qtKey >= Qt::Key_A && info.qtKey <= Qt::Key_Z);
+
+    return true;
 }
 
 bool ShortcutManager::isSingleKey(const QString& keyStr) const
@@ -531,66 +503,6 @@ bool ShortcutManager::detectConflict(const QKeySequence& key, const QString& exc
         }
     }
     return false;
-}
-
-void ShortcutManager::setupEventFilter()
-{
-    if (m_eventFilterInstalled || !m_parentWindow) {
-        return;
-    }
-
-    m_parentWindow->installEventFilter(this);
-    m_eventFilterInstalled = true;
-}
-
-bool ShortcutManager::eventFilter(QObject* obj, QEvent* event)
-{
-    if (!m_allEnabled || !m_parentWindow) {
-        return QObject::eventFilter(obj, event);
-    }
-
-    if (event->type() != QEvent::KeyPress && event->type() != QEvent::KeyRelease) {
-        return QObject::eventFilter(obj, event);
-    }
-
-    QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
-    int keyCode = keyEvent->key();
-
-    if (!m_singleKeyMap.contains(keyCode)) {
-        return QObject::eventFilter(obj, event);
-    }
-
-    bool isPress = (event->type() == QEvent::KeyPress);
-
-    for (const QString& id : m_singleKeyMap[keyCode]) {
-        if (m_disabledShortcuts.contains(id)) {
-            continue;
-        }
-
-        const ShortcutInfo& info = m_shortcuts[id];
-
-        if (info.level == ShortcutLevel::Context) {
-            if (info.context != m_activeContext) {
-                continue;
-            }
-        }
-
-        if (info.trigger == KeyTrigger::Press && !isPress) continue;
-        if (info.trigger == KeyTrigger::Release && isPress) continue;
-
-        if (info.modifiers != Qt::NoModifier) {
-            if (keyEvent->modifiers() != info.modifiers) {
-                continue;
-            }
-        }
-
-        if (info.callback && isPress) {
-            info.callback();
-            emit shortcutTriggered(id);
-        }
-    }
-
-    return QObject::eventFilter(obj, event);
 }
 
 // ============================================================
@@ -860,4 +772,4 @@ bool ShortcutManager::GlobalShortcutImpl::nativeEventFilter(
 
 #endif
 
-} // namespace Sqz::Utils
+} // namespace Sqz

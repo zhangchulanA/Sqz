@@ -4,6 +4,7 @@ HEADERS += \
     $$PWD/other/Async.h \
     $$PWD/other/ChainBranch.h \
     $$PWD/other/DataJoiner.h \
+    $$PWD/other/Entangler.h \
     $$PWD/other/EventAggregator.h \
     $$PWD/other/FormValidator.h \
     $$PWD/other/ObjectPool.h \
@@ -33,6 +34,7 @@ SOURCES += \
 #    $$PWD/other/Async.cpp \
     $$PWD/other/ChainBranch.cpp \
     $$PWD/other/DataJoiner.cpp \
+    $$PWD/other/Entangler.cpp \
     $$PWD/other/EventAggregator.cpp \
     $$PWD/other/FormValidator.cpp \
     $$PWD/other/PluginInterface.cpp \
