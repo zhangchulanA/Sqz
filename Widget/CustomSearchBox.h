@@ -44,6 +44,7 @@
  * });
  * @endcode
  */
+namespace Sqz {
 class SQZ_FRAMEWORK_API CustomSearchBox : public QWidget
 {
     Q_OBJECT
@@ -220,5 +221,5 @@ private:
     QColor       m_primaryColor;
     QColor       m_backgroundColor;
 };
-
+}
 #endif // CUSTOMSEARCHBOX_H

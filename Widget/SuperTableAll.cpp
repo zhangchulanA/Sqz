@@ -10,7 +10,7 @@
  * @param parent 父对象
  * 初始化QAbstractTableModel父类，无额外初始化逻辑
  */
-namespace Sqz::Widget {
+namespace Sqz {
 SuperTableModel::SuperTableModel(QObject *parent)
     : QAbstractTableModel(parent)
 {
@@ -393,7 +393,7 @@ bool SuperTableDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, c
 void SuperTableDelegate::drawText(QPainter *p, const QStyleOptionViewItem &opt, const QString &text) const
 {
     QRect rc = opt.rect.adjusted(8,4,-8,-4);
-    p->drawText(rc, Qt::AlignVCenter | Qt::AlignLeft, text);
+    p->drawText(rc, Qt::AlignVCenter | Qt::AlignHCenter, text);
 }
 
 /**
@@ -575,6 +575,11 @@ QList<TableRowData> SuperTableWidget::getSelectedRows() const
     for (const auto& idx : idxList)
         res.append(m_model->getRow(idx.row()));
     return res;
+}
+
+TableRowData SuperTableWidget::getRow(int index)
+{
+    return m_model->getRow(index);
 }
 
 // ========== 新增尺寸控制接口实现 ==========

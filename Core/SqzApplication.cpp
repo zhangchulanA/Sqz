@@ -7,7 +7,7 @@ using namespace Sqz;
 SqzApplication::SqzApplication(int &argc, char **argv, const QString &Prefix)
     :QApplication(argc,argv)
 {
-    Logger::instance().init("./log","chatlog",10,true);
+    Logger::instance().init("./log","logger",10,true);
     SetPrefix(Prefix);
     SqzIn.PrintRegClass();
 }

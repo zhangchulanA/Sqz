@@ -30,7 +30,7 @@
  * 5. 浅灰色默认背景，适配浅色UI体系，避免白底突兀；
  * 6. 新增右键菜单支持、标题对齐方式、按钮状态控制、透明度调节等扩展能力。
  */
-namespace Sqz::Widget {
+namespace Sqz {
 class SQZ_FRAMEWORK_API TitleBar : public QWidget
 {
     Q_OBJECT

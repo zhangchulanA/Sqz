@@ -21,7 +21,7 @@ static const int DEFAULT_BUTTON_MIN_WIDTH = 40;   // 默认按钮最小宽度（
 static const int DEFAULT_LINEEDIT_STRETCH = 5;    // 默认输入框拉伸因子
 static const int DEFAULT_BUTTON_STRETCH = 1;      // 默认按钮拉伸因子
 static const int DEFAULT_SPACING = 2;             // 默认间距
-
+namespace Sqz {
 /*! 构造函数实现 */
 CustomSearchBox::CustomSearchBox(QWidget *parent, const QString &historyKey)
     : QWidget(parent)
@@ -542,4 +542,5 @@ bool CustomSearchBox::event(QEvent *event)
         }
     }
     return QWidget::event(event);
+}
 }

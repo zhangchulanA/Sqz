@@ -14,7 +14,7 @@
  * 支持模态/非模态，自动关闭，窗口拖动，Toast 提示。
  * 所有静态方法均自动管理内存，无需担心内存泄漏。
  */
-namespace Sqz::Widget {
+namespace Sqz {
 class SQZ_FRAMEWORK_API MsgBox : public QDialog
 {
     Q_OBJECT

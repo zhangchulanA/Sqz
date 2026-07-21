@@ -5,8 +5,10 @@ HEADERS += \
     $$PWD/other/ChainBranch.h \
     $$PWD/other/DataJoiner.h \
     $$PWD/other/Entangler.h \
+    $$PWD/other/EntityCopy.h \
     $$PWD/other/EventAggregator.h \
     $$PWD/other/FormValidator.h \
+    $$PWD/other/NumberClip.h \
     $$PWD/other/ObjectPool.h \
     $$PWD/other/PluginInterface.h \
     $$PWD/other/PluginManager.h \
@@ -35,8 +37,10 @@ SOURCES += \
     $$PWD/other/ChainBranch.cpp \
     $$PWD/other/DataJoiner.cpp \
     $$PWD/other/Entangler.cpp \
+    $$PWD/other/EntityCopy.cpp \
     $$PWD/other/EventAggregator.cpp \
     $$PWD/other/FormValidator.cpp \
+    $$PWD/other/NumberClip.cpp \
     $$PWD/other/PluginInterface.cpp \
     $$PWD/other/PluginManager.cpp \
     $$PWD/other/PropertyAnimator.cpp \

@@ -24,29 +24,17 @@ echo "版本号: $VERSION"
 echo "输出目录: $OUTPUT_DIR"
 echo "包名: $BASE_NAME"
 
-# 1. 收集所有子目录下的 .h 文件（保留目录结构），跳过根目录的 .h
-echo "收集头文件（仅子目录，保留目录结构）..."
+# 1. 收集所有 .h 文件（平铺）
+echo "收集头文件（平铺）..."
 cd "$PRO_PWD"
-# 只收集 depth>=2 的 .h 文件（即至少有一层子目录）
 find . -mindepth 2 -name "*.h" -type f | while read header; do
-    header_clean="${header#./}"
-    target_dir="$WORK_DIR/$PACKAGE_NAME/$(dirname "$header_clean")"
-    mkdir -p "$target_dir"
-    cp "$header" "$target_dir/"
+    cp "$header" "$WORK_DIR/$PACKAGE_NAME/"
 done
 
-# 2. 复制 README.md 到 Sqz 目录下
-echo "复制 README.md..."
-if [ -f "$PRO_PWD/README.md" ]; then
-    cp "$PRO_PWD/README.md" "$WORK_DIR/$PACKAGE_NAME/"
-    echo "已复制 README.md"
-else
-    echo "警告: 找不到 README.md"
-fi
-
-# 3. 复制 SqzLib
+# 2. 复制 SqzLib【修复：保留 SqzLib 文件夹】
 echo "收集库文件..."
 if [ -d "$PRO_PWD/SqzLib" ]; then
+    # 目标：WORK_DIR/Sqz/SqzLib
     mkdir -p "$WORK_DIR/$PACKAGE_NAME/SqzLib"
     cp -r "$PRO_PWD/SqzLib"/* "$WORK_DIR/$PACKAGE_NAME/SqzLib/" 2>/dev/null || true
     echo "已复制 SqzLib 完整目录"
@@ -55,7 +43,7 @@ else
     exit 1
 fi
 
-# 4. 生成 install.sh
+# 3. 生成 install.sh
 echo "生成 install.sh..."
 cat > "$WORK_DIR/install.sh" << 'EOF'
 #!/bin/bash
@@ -79,13 +67,14 @@ sudo mkdir -p "$HEADER_INSTALL_DIR" "$LIB_INSTALL_DIR"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# 安装头文件（保留完整目录结构）
-echo "安装头文件（保留目录结构）..."
+# 安装头文件
+echo "安装头文件（平铺）..."
 cd "$SCRIPT_DIR/Sqz"
-# 复制所有文件和目录结构到 /usr/include/Sqz
-sudo cp -r ./* "$HEADER_INSTALL_DIR/" 2>/dev/null || true
+find . -maxdepth 1 -name "*.h" -type f | while read header; do
+    sudo cp "$header" "$HEADER_INSTALL_DIR/"
+done
 
-# 安装库文件
+# 【关键修复】正确复制 SqzLib 内库文件
 echo "安装库文件到 /usr/lib/Sqz ..."
 sudo cp -r "$SCRIPT_DIR/Sqz/SqzLib"/* "$LIB_INSTALL_DIR/" 2>/dev/null || true
 
@@ -115,7 +104,7 @@ echo "=========================================="
 EOF
 chmod +x "$WORK_DIR/install.sh"
 
-# 5. 直接构建自解压run
+# 4. 直接构建自解压run，不生成tar.gz
 echo "创建 .run 自解压包..."
 cd "$WORK_DIR"
 cat > "$RUN_FILE" << 'EOF'

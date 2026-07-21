@@ -4,7 +4,8 @@ QT       += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
-
+#关闭编译警告提示 眼不见为净
+CONFIG      += warn_off
 
 INCLUDEPATH += /opt/QtFluentWidgets/include/Fluent
 LIBS += -L/opt/QtFluentWidgets/lib -lQtFluentWidgets

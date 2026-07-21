@@ -13,6 +13,7 @@
  * 量子纠缠同步引擎
  * 让两个对象自动保持同步
  */
+namespace Sqz {
 class Entangler : public QObject
 {
     Q_OBJECT
@@ -99,5 +100,5 @@ private:
 // 便捷宏
 #define ENTANGLE(obj1, obj2) Entangler::Instance()->Entangle(obj1, obj2)
 #define ENTANGLE_PROPS(obj1, obj2, ...) Entangler::Instance()->Entangle(obj1, obj2, QStringList() __VA_ARGS__)
-
+}
 #endif // ENTANGLER_H

@@ -8,7 +8,7 @@
 #include <QCloseEvent>
 
 // ==================== 构造 / 析构 ====================
-namespace Sqz::Widget {
+namespace Sqz {
 MsgBox::MsgBox(QWidget *parent)
     : QDialog(parent),
       m_iconLabel(nullptr),

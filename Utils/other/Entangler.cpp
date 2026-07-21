@@ -1,7 +1,7 @@
 #include "Entangler.h"
 #include <QUuid>
 #include <QTimer>
-
+namespace Sqz {
 Entangler* Entangler::m_instance = nullptr;
 
 Entangler* Entangler::Instance()
@@ -198,4 +198,5 @@ QList<QPair<QObject*, QObject*>> Entangler::AllLinks()
         result.append(it.value());
     }
     return result;
+}
 }

@@ -31,7 +31,7 @@
  * @brief 单元格类型枚举
  * 定义表格支持的所有单元格展示类型
  */
-namespace Sqz::Widget {
+namespace Sqz {
 enum class SQZ_FRAMEWORK_API TableCellType
 {
     Text,        // 普通文本单元格（默认类型）
@@ -379,7 +379,14 @@ public:
      * 支持多行选择，返回所有选中行的数据
      */
     QList<TableRowData> getSelectedRows() const;
-
+    /**
+     * @brief getRow 获取某一行数据
+     * @param index
+     * @return 
+     */
+    TableRowData getRow(int index);
+    
+    
     // ========== 尺寸控制接口 ==========
     /**
      * @brief 设置全局统一行高
@@ -425,6 +432,7 @@ public:
      * 支持通过QSS自定义表格样式（如网格线、选中色、字体等）
      */
     void setTableStyleSheet(const QString &qss);
+    
 
 private:
     SuperTableModel* m_model;       // 表格数据模型
