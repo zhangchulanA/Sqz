@@ -13,6 +13,7 @@
  *   - 高效实现：位操作使用掩码和移位
  *   - 错误处理：每个函数返回 bool 并输出详细错误信息
  *   - 字段重叠检测（可选）
+ *   优化加固项：参数强校验、64位符号扩展修复、编解码对称、内存防护、线程互斥、字段排序写入、循环依赖检测、溢出防护、跨平台移位安全
  *
  * 使用方式:
  *   // 1. 定义协议格式（默认小端）
@@ -28,19 +29,16 @@
  *   tx["temperature"] = 25.6;
  *   QByteArray packed = schema.packToArray(tx);
  *****************************************************************************/
-
 #ifndef PROTOCOLSCHEMA_H
 #define PROTOCOLSCHEMA_H
-
 #include <QByteArray>
 #include <QJsonObject>
 #include <QString>
 #include <QVector>
+#include <QMutex>
+#include <QPair>
 #include "SqzGlobal.h"
-
 namespace Sqz {
-
-
 class SQZ_FRAMEWORK_API ProtocolSchema
 {
 public:
@@ -49,13 +47,11 @@ public:
         LittleEndian,   // 小端：低地址存放低字节
         BigEndian       // 大端：低地址存放高字节
     };
-
     // 字节内比特顺序
     enum BitOrder {
         MsbFirst,   // 高位优先：bit7 为最高位（常规网络协议），startBit=0 表示从字节高位开始
         Physical    // 物理位索引：bit0 为最低位，startBit=0 表示从字节的最右侧（bit0）开始，不反转权重
     };
-
     // 字段值类型（JSON中存储的形式）
     enum ValueType {
         Int,            // 有符号整数（JSON存储为数字）
@@ -65,7 +61,6 @@ public:
         RawBytes,       // 原始字节数组（JSON中存储为Base64）
         String          // UTF-8字符串
     };
-
     // 单个字段的定义
     struct Field {
         QString name;           // 字段名（JSON中的key）
@@ -81,7 +76,13 @@ public:
         double offset;          // 偏移（默认0.0）
     };
 
+    // 全局常量配置
+    static constexpr int MAX_BIT_WIDTH = 64;
+    static constexpr int MAX_VAR_BYTE_SIZE = 1024 * 1024;
+    static constexpr double FLOAT_EPS = 1e-9;
+
     ProtocolSchema();
+    ~ProtocolSchema();
 
     // 添加固定长度字段（链式调用）
     // name: 字段名
@@ -97,7 +98,8 @@ public:
     ProtocolSchema& addField(const QString& name, int startByte, int startBit, int bitLength,
                              ValueType type = UInt, Endian endian = LittleEndian,
                              BitOrder bitOrder = Physical, bool isSigned = false,
-                             double factor = 1.0, double offset = 0.0);
+                             double factor = 1.0, double offset = 0.0,
+                             QString* err = nullptr);
 
     // 添加变长字段（长度由另一个整数字段的值决定，单位：字节）
     // name: 字段名
@@ -109,14 +111,15 @@ public:
     ProtocolSchema& addVariableField(const QString& name, int startByte, int startBit,
                                      const QString& lenField, ValueType type = RawBytes,
                                      Endian endian = LittleEndian, BitOrder bitOrder = MsbFirst,
-                                     double factor = 1.0, double offset = 0.0);
+                                     double factor = 1.0, double offset = 0.0,
+                                     QString* err = nullptr);
 
     // 清空所有字段定义
     void clear();
 
-    // 检测字段定义是否有重叠（可选，调用后可判断）
+    // 检测字段定义是否有重叠（静态固定字段+运行时变长动态范围）
     // 返回重叠的字段名列表（空表示无重叠）
-    QStringList checkOverlap() const;
+    QStringList checkOverlap(const QJsonObject& runtimeVarData = {}, QString* err = nullptr) const;
 
     // 解析二进制数据为JSON对象
     // data: 原始数据
@@ -132,14 +135,18 @@ public:
     // 打包的便捷版本，直接返回字节数组（失败返回空）
     QByteArray packToArray(const QJsonObject& values, QString* errorMsg = nullptr) const;
 
+    // 校验字段配置合法性（外部可调用预校验）
+    bool validateSchema(QString* errMsg = nullptr) const;
+
 private:
+    mutable QMutex m_mutex{QMutex::Recursive};
     QVector<Field> m_fields;    // 存储所有字段定义
 
     // ---------- 底层位操作（私有）----------
     // 读取最多64位整数（任意比特偏移）
     // 注意：当 bitLength > 8 时应用 endian，否则忽略 endian
     bool readBits(const QByteArray& data, int bitOffset, int bitLength, quint64& out,
-                  Endian endian, BitOrder bitOrder) const;
+                  Endian endian, BitOrder bitOrder, QString* err = nullptr) const;
 
     // 写入最多64位整数（任意比特偏移）
     // 注意：当 bitLength > 8 时应用 endian，否则忽略 endian
@@ -148,7 +155,7 @@ private:
 
     // 读取任意长度的比特段为字节数组
     bool readBitsToBytes(const QByteArray& data, int bitOffset, int bitLength, QByteArray& out,
-                         Endian endian, BitOrder bitOrder) const;
+                         Endian endian, BitOrder bitOrder, QString* err = nullptr) const;
 
     // 写入任意长度的字节数组到比特流
     bool writeBitsToBytes(QByteArray& data, int bitOffset, const QByteArray& bytes,
@@ -168,9 +175,15 @@ private:
                                        bool isSigned, int bitLength);
 
     // 获取字段的绝对比特偏移
-    static inline int absoluteBitOffset(const Field& field) {
-        return field.startByte * 8 + field.startBit;
+    static inline qint64 absoluteBitOffset(const Field& field) {
+        return static_cast<qint64>(field.startByte) * 8 + field.startBit;
     }
+
+    // 检测变长字段循环依赖
+    bool hasVarCycleDependency(QStringList& cycleList, QString* err = nullptr) const;
+
+    // 按绝对bit偏移升序排序字段（打包防止覆盖）
+    QVector<Field> getSortedFields() const;
 };
 }
 #endif // PROTOCOLSCHEMA_H

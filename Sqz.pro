@@ -1,5 +1,5 @@
 
-QT       += core gui
+QT       += core gui testlib
 #QT       += core gui network sql xml concurrent qml quick quickwidgets svg
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -67,11 +67,14 @@ include(Net/Net.pri)
 SOURCES += \
 #    TestWidget.cpp \
 #    RetransmitManager.cpp \
+    ProtocolSchemaTest.cpp \
     SqzTest.cpp \
-    main.cpp
+    main.cpp \
+    tst_flexdata.cpp
 
 HEADERS += \
 #    RetransmitManager.h \
+    ProtocolSchemaTest.h \
  \#    TestWidget.h
     SqzTest.h
 

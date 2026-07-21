@@ -79,19 +79,19 @@ public: \
 
 
 
-
-// ==================== 自动连接管理 ====================
-#define AUTO_CONNECT_DECLARE QVector<QMetaObject::Connection> _autoConnections;
-#define AUTO_CONNECT(sender, signal, receiver, slot) \
-    _autoConnections.append(QObject::connect(sender, signal, receiver, slot))
-#define AUTO_CONNECT_DESTRUCTOR \
-    for (auto& c : _autoConnections) QObject::disconnect(c); \
-    _autoConnections.clear();
-
 // ==================== 跨线程调用 ====================
 #define INVOKE_THREAD(obj, method, ...) \
-    QMetaObject::invokeMethod(obj, [=] { obj->method(__VA_ARGS__); }, Qt::QueuedConnection)
-
+do { \
+    using ObjRaw = std::remove_pointer_t<decltype(obj)>; \
+    QPointer<ObjRaw> safeInvokeObj = obj; \
+    QMetaObject::invokeMethod(safeInvokeObj, [safeInvokeObj, ##__VA_ARGS__]() { \
+        if (!safeInvokeObj) { \
+            qWarning() << "[INVOKE_THREAD] Object already destroyed, skip call:" << #method; \
+            return; \
+        } \
+        safeInvokeObj->method(__VA_ARGS__); \
+    }, Qt::QueuedConnection); \
+} while(false)
 // ==================== 枚举字符串互转 ====================
 #define DECLARE_ENUM_STR(EnumType, EnumName) \
     static QString EnumName##ToString(EnumType value) { \
@@ -120,13 +120,21 @@ public: \
 
 // ==================== 属性到控件绑定 ====================
 #define BIND_PROP(widget, setter, obj, prop) \
-    do { \
-        auto* _w = (widget); \
-        auto* _o = (obj); \
-        QObject::connect(_o, &std::remove_reference_t<decltype(*_o)>::prop##Changed, \
-                         _w, [_w](const auto& val){ _w->setter(val); }); \
-        _w->setter(_o->prop()); \
-    } while(false)
+do { \
+    using WidgetType = std::remove_pointer_t<decltype(widget)>; \
+    using ObjType = std::remove_pointer_t<decltype(obj)>; \
+    QPointer<WidgetType> safeW = widget; \
+    QPointer<ObjType> safeO = obj; \
+    /* 初始化赋值 */ \
+    if (safeW && safeO) { \
+        safeW->setter(safeO->prop()); \
+    } \
+    /* 信号连接，捕获弱指针 */ \
+    QObject::connect(safeO, &ObjType::prop##Changed, safeW, [safeW](const auto& val) { \
+        if (!safeW) return; \
+        safeW->setter(val); \
+    }, Qt::QueuedConnection); \
+} while(false)
 
 }
 

@@ -1,6 +1,5 @@
 #ifndef FLEXDATA_H
 #define FLEXDATA_H
-
 #include <QSharedDataPointer>
 #include <QHash>
 #include <QList>
@@ -9,6 +8,8 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QUuid>
+#include <QMutex>
+#include <type_traits>
 #include "SqzGlobal.h"
 
 class FlexDataPrivate;
@@ -58,6 +59,7 @@ class FlexDataPrivate;
  *   - 不支持流式解析，超大文件（>100MB）会占用大量内存
  *   - 路径语法未实现转义复杂场景（如 key 中包含 "//"）
  *   - 代码体积较大（约 2000 行），嵌入式需裁剪
+ *   - INI 格式仅支持两层 Map 结构，不支持数组与深层嵌套
  *
  * @section 适用场景
  * 强烈推荐：
@@ -124,7 +126,6 @@ public:
     FlexData(const QList<FlexData>& list);      // 从 Array 构造
     FlexData(const FlexData& other);            // 拷贝构造（浅拷贝，隐式共享）
     ~FlexData();
-
     FlexData& operator=(const FlexData& other); // 赋值操作符
 
     // ========== 类型判断 ==========
@@ -175,12 +176,10 @@ public:
     // ========== 类型转换辅助 ==========
     void toMapType();       // 强制转为空 Map（原数据若为 Array 或 Null 则丢失）
     void toArrayType();     // 强制转为空 Array（原数据若为 Map 或 Null 则丢失）
-
     void setValue(const QString& key, const FlexData& value); // 同 insert
     FlexData value(const QString& key) const;                 // 同 operator[] const
 
     // ============================= 高级功能 =============================
-
     // ---------- 1. 路径访问 ----------
     /// 根据路径获取数据，路径格式如 "/server/port" 或 "server/port"；数组索引使用数字，如 "/arr/0/name"
     FlexData get(const QString& path) const;
@@ -190,16 +189,14 @@ public:
     bool has(const QString& path) const;
     /// 删除路径对应的节点
     void removePath(const QString& path);
+
     // 新增：一次调用取路径值或默认值
     FlexData value(const QString& path, const FlexData& defaultValue) const;
-
     // 新增：容量预分配
     void reserveMap(int capacity);
     void reserveArray(int capacity);
-
     // 新增：toPrettyJson 别名（可内联）
     inline QByteArray toPrettyJson() const { return toJson(false); }
-
 
     // ---------- 2. 链式构造器（Builder 模式）----------
     class Builder;
@@ -232,11 +229,13 @@ public:
     bool fromJson(const QByteArray& json);                  // JSON 导入
     QByteArray toXml(const QString& rootName = "root") const; // XML 导出
     bool fromXml(const QByteArray& xml);                    // XML 导入
+
     // 递归展平嵌套 Map，输出扁平化的 section/key -> value 映射
     static void flattenToIni(QHash<QString, QHash<QString, QString>>& out,
                              const FlexData& data, const QString& prefix);
-    QString toIni() const;                                  // INI 导出（仅单层 Map）
+    QString toIni() const;                                  // INI 导出（仅支持两层 Map 结构）
     bool fromIni(const QString& iniData);                   // INI 导入（生成双层 Map）
+
     QByteArray serialize() const;                           // 二进制序列化（紧凑格式）
     bool deserialize(const QByteArray& data);               // 二进制反序列化
 
@@ -252,17 +251,20 @@ public:
     friend bool operator==(const FlexData& a, const FlexData& b);
     friend bool operator!=(const FlexData& a, const FlexData& b) { return !(a == b); }
 
+
+    FlexData clone() const;                  // 深拷贝
 private:
     QSharedDataPointer<FlexDataPrivate> d;   // 隐式共享数据指针（写时复制）
 
     // 内部辅助函数
     void ensureMapType();                    // 确保当前为 Map，若不是则转为空 Map
     void ensureArrayType();                  // 确保当前为 Array，若不是则转为空 Array
-    FlexData clone() const;                  // 深拷贝（通过序列化实现）
+
     QStringList splitPath(const QString& path) const; // 分割路径字符串
     bool isPath(const QString& str) const { return str.contains('/'); } // 判断是否路径
-    mutable QHash<QString, QStringList> m_pathCache; // 路径解析缓存
 
+    mutable QHash<QString, QStringList> m_pathCache; // 路径解析缓存
+    mutable QMutex m_pathCacheMutex;                 // 缓存线程安全锁
 };
 
 // ========== Builder 嵌套类 ==========
@@ -298,11 +300,11 @@ inline FlexData& FlexData::chainSet(const QString& keyOrPath, const FlexData& va
         insert(keyOrPath, value);
     return *this;
 }
+
 inline FlexData& FlexData::chainAppend(const FlexData& value) {
     append(value);
     return *this;
 }
-
 
 // 模板 get 实现（必须放在头文件中）
 template<typename T>
