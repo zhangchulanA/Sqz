@@ -3,6 +3,7 @@ QT       += qml quick quickwidgets
 HEADERS += \
     $$PWD/SqzApplication.h \
     $$PWD/SqzBus.h \
+    $$PWD/SqzClassReg.h \
     $$PWD/SqzHub.h \
     $$PWD/SqzMainWindow.h \
     $$PWD/SqzProp.h \

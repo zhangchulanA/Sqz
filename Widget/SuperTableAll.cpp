@@ -3,6 +3,7 @@
 #include <QHeaderView>
 #include <QStringList>
 #include <QCheckBox>
+#include <QLineEdit>
 
 // ====================== SuperTableModel ======================
 /**
@@ -383,6 +384,39 @@ bool SuperTableDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, c
     return false;
 }
 
+QWidget *SuperTableDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    // 对于复选框类型，不创建编辑器（使用点击切换）
+    TableCellType cellType = static_cast<TableCellType>(index.data(Qt::UserRole).toInt());
+    if (cellType == TableCellType::CheckBox) {
+        return nullptr;
+    }
+    // 其他类型使用默认编辑器（QLineEdit）
+    return QStyledItemDelegate::createEditor(parent, option, index);
+}
+
+void SuperTableDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
+{
+    // 从模型中获取当前数据并设置到编辑器
+    QString value = index.data(Qt::DisplayRole).toString();
+    QLineEdit *lineEdit = qobject_cast<QLineEdit*>(editor);
+    if (lineEdit) {
+        lineEdit->setText(value);
+    } else {
+        QStyledItemDelegate::setEditorData(editor, index);
+    }
+}
+
+void SuperTableDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
+{
+    QLineEdit *lineEdit = qobject_cast<QLineEdit*>(editor);
+    if (lineEdit) {
+        model->setData(index, lineEdit->text(), Qt::EditRole);
+    } else {
+        QStyledItemDelegate::setModelData(editor, model, index);
+    }
+}
+
 /**
  * @brief 绘制普通文本单元格
  * @param p 绘制器对象
@@ -494,7 +528,7 @@ SuperTableWidget::SuperTableWidget(QWidget *parent)
     setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
-    setEditTriggers(QAbstractItemView::CurrentChanged | QAbstractItemView::SelectedClicked);
+    setEditTriggers(QAbstractItemView::DoubleClicked);
 }
 
 /**

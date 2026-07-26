@@ -181,13 +181,13 @@ public:
 
     // ============================= 高级功能 =============================
     // ---------- 1. 路径访问 ----------
-    /// 根据路径获取数据，路径格式如 "/server/port" 或 "server/port"；数组索引使用数字，如 "/arr/0/name"
+    // 根据路径获取数据，路径格式如 "/server/port" 或 "server/port"；数组索引使用数字，如 "/arr/0/name"
     FlexData get(const QString& path) const;
-    /// 设置路径对应的值，自动创建中间缺失的 Map 或 Array
+    // 设置路径对应的值，自动创建中间缺失的 Map 或 Array
     void set(const QString& path, const FlexData& value);
-    /// 检查路径是否存在
+    // 检查路径是否存在
     bool has(const QString& path) const;
-    /// 删除路径对应的节点
+    // 删除路径对应的节点
     void removePath(const QString& path);
 
     // 新增：一次调用取路径值或默认值
@@ -207,21 +207,21 @@ public:
     FlexData& chainAppend(const FlexData& value);                        // 追加到数组
 
     // ---------- 3. Schema 校验与默认值 ----------
-    /// 根据 Schema 校验数据合法性。Schema 支持 type、required、default、min、max、enum、regex
+    // 根据 Schema 校验数据合法性。Schema 支持 type、required、default、min、max、enum、regex
     bool validate(const FlexData& schema, QStringList* errors = nullptr) const;
-    /// 根据 Schema 补全缺失的字段（使用默认值），返回新对象
+    // 根据 Schema 补全缺失的字段（使用默认值），返回新对象
     FlexData applyDefaults(const FlexData& schema) const;
 
     // ---------- 4. 合并与差量 ----------
-    /// 递归合并两个对象（other 覆盖当前的同名字段）
+    // 递归合并两个对象（other 覆盖当前的同名字段）
     FlexData merge(const FlexData& other) const;
-    /// 生成从当前对象到目标对象的差量（JSON Patch 格式）
+    // 生成从当前对象到目标对象的差量（JSON Patch 格式）
     FlexData diff(const FlexData& target) const;
-    /// 应用差量到当前对象，生成新对象
+    // 应用差量到当前对象，生成新对象
     FlexData patch(const FlexData& patch) const;
 
     // ---------- 5. 并行快照 ----------
-    /// 创建当前数据的深拷贝快照（不可变，独立于原对象）
+    // 创建当前数据的深拷贝快照（不可变，独立于原对象）
     FlexData freeze() const;
 
     // ---------- 6. 序列化 ----------
@@ -250,7 +250,6 @@ public:
     // 比较运算符（用于 diff 等）
     friend bool operator==(const FlexData& a, const FlexData& b);
     friend bool operator!=(const FlexData& a, const FlexData& b) { return !(a == b); }
-
 
     FlexData clone() const;                  // 深拷贝
 private:

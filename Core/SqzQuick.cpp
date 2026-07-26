@@ -2,6 +2,7 @@
 #include "SqzQuick.h"
 
 #include <QQmlComponent>
+#include <QQmlContext>
 namespace Sqz {
 SqzQuick::SqzQuick(QObject* parent) : QObject(parent) {}
 SqzQuick::~SqzQuick() {
@@ -60,7 +61,7 @@ void SqzQuick::CloseThis() { CloseView(className()); }
 void SqzQuick::HideThis() { HideView(className()); }
 void SqzQuick::ShowThis()  { ShowView(className()); }
 
-void SqzQuick::initializeView()
+void SqzQuick::initializeView(const QString& qmisource)
 {
     if (m_initialized) return;
 
@@ -70,7 +71,7 @@ void SqzQuick::initializeView()
         return;
     }
 
-    QQmlComponent component(engine, QUrl(qmlSource()));
+    QQmlComponent component(engine, QUrl(qmisource));
     if (component.isError()) {
         logwarn << "Failed to load QML:" << component.errors();
         return;
@@ -92,6 +93,7 @@ void SqzQuick::initializeView()
     // 设置 C++ 所有权，防止 QML 引擎自动销毁
     QQmlEngine::setObjectOwnership(m_window, QQmlEngine::CppOwnership);
 
+    engine->rootContext()->setContextProperty("This",this);
     m_initialized = true;
 
     onInit();

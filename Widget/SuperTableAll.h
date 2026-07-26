@@ -276,6 +276,35 @@ public:
      */
     bool editorEvent(QEvent *event, QAbstractItemModel *model,
                      const QStyleOptionViewItem &option, const QModelIndex &index) override;
+
+    /**
+     * @brief 创建编辑器
+     * @param parent 父控件
+     * @param option 样式选项
+     * @param index 单元格索引
+     * @return 编辑器控件
+     */
+    QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
+
+    /**
+     * @brief 设置编辑器数据
+     * @param editor 编辑器控件
+     * @param index 单元格索引
+     */
+    void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+
+    /**
+     * @brief 设置模型数据
+     * @param editor 编辑器控件
+     * @param model 数据模型
+     * @param index 单元格索引
+     */
+    void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const override;
+
+
+
+
+
 private:
     /**
      * @brief 绘制普通文本单元格

@@ -7,13 +7,13 @@
 #include "SqzMainWindow.h"
 namespace Sqz {
 thread_local QString SqzHub::t_prefix;
-// 构造函数
+
 SqzHub::SqzHub(QObject *parent) : QObject(parent)
 {
 
 }
 
-// 析构函数：释放所有单例对象
+
 SqzHub::~SqzHub()
 {
     QList<void*> deleteList;
@@ -164,10 +164,10 @@ QString SqzHub::ThreadPrefix()
 
 QString SqzHub::maybeAddThreadPrefix(const QString &className)
 {
-    if (className.contains("::") || SqzHub::ThreadPrefix().isEmpty()){
-        return className;
-    }
-    return SqzHub::ThreadPrefix() + "::" + className;
+    QString prefix = SqzHub::ThreadPrefix();
+        if (prefix.isEmpty() || className.contains("::"))
+            return className;
+        return prefix + "::" + className;
 }
 
 // 注册无参类
@@ -250,7 +250,7 @@ void* SqzHub::CreateRawObj(const QString& ClassName)
     false);
 }
 
-QObject *SqzHub::CreateQuick(const QString &ClassName)
+QObject *SqzHub::CreateQuick(const QString &ClassName,const QString& qmlpath)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
     if (QThread::currentThread() != QCoreApplication::instance()->thread()) {
@@ -297,7 +297,7 @@ QObject *SqzHub::CreateQuick(const QString &ClassName)
         logwarn << "[SqzHub] 类型转换失败（需要 SqzQuick）：" << fullname;
         return nullptr;
     }
-    view->initializeView();
+    view->initializeView(qmlpath);
 
     // 存入池
     QWriteLocker locker(&GetFactoryLock());

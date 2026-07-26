@@ -1,5 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>LoginWindow.qml</file>
+        <file>SqzQuickTest.qml</file>
     </qresource>
 </RCC>

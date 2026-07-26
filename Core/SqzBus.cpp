@@ -10,9 +10,6 @@ SqzBus *SqzBus::instance()
     return &s_bus;
 }
 
-// ==============================
-// 发送消息（无注释，保持简洁）
-// ==============================
 void SqzBus::Send(const QString &msgName)
 {
     Send(msgName, QVariant());

@@ -17,25 +17,25 @@
 
 namespace Sqz {
 // 辅助宏：拼接模块前缀和类名
-#define MAKE_FULL_NAME(Cls) \
-    (QString(SQZ_Prefix).isEmpty() ? QString(#Cls) : QString(SQZ_Prefix) + "::" + #Cls)
+//#define MAKE_FULL_NAME(Cls) \
+//    (QString(SQZ_Prefix).isEmpty() ? QString(#Cls) : QString(SQZ_Prefix) + "::" + #Cls)
 
-/** @brief 全局读写锁（线程安全，避免静态初始化顺序问题） */
+//全局读写锁（线程安全，避免静态初始化顺序问题
 inline QReadWriteLock& GetFactoryLock()
 {
     static QReadWriteLock factoryLock;
     return factoryLock;
 }
 
-/** @brief 类元数据：存储创建/销毁函数及类型信息 */
+//类元数据：存储创建/销毁函数及类型信息
 struct SQZ_FRAMEWORK_API ClassMeta
 {
-    std::function<void*()> creator;              ///< 创建函数
-    std::function<void(void* ptr)> deleter;      ///< 销毁函数
-    bool isQObject = false;                      ///< 是否为 QObject 派生类
+    std::function<void*()> creator;              // 创建函数
+    std::function<void(void* ptr)> deleter;      // 销毁函数
+    bool isQObject = false;                      // 是否为 QObject 派生类
 };
 
-/** @brief 带参构造函数类型：接收 QVariantList 参数 */
+//带参构造函数类型：接收 QVariantList 参数
 using CreatorWithArg = std::function<void*(const QVariantList& args)>;
 
 /**
@@ -74,150 +74,150 @@ public:
 
     // ========== 注册接口 ==========
 
-    /** @brief 注册无参构造类 */
+    //注册无参构造类
     void RegisterNoArg(const QString& ClassName,
                        std::function<void*()> Creator,
                        std::function<void(void*)> Deleter = nullptr,
                        bool isQObject = false);
 
-    /** @brief 注册带参构造类（接收 QVariantList） */
+    //注册带参构造类（接收 QVariantList）
     void RegisterWithArg(const QString& ClassName, CreatorWithArg Func);
 
-    /** @brief 注册 QML/Quick 类（无参构造） */
+    //注册 QML/Quick 类（无参构造）
     void RegisterQuickClass(const QString& ClassName,
                             std::function<void*()> Creator,
                             std::function<void(void*)> Deleter = nullptr);
 
     // ========== 核心创建 ==========
 
-    /** @brief 创建/获取 QWidget 单例（主线程） */
+    //创建/获取 QWidget 单例（主线程）
     QWidget* CreateWidget(const QString& ClassName);
 
-    /** @brief 创建/获取 QObject 单例 */
+    //创建/获取 QObject 单例
     QObject* CreateObject(const QString& ClassName);
 
-    /** @brief 创建/获取普通 C++ 对象单例（非 QObject） */
+    //创建/获取普通 C++ 对象单例（非 QObject）
     void* CreateRawObj(const QString& ClassName);
 
-    /** @brief 创建/获取 QML Quick 窗口单例（主线程） */
-    QObject* CreateQuick(const QString& ClassName);
+    //创建/获取 QML Quick 窗口单例（主线程）
+    QObject* CreateQuick(const QString& ClassName,const QString& qmlpath = "");
 
-    /** @brief 带参创建/获取 QWidget 单例 */
+    //带参创建/获取 QWidget 单例
     QWidget* CreateWidgetWithArg(const QString& ClassName, const QVariantList& args);
 
-    /** @brief 带参创建/获取 QObject 单例 */
+    //带参创建/获取 QObject 单例
     QObject* CreateObjectWithArg(const QString& ClassName, const QVariantList& args);
 
     // ========== 生命周期管理 ==========
 
-    /** @brief 判断单例是否已存在 */
+    //判断单例是否已存在
     bool IsExist(const QString& ClassName);
 
-    /** @brief 立即销毁单例 */
+    //立即销毁单例
     void CloseObj(const QString& ClassName);
 
-    /** @brief 延迟销毁单例（下一事件循环） */
+    //延迟销毁单例（下一事件循环）
     void CloseObjLater(const QString& ClassName);
 
-    /** @brief 删除临时对象（不入池） */
+    //删除临时对象（不入池）
     void DeleteTemp(const QString& ClassName, void* ptr);
 
-    /** @brief 重置单例（销毁后重建） */
+    //重置单例（销毁后重建）
     void ResetObj(const QString& ClassName);
 
-    /** @brief 创建临时对象（不入池，需手动释放） */
+    //创建临时对象（不入池，需手动释放）
     void* CreateTemp(const QString& ClassName);
 
-    /** @brief 安全释放裸指针（静态） */
+    //安全释放裸指针（静态）
     static void SafeDelete(void* Ptr, bool isQObject = false, bool immediate = false);
 
     // ========== Widget 窗口操作 ==========
 
-    /** @brief 隐藏 Widget 窗口 */
+    //隐藏 Widget 窗口
     void HideWidget(const QString& ClassName);
 
-    /** @brief 显示 Widget 窗口 */
+    //显示 Widget 窗口
     void ShowWidget(const QString& ClassName);
 
-    /** @brief 切换 Widget 窗口显隐 */
+    //切换 Widget 窗口显隐
     void ToggleWidget(const QString& ClassName);
 
-    /** @brief 检查 Widget 窗口是否可见 */
+    //检查 Widget 窗口是否可见
     bool IsWidgetVisible(const QString& ClassName);
 
-    /** @brief 设置 Widget 窗口置顶 */
+    //设置 Widget 窗口置顶
     void SetWidgetTop(const QString& ClassName, bool TopMost);
 
-    /** @brief 设置 Widget 窗口大小 */
+    //设置 Widget 窗口大小
     void SetWidgetSize(const QString& ClassName, int W, int H);
 
-    /** @brief 设置 Widget 窗口位置 */
+    //设置 Widget 窗口位置
     void SetWidgetPos(const QString& ClassName, int X, int Y);
 
-    /** @brief 获取 Widget 窗口原生指针 */
+    //获取 Widget 窗口原生指针
     QWidget* GetWidgetPtr(const QString& ClassName);
 
-    /** @brief 隐藏所有 Widget 窗口 */
+    //隐藏所有 Widget 窗口
     void HideAllWidget();
 
     // ========== Quick 窗口操作 ==========
 
-    /** @brief 隐藏 Quick 窗口 */
+    //隐藏 Quick 窗口
     void HideQuick(const QString& ClassName);
 
-    /** @brief 显示 Quick 窗口 */
+    //显示 Quick 窗口
     void ShowQuick(const QString& ClassName);
 
-    /** @brief 切换 Quick 窗口显隐 */
+    //切换 Quick 窗口显隐
     void ToggleQuick(const QString& ClassName);
 
-    /** @brief 检查 Quick 窗口是否可见 */
+    //检查 Quick 窗口是否可见
     bool IsQuickVisible(const QString& ClassName);
 
-    /** @brief 设置 Quick 窗口置顶 */
+    //设置 Quick 窗口置顶
     void SetQuickTop(const QString& ClassName, bool TopMost);
 
-    /** @brief 设置 Quick 窗口大小 */
+    //设置 Quick 窗口大小
     void SetQuickSize(const QString& ClassName, int W, int H);
 
-    /** @brief 设置 Quick 窗口位置 */
+    //设置 Quick 窗口位置
     void SetQuickPos(const QString& ClassName, int X, int Y);
 
-    /** @brief 获取 Quick 窗口的 QQuickWindow 指针 */
+    //获取 Quick 窗口的 QQuickWindow 指针
     QQuickWindow* GetQuickPtr(const QString& ClassName);
 
     // ========== 工具 ==========
 
-    /** @brief 检查类是否已注册 */
+    //检查类是否已注册
     bool IsClassReg(const QString& ClassName);
 
-    /** @brief 判断实例是否为 QWidget */
+    //判断实例是否为 QWidget
     bool IsWidgetObj(const QString& ClassName);
 
-    /** @brief 判断实例是否为 QObject */
+    //判断实例是否为 QObject
     bool IsQObject(const QString& ClassName);
 
-    /** @brief 获取所有已创建实例的类名列表 */
+    //获取所有已创建实例的类名列表
     QStringList GetExistClassList();
 
-    /** @brief 获取当前实例总数 */
+    //获取当前实例总数
     int GetInstanceCount();
 
-    /** @brief 打印所有已注册类名（调试） */
+    //打印所有已注册类名（调试）
     void PrintRegClass();
 
     // ========== 批量操作 ==========
 
-    /** @brief 销毁所有单例 */
+    //销毁所有单例
     void CloseAll();
 
-    /** @brief 清空注册表（慎用） */
+    //清空注册表（慎用）
     void ClearReg();
 
-    /** @brief 创建带参临时 QObject */
+    //创建带参临时 QObject
     QObject* CreateObjectByArg(const QString& ClassName, const QVariantList& Args);
 
-    /** @brief 获取 QML 引擎指针 */
+    //获取 QML 引擎指针
     QQmlApplicationEngine* qmlEngine();
 
 private:
@@ -225,23 +225,23 @@ private:
     ~SqzHub() override;
     Q_DISABLE_COPY(SqzHub)
 
-    /** @brief 内部创建核心函数 */
+    //内部创建核心函数
     void* createInternal(const QString& ClassName,
                          std::function<bool(void*)> validator,
                          bool isWidget);
 
-    /** @brief 获取 Quick 对象指针（内部） */
+    //获取 Quick 对象指针（内部）
     QObject* GetQuickObject(const QString& ClassName);
 
-    /** @brief 获取类的元数据 */
+    //获取类的元数据
     ClassMeta getMetaForClass(const QString& fullname);
 
-    std::unique_ptr<QQmlApplicationEngine> m_qmlEngine;  ///< QML 引擎
+    std::unique_ptr<QQmlApplicationEngine> m_qmlEngine;  //   QML 引擎
 
-    QHash<QString, ClassMeta>      m_noArgCreator;   ///< 无参构造器表
-    QHash<QString, CreatorWithArg> m_argCreator;     ///< 带参构造器表
-    QHash<QString, void*>          m_singlePool;     ///< 单例对象池
-    QHash<QString, ClassMeta>      m_qmlCreators;    ///< Quick 类构造器表
+    QHash<QString, ClassMeta>      m_noArgCreator;   //   无参构造器表
+    QHash<QString, CreatorWithArg> m_argCreator;     //   带参构造器表
+    QHash<QString, void*>          m_singlePool;     //   单例对象池
+    QHash<QString, ClassMeta>      m_qmlCreators;    //   Quick 类构造器表
 };
 
 // ---------- 自动注册宏（支持模块前缀） ----------
@@ -251,39 +251,39 @@ private:
 #define FORCE_LINK_THIS(x) __attribute__((used))
 #endif
 
-/** @brief 注册无参 Widget 类 */
-#define SQZOBJECT_NOARG(Cls) \
-    static void _auto_reg_##Cls() \
-{ \
-    constexpr bool isQObj = std::is_base_of<QObject, Cls>::value; \
-    SqzHub::Instance().RegisterNoArg(MAKE_FULL_NAME(Cls), \
-    []()->void*{ return new Cls(); }, \
-    [](void* ptr){ delete static_cast<Cls*>(ptr); }, \
-    isQObj \
-    ); \
-    } \
-    FORCE_LINK_THIS(_reg_flag_##Cls) static bool _reg_flag_##Cls = (_auto_reg_##Cls(), true);
+//注册无参 Widget 类
+//#define SQZOBJECT_NOARG(Cls) \
+//    static void _auto_reg_##Cls() \
+//{ \
+//    constexpr bool isQObj = std::is_base_of<QObject, Cls>::value; \
+//    SqzHub::Instance().RegisterNoArg(MAKE_FULL_NAME(Cls), \
+//    []()->void*{ return new Cls(); }, \
+//    [](void* ptr){ delete static_cast<Cls*>(ptr); }, \
+//    isQObj \
+//    ); \
+//    } \
+//    FORCE_LINK_THIS(_reg_flag_##Cls) static bool _reg_flag_##Cls = (_auto_reg_##Cls(), true);
 
-/** @brief 注册无参 Quick 类 */
-#define SQZQUICK_NOARG(Class) \
-    static void _auto_reg_qml_##Class() { \
-    SqzHub::Instance().RegisterQuickClass(MAKE_FULL_NAME(Class), \
-    []()->void*{ return new Class(); }, \
-    [](void* ptr){ delete static_cast<Class*>(ptr); } \
-    ); \
-    } \
-    FORCE_LINK_THIS(_reg_qml_flag_##Class) \
-    static bool _reg_qml_flag_##Class = (_auto_reg_qml_##Class(), true);
+////注册无参 Quick 类
+//#define SQZQUICK_NOARG(Class) \
+//    static void _auto_reg_qml_##Class() { \
+//    SqzHub::Instance().RegisterQuickClass(MAKE_FULL_NAME(Class), \
+//    []()->void*{ return new Class(); }, \
+//    [](void* ptr){ delete static_cast<Class*>(ptr); } \
+//    ); \
+//    } \
+//    FORCE_LINK_THIS(_reg_qml_flag_##Class) \
+//    static bool _reg_qml_flag_##Class = (_auto_reg_qml_##Class(), true);
 
-/** @brief 注册带参类（接收 QVariantList） */
-#define SQZOBJECT_ARG(Cls) \
-    static void _auto_reg_arg_##Cls() \
-{ \
-    SqzHub::Instance().RegisterWithArg(MAKE_FULL_NAME(Cls), [](const QVariantList& Args)->void*{ \
-    return new Cls(Args); \
-    }); \
-    } \
-    FORCE_LINK_THIS(_reg_flag_arg_##Cls) static bool _reg_flag_arg_##Cls = (_auto_reg_arg_##Cls(), true);
+////注册带参类（接收 QVariantList）
+//#define SQZOBJECT_ARG(Cls) \
+//    static void _auto_reg_arg_##Cls() \
+//{ \
+//    SqzHub::Instance().RegisterWithArg(MAKE_FULL_NAME(Cls), [](const QVariantList& Args)->void*{ \
+//    return new Cls(Args); \
+//    }); \
+//    } \
+//    FORCE_LINK_THIS(_reg_flag_arg_##Cls) static bool _reg_flag_arg_##Cls = (_auto_reg_arg_##Cls(), true);
 
 #define SqzIn   SqzHub::Instance()
 }

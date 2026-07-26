@@ -1,6 +1,7 @@
 #include "SqzTest.h"
 #include "ui_SqzTest.h"
-#include "SqzHub.h"
+//#include "SqzHub.h"
+#include "SqzClassReg.h"
 using namespace Sqz;
 
 SqzTest::SqzTest(QWidget *parent) :
@@ -14,4 +15,4 @@ SqzTest::~SqzTest()
 {
     delete ui;
 }
-SQZOBJECT_NOARG(SqzTest);
+SQZ_REG_NOARG(SqzTest);

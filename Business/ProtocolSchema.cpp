@@ -12,16 +12,7 @@ static inline quint64 maskBits(int bitLength) {
         return 0;
     return (bitLength == 64) ? ~0ULL : (1ULL << bitLength) - 1;
 }
-// 从字节数组中提取整数（大端排列，bitLength可能不是8的倍数）
-static quint64 assembleFromBigEndianBits(const QByteArray& bitsBytes, int bitLength) {
-    quint64 result = 0;
-    int byteLen = bitsBytes.size();
-    for (int i = 0; i < byteLen; ++i) {
-        result = (result << 8) | static_cast<quint8>(bitsBytes[i]);
-    }
-    result >>= (byteLen * 8 - bitLength);
-    return result & maskBits(bitLength);
-}
+
 // 将整数分解为大端比特排列的字节数组
 static QByteArray decomposeToBigEndianBits(quint64 value, int bitLength) {
     int byteLen = (bitLength + 7) / 8;
@@ -356,8 +347,6 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
     }
     // 分解为大端比特排列的字节数组
     QByteArray bitsBytes = decomposeToBigEndianBits(internalValue, bitLength);
-    int startByte = bitOffset / 8;
-    int startBitInByte = bitOffset % 8;
     int bitsWritten = 0;
     int srcByteIdx = 0;
     int srcBitPos = 0; // 在源字节内的比特位置（0 = 最高位）
@@ -509,12 +498,11 @@ bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool
     if (isSigned) {
         qint64 minVal;
         qint64 maxVal;
-        quint64 maxU64 = maskBits(bitLength);
         if (bitLength == 64) {
             minVal = std::numeric_limits<qint64>::min();
             maxVal = std::numeric_limits<qint64>::max();
         } else {
-            minVal = -(1LL << (bitLength - 1));
+            minVal = -(1ULL << (bitLength - 1));
             maxVal = static_cast<qint64>((1ULL << (bitLength - 1)) - 1);
         }
         if (signedRaw < minVal || signedRaw > maxVal) {

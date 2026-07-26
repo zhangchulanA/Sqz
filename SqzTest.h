@@ -15,8 +15,10 @@ public:
     explicit SqzTest(QWidget *parent = nullptr);
     ~SqzTest();
 
+
 private:
     Ui::SqzTest *ui;
+    signals:
 };
 
 #endif // SQZTEST_H

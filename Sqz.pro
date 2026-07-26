@@ -38,7 +38,9 @@ UI_DIR          = $$OUT_PWD/ui
 INCLUDEPATH +=  $$PWD/Log \
                 $$PWD/Core \
                 $$PWD/Database \
-                $$PWD/Utils \
+                $$PWD/Utils/translator \
+                $$PWD/Utils/utils \
+                $$PWD/Utils/other \
                 $$PWD/Widget \
                 $$PWD/Config \
                 $$PWD/NetWork \
@@ -65,22 +67,15 @@ include(Global/Global.pri)
 include(Net/Net.pri)
 
 SOURCES += \
-#    TestWidget.cpp \
-#    RetransmitManager.cpp \
-    ProtocolSchemaTest.cpp \
+    SqzQuickTest.cpp \
     SqzTest.cpp \
     main.cpp \
-    tst_flexdata.cpp
 
 HEADERS += \
-#    RetransmitManager.h \
-    ProtocolSchemaTest.h \
- \#    TestWidget.h
+    SqzQuickTest.h \
     SqzTest.h
 
 FORMS += \
-#    MainWindowTest.ui \
- \#    TestWidget.ui
     SqzTest.ui
 
 # Default rules for deployment.
@@ -104,17 +99,20 @@ unix {
     # QMAKE_CXXFLAGS += -finput-charset=UTF-8 -fexec-charset=UTF-8
 }
 
-RESOURCES +=
+RESOURCES += \
+    QML.qrc
 
 
 DISTFILES += \
+    AppConfig.json \
     SqzData/config/app_config.ini \
     SqzData/translator/English.json \
-    SqzData/translator/简体中文.json
+    SqzData/translator/简体中文.json \
+    SqzQuickTest.qml
 #复制配置文件到输出目录
 
-    config.files += $$PWD/SqzData/config/app_config.ini
-    config.path = $$OUT_PWD/SqzData/config
+    config.files += $$PWD/AppConfig.json
+    config.path = $$OUT_PWD
     COPIES += config
 
     translators.files += $$PWD/SqzData/translator/简体中文.json \
@@ -127,5 +125,6 @@ QMAKE_CLEAN += \
         $$OBJECTS_DIR/* \
         $$MOC_DIR/* \
         $$RCC_DIR/* \
-        $$UI_DIR/*
+        $$UI_DIR/* \
+        $$OUT_PWD/AppConfig.json
 

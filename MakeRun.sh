@@ -35,7 +35,12 @@ find . -mindepth 2 -name "*.h" -type f | while read header; do
     cp "$header" "$target_dir/"
 done
 
-# 2. 复制 README.md 到 Sqz 目录下
+# 2. 收集所有子目录（用于生成 pri 文件的 INCLUDEPATH）
+echo "收集目录结构（用于生成 pri）..."
+# 获取所有包含 .h 文件的子目录（从 Sqz 根目录开始）
+INCLUDE_DIRS=$(find "$WORK_DIR/$PACKAGE_NAME" -type d | sed "s|$WORK_DIR/$PACKAGE_NAME||" | grep -v "^$" | sort -u)
+
+# 3. 复制 README.md 到 Sqz 目录下
 echo "复制 README.md..."
 if [ -f "$PRO_PWD/README.md" ]; then
     cp "$PRO_PWD/README.md" "$WORK_DIR/$PACKAGE_NAME/"
@@ -44,7 +49,7 @@ else
     echo "警告: 找不到 README.md"
 fi
 
-# 3. 复制 SqzLib
+# 4. 复制 SqzLib
 echo "收集库文件..."
 if [ -d "$PRO_PWD/SqzLib" ]; then
     mkdir -p "$WORK_DIR/$PACKAGE_NAME/SqzLib"
@@ -55,7 +60,7 @@ else
     exit 1
 fi
 
-# 4. 生成 install.sh
+# 5. 生成 install.sh
 echo "生成 install.sh..."
 cat > "$WORK_DIR/install.sh" << 'EOF'
 #!/bin/bash
@@ -104,18 +109,61 @@ fi
 
 # 权限
 sudo chmod -R 755 "$HEADER_INSTALL_DIR" "$LIB_INSTALL_DIR"
+
+# ========== 生成 Sqz.pri 文件 ==========
+echo "生成 Sqz.pri 配置文件..."
+PRI_FILE="$HEADER_INSTALL_DIR/Sqz.pri"
+
+# 收集所有子目录（相对于 HEADER_INSTALL_DIR）
+# 排除 SqzLib 目录
+ALL_DIRS=$(find "$HEADER_INSTALL_DIR" -mindepth 1 -type d ! -path "*/SqzLib*" ! -path "*/SqzLib" | sed "s|$HEADER_INSTALL_DIR||" | grep -v "^$" | sort -u)
+
+cat > "/tmp/Sqz.pri" << 'PRI_EOF'
+# Sqz.pri
+# 系统Sqz公共库
+
+# 本地源码模块路径
+SRC_ROOT = /usr/include/Sqz
+
+PRI_EOF
+
+# 添加 INCLUDEPATH 条目
+echo "INCLUDEPATH += \\" >> "/tmp/Sqz.pri"
+for dir in $ALL_DIRS; do
+    # 转义特殊字符（如空格等）
+    dir_escaped=$(echo "$dir" | sed 's/ /\\ /g')
+    # 判断是否为最后一个目录（简单处理，不完美但可用）
+    echo "                \$\$SRC_ROOT$dir_escaped \\" >> "/tmp/Sqz.pri"
+done
+# 删除最后一个反斜杠（sed 替换最后一行）
+sed -i '$ s/ \\$//' "/tmp/Sqz.pri"
+
+cat >> "/tmp/Sqz.pri" << 'PRI_EOF'
+
+LIBS += -L/usr/lib/Sqz/ -lSqz
+PRI_EOF
+
+# 复制 pri 文件到目标目录
+sudo cp "/tmp/Sqz.pri" "$PRI_FILE"
+rm -f "/tmp/Sqz.pri"
+
+echo "已生成 Sqz.pri: $PRI_FILE"
+
+# ========================================
+
 echo "=========================================="
 echo "安装完成！"
 echo "头文件: $HEADER_INSTALL_DIR"
 echo "库文件: $LIB_INSTALL_DIR"
+echo "Pri文件: $PRI_FILE"
+echo ""
 echo "使用方式：在 .pro 文件中添加"
-echo "  INCLUDEPATH += /usr/include/Sqz"
-echo "  LIBS += -L/usr/lib/Sqz -lSqz"
+echo "  include(/usr/include/Sqz/Sqz.pri)"
 echo "=========================================="
 EOF
 chmod +x "$WORK_DIR/install.sh"
 
-# 5. 直接构建自解压run
+# 6. 直接构建自解压run
 echo "创建 .run 自解压包..."
 cd "$WORK_DIR"
 cat > "$RUN_FILE" << 'EOF'
