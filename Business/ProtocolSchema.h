@@ -13,6 +13,7 @@
  *   - 高效实现：位操作使用掩码和移位
  *   - 错误处理：每个函数返回 bool 并输出详细错误信息
  *   - 字段重叠检测（可选）
+ *   - 枚举映射：支持数字↔文本自动转换，便于阅读（新增）
  *   优化加固项：参数强校验、64位符号扩展修复、编解码对称、内存防护、线程互斥、字段排序写入、循环依赖检测、溢出防护、跨平台移位安全
  *
  * 使用方式:
@@ -21,39 +22,48 @@
  *   schema.addField("temperature", 0, 0, 16, ProtocolSchema::Int)   // 16位有符号，系数1，偏移0
  *         .addField("low_nibble", 0, 0, 4, ProtocolSchema::UInt, ProtocolSchema::LittleEndian,
  *                   ProtocolSchema::Physical);                     // 取字节0的低4位
- *   // 2. 解析
+ *   // 2. 枚举映射（可选）
+ *   schema.map("mode", {{0,"停止"},{1,"启动"},{2,"故障"}});        // 数字转文本
+ *   schema.rmap("mode");                                          // 启用文本转数字（打包）
+ *   // 3. 解析
  *   QJsonObject json = schema.parse(rxData);
- *   double temp = json["temperature"].toDouble();
- *   // 3. 打包
+ *   QString mode = json["mode"].toString();  // "启动" 而不是 1
+ *   // 4. 打包（支持文本值）
  *   QJsonObject tx;
- *   tx["temperature"] = 25.6;
+ *   tx["mode"] = "启动";  // 自动转为 1
  *   QByteArray packed = schema.packToArray(tx);
  *****************************************************************************/
 #ifndef PROTOCOLSCHEMA_H
 #define PROTOCOLSCHEMA_H
+
 #include <QByteArray>
 #include <QJsonObject>
 #include <QString>
 #include <QVector>
 #include <QMutex>
 #include <QPair>
+#include <QHash>
+#include <QSet>
+#include <QMap>
 #include "SqzGlobal.h"
+
 namespace Sqz {
+
 class SQZ_FRAMEWORK_API ProtocolSchema
 {
-
 public:
-
     // 字节序（只有多字节整数 >8 位时才有效）
     enum Endian {
         LittleEndian,   // 小端：低地址存放低字节
         BigEndian       // 大端：低地址存放高字节
     };
+
     // 字节内比特顺序
     enum BitOrder {
         MsbFirst,   // 高位优先：bit7 为最高位（常规网络协议），startBit=0 表示从字节高位开始
         Physical    // 物理位索引：bit0 为最低位，startBit=0 表示从字节的最右侧（bit0）开始，不反转权重
     };
+
     // 字段值类型（JSON中存储的形式）
     enum ValueType {
         Int,            // 有符号整数（JSON存储为数字）
@@ -63,6 +73,7 @@ public:
         RawBytes,       // 原始字节数组（JSON中存储为Base64）
         String          // UTF-8字符串
     };
+
     // 单个字段的定义
     struct Field {
         QString name;           // 字段名（JSON中的key）
@@ -86,17 +97,9 @@ public:
     ProtocolSchema();
     ~ProtocolSchema();
 
+    // ---------- 原有接口（完全不变）----------
+
     // 添加固定长度字段（链式调用）
-    // name: 字段名
-    // startByte: 起始字节偏移
-    // startBit: 起始位（0~7，由 BitOrder 决定其物理含义）
-    // bitLength: 比特长度（1~64）
-    // type: 值类型，默认无符号整数
-    // endian: 字节序，默认小端（仅 bitLength > 8 时有效）
-    // bitOrder: 比特顺序，默认 MsbFirst
-    // isSigned: 仅对Int有效，默认false
-    // factor: 系数，默认1.0
-    // offset: 偏移，默认0.0
     ProtocolSchema& addField(const QString& name, int startByte, int startBit, int bitLength,
                              ValueType type = UInt, Endian endian = LittleEndian,
                              BitOrder bitOrder = Physical, bool isSigned = false,
@@ -104,12 +107,6 @@ public:
                              QString* err = nullptr);
 
     // 添加变长字段（长度由另一个整数字段的值决定，单位：字节）
-    // name: 字段名
-    // startByte: 起始字节偏移
-    // startBit: 起始位
-    // lenField: 指示长度的字段名（该字段的值表示变长字段的字节数）
-    // type: 值类型，默认为原始字节数组
-    // endian, bitOrder, factor, offset: 同addField
     ProtocolSchema& addVariableField(const QString& name, int startByte, int startBit,
                                      const QString& lenField, ValueType type = RawBytes,
                                      Endian endian = LittleEndian, BitOrder bitOrder = MsbFirst,
@@ -119,39 +116,81 @@ public:
     // 清空所有字段定义
     void clear();
 
-    // 检测字段定义是否有重叠（静态固定字段+运行时变长动态范围）
-    // 返回重叠的字段名列表（空表示无重叠）
+    // 检测字段定义是否有重叠
     QStringList checkOverlap(const QJsonObject& runtimeVarData = {}, QString* err = nullptr) const;
 
     // 解析二进制数据为JSON对象
-    // data: 原始数据
-    // errorMsg: 输出错误信息（可选）
     QJsonObject parse(const QByteArray& data, QString* errorMsg = nullptr) const;
 
     // 打包JSON对象为二进制数据
-    // values: 包含所有字段值的JSON对象
-    // out: 输出打包后的字节数组
-    // errorMsg: 输出错误信息（可选）
     bool pack(const QJsonObject& values, QByteArray& out, QString* errorMsg = nullptr) const;
 
     // 打包的便捷版本，直接返回字节数组（失败返回空）
     QByteArray packToArray(const QJsonObject& values, QString* errorMsg = nullptr) const;
 
-    // 校验字段配置合法性（外部可调用预校验）
+    // 校验字段配置合法性
     bool validateSchema(QString* errMsg = nullptr) const;
+
+    // ---------- 新增：枚举映射接口（简洁版）----------
+
+    /**
+     * @brief 为字段添加枚举映射（数字→文本）
+     * @param field 字段名
+     * @param mapping 映射表 {数值: 文本}
+     * @return 自身引用（链式调用）
+     *
+     * 示例: schema.map("mode", {{0,"停止"},{1,"启动"},{2,"故障"}});
+     *       解析后 JSON 中 mode 显示为 "启动" 而不是 1
+     */
+    ProtocolSchema& map(const QString& field, const QMap<int, QString>& mapping);
+    ProtocolSchema& map(const QString& field, std::initializer_list<std::pair<int, QString>> mapping);
+
+    /**
+     * @brief 启用字段的反向映射（文本→数字），用于打包
+     * @param field 字段名
+     * @return 自身引用（链式调用）
+     *
+     * 示例: schema.map("mode", {...}).rmap("mode");
+     *       打包时 JSON 中 mode 可写 "启动"，自动转为 1
+     */
+    ProtocolSchema& rmap(const QString& field);
+
+    /**
+     * @brief 批量启用反向映射
+     * @param fields 字段名列表
+     * @return 自身引用（链式调用）
+     */
+    ProtocolSchema& rmap(const QStringList& fields);
+
+    /**
+     * @brief 获取字段的枚举映射（只读）
+     */
+    QMap<int, QString> getMap(const QString& field) const;
+
+    /**
+     * @brief 清除所有映射
+     */
+    void clearMaps();
 
 private:
     mutable QMutex m_mutex{QMutex::Recursive};
     QVector<Field> m_fields;    // 存储所有字段定义
 
-    // ---------- 底层位操作（私有）----------
+    // ---------- 新增：枚举映射相关 ----------
+    QHash<QString, QMap<int, QString>> m_enumMaps;   // 字段→映射表
+    QSet<QString> m_reverseFields;                   // 启用反向映射的字段
+
+    // 内部映射处理函数
+    QJsonObject applyMaps(const QJsonObject& input) const;
+    QJsonObject reverseMaps(const QJsonObject& input, QString* errorMsg = nullptr) const;
+
+    // ---------- 原有私有函数（完全不变）----------
+
     // 读取最多64位整数（任意比特偏移）
-    // 注意：当 bitLength > 8 时应用 endian，否则忽略 endian
     bool readBits(const QByteArray& data, int bitOffset, int bitLength, quint64& out,
                   Endian endian, BitOrder bitOrder, QString* err = nullptr) const;
 
     // 写入最多64位整数（任意比特偏移）
-    // 注意：当 bitLength > 8 时应用 endian，否则忽略 endian
     bool writeBits(QByteArray& data, int bitOffset, int bitLength, quint64 value,
                    Endian endian, BitOrder bitOrder, QString* errorMsg = nullptr) const;
 
@@ -187,9 +226,10 @@ private:
     // 按绝对bit偏移升序排序字段（打包防止覆盖）
     QVector<Field> getSortedFields() const;
 
-
+    // 内部解析（不应用映射）
+    QJsonObject parseInternal(const QByteArray& data, QString* errorMsg = nullptr) const;
 };
 
-     using PtlSc = ProtocolSchema;
-}
+} // namespace Sqz
+
 #endif // PROTOCOLSCHEMA_H
