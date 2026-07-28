@@ -10,6 +10,7 @@
  *        并确保类名与注册名称一致。推荐使用 SqzHub 创建子类实例。
  */
 #include <QObject>
+#include <QMetaObject>
 #include "SqzHub.h"
 #include "SqzGlobal.h"
 
@@ -55,14 +56,11 @@ protected:
     virtual void onInit() {}
 
     //对象即将销毁前回调
-    ///
     virtual void onClose() {}
 
     //获取子类名称（必须实现）
     virtual QString className() const = 0;
 
-    //获取qml路径（必须实现）
-    virtual QString qmlSource() const = 0;
 };
 }
 #endif // SqzService_H

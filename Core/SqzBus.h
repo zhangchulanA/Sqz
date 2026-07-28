@@ -43,6 +43,7 @@
 #include <functional>
 #include <QMetaObject>
 #include <QThread>
+#include <QJsonObject>
 #include "SqzGlobal.h"
 namespace Sqz {
 class SQZ_FRAMEWORK_API SqzBus : public QObject
@@ -73,8 +74,8 @@ public:
     static void Send(const QString &msgName, const QByteArray &value);
     static void Send(const QString &msgName, const qint64 &value);
     static void Send(const QString &msgName, const QVariantList &list);
-    // 增加这个重载
     static void Send(const QString &msgName, const QVariantMap &map);
+    static void Send(const QString &msgName, const QJsonObject &map);
 
     // ---------- 注册监听（无注释，保持简洁）----------
     static void Receive(QObject *receiver, const QString &msgName,
@@ -134,6 +135,22 @@ public:
                         T* instance, void(T::*func)(const QVariantList&)) {
         Receive(receiver, msgName, [instance, func](const QVariant& data) {
             (instance->*func)(data.toList());
+        });
+    }
+
+    template<typename T>
+    static void Receive(QObject *receiver, const QString &msgName,
+                        T* instance, void(T::*func)(const QVariantMap&)) {
+        Receive(receiver, msgName, [instance, func](const QVariant& data) {
+            (instance->*func)(data.toMap());
+        });
+    }
+
+    template<typename T>
+    static void Receive(QObject *receiver, const QString &msgName,
+                        T* instance, void(T::*func)(const QJsonObject&)) {
+        Receive(receiver, msgName, [instance, func](const QVariant& data) {
+            (instance->*func)(data.toJsonObject());
         });
     }
 

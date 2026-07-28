@@ -41,7 +41,9 @@
 namespace Sqz {
 class SQZ_FRAMEWORK_API ProtocolSchema
 {
+
 public:
+
     // 字节序（只有多字节整数 >8 位时才有效）
     enum Endian {
         LittleEndian,   // 小端：低地址存放低字节
@@ -184,6 +186,10 @@ private:
 
     // 按绝对bit偏移升序排序字段（打包防止覆盖）
     QVector<Field> getSortedFields() const;
+
+
 };
+
+     using PtlSc = ProtocolSchema;
 }
 #endif // PROTOCOLSCHEMA_H

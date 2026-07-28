@@ -60,6 +60,11 @@ void SqzBus::Send(const QString &msgName, const QVariantMap &map)
     Send(msgName, QVariant(map));
 }
 
+void SqzBus::Send(const QString &msgName, const QJsonObject &map)
+{
+    Send(msgName, QVariant(map));
+}
+
 // ==============================
 // 注册监听（无注释，保持简洁）
 // ==============================

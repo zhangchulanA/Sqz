@@ -11,7 +11,8 @@
  *        推荐使用 SqzHub 创建子类实例，避免直接 new。
  */
 #include <QMainWindow>
-#include "SqzHub.h"
+#include <QMetaObject>
+#include "SqzClassReg.h"
 #include "SqzGlobal.h"
 namespace Sqz {
 class SQZ_FRAMEWORK_API SqzMainWindow : public QMainWindow

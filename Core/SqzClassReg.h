@@ -7,6 +7,7 @@
 #include <QVariantList>
 #include <type_traits>
 #include "SqzGlobal.h"
+#include "SqzHub.h"
 namespace Sqz
 {
 class SqzQuick;
@@ -57,5 +58,6 @@ namespace { \
     }; \
     static AutoReg_##Cls Reg_##Cls; \
 }
+#define SqzIn  SqzHub::Instance()
 }
 #endif

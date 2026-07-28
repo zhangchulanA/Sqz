@@ -2,29 +2,25 @@
   "AppMeta": {
     "AppName": "Sqz",
     "DisplayName": "Sqz框架",
-    "Version": "1.0.5",
+    "Version": "1.0.0",
     "ThreadPrefix": "Sqz",
     "ExitDelayMs": 300
-  },
-  "SqzState": {
-    "AutoCleanMs": 5000,
-    "StaleMs": 3000
   },
   "Services": [
   ],
   "Views": [
     {
-      "ViewType": "Widget",
+      "ViewType": "SqzWidget",
       "ClassName": "SqzTest",
       "IsMain": true,
-      "AutoShow": false,
+      "AutoStart": false,
       "Props": {"WindowTitle": "主界面"}
     },
     {
-          "ViewType": "Quick",
+          "ViewType": "SqzQuick",
           "ClassName": "SqzQuickTest",
           "QmlSource": "qrc:/SqzQuickTest.qml",
-          "AutoShow": true,
+          "AutoStart": true,
           "Props": {}
      }
   ]

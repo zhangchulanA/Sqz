@@ -31,11 +31,11 @@ SqzApplication *SqzApplication::instance()
 
 bool SqzApplication::LoadConfig()
 {
-    const QString cfgPath = "./AppConfig.json";
+    const QString cfgPath = "./SqzAppConfig.json";
     QFile file(cfgPath);
     if (!file.open(QIODevice::ReadOnly))
     {
-        qCritical() << "[SqzApp] 配置文件打开失败:" << cfgPath << file.errorString();
+        logwarn << "[SqzApp] 配置文件打开失败:" << cfgPath << file.errorString();
         return false;
     }
 
@@ -45,7 +45,7 @@ bool SqzApplication::LoadConfig()
 
     if (parseErr.error != QJsonParseError::NoError)
     {
-        qCritical() << "[SqzApp] Json解析错误:" << parseErr.errorString();
+        logwarn << "[SqzApp] Json解析错误:" << parseErr.errorString();
         return false;
     }
     return ParseJson(doc);
@@ -65,11 +65,6 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
 
     // 全局设置线程局部前缀，移除pro宏依赖
     SqzHub::SetThreadPrefix(m_Cfg.ThreadPrefix);
-
-    // 全局状态配置
-    QJsonObject stateObj = root["SqzState"].toObject();
-    m_Cfg.AutoCleanMs = stateObj["AutoCleanMs"].toInt(5000);
-    m_Cfg.StaleMs = stateObj["StaleMs"].toInt(3000);
 
     // 解析后台服务
     QJsonArray serviceArr = root["Services"].toArray();
@@ -103,11 +98,8 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         v.ClassName = obj["ClassName"].toString();
         v.QmlSource = obj["QmlSource"].toString();
         v.IsMain = obj["IsMain"].toBool(false);
-        v.AutoShow = obj["AutoShow"].toBool(true);
+        v.AutoStart = obj["AutoStart"].toBool(true);
         v.Props = obj["Props"].toObject().toVariantMap();
-        // 将QmlSource塞入属性map，统一批量赋值
-        //        if (!v.QmlSource.isEmpty())
-        //            v.Props["QmlSourcePath"] = v.QmlSource;
         m_Cfg.ViewList.append(v);
     }
 
@@ -118,7 +110,7 @@ bool SqzApplication::Init()
 {
     if (!m_ConfigValid)
     {
-        qCritical() << "[SqzApp] 配置加载失败，终止初始化";
+        logerror << "[SqzApp] 配置加载失败，终止初始化";
         return false;
     }
 
@@ -132,11 +124,7 @@ bool SqzApplication::Init()
     }
 #endif
 
-    // 第一步：批量将所有注册类灌入SqzHub工厂
     BatchRegisterClass();
-
-    if (!InitState()) return false;
-    loginfo << "[SqzApp] SqzBus默认启用，无需额外配置";
 
     CreateServices();
     CreateViews();
@@ -146,7 +134,6 @@ bool SqzApplication::Init()
     qApp->setApplicationName(m_Cfg.AppName);
     qApp->setApplicationDisplayName(m_Cfg.DisplayName);
     qApp->setApplicationVersion(m_Cfg.Version);
-    loginfo << "[SqzApp] 全部组件初始化完成";
     return true;
 }
 
@@ -161,6 +148,77 @@ void SqzApplication::QuitApp()
 void SqzApplication::LogRegClass()
 {
     SqzIn.PrintRegClass();
+}
+
+// ---------- 通用单例操作 ----------
+void SqzApplication::OpenView(const QString& className) {
+    SqzHub::Instance().CreateWidget(className);
+}
+
+void SqzApplication::CloseView(const QString& className) {
+    SqzHub::Instance().CloseObj(className);
+}
+
+void SqzApplication::CloseViewLater(const QString& className) {
+    SqzHub::Instance().CloseObjLater(className);
+}
+
+void SqzApplication::RestartView(const QString& className) {
+    SqzHub::Instance().ResetObj(className);
+}
+
+bool SqzApplication::HasView(const QString& className) const {
+    return SqzHub::Instance().IsExist(className);
+}
+
+// ---------- 界面专属操作 ----------
+void SqzApplication::HideView(const QString& className) {
+    SqzHub::Instance().HideWidget(className);
+}
+
+void SqzApplication::ShowView(const QString &className)
+{
+    SqzHub::Instance().ShowWidget(className);
+}
+
+void SqzApplication::ToggleView(const QString& className) {
+    SqzHub::Instance().ToggleWidget(className);
+}
+
+bool SqzApplication::IsViewVisible(const QString& className) const {
+    return SqzHub::Instance().IsWidgetVisible(className);
+}
+
+void SqzApplication::SetViewTopMost(const QString& className, bool topMost) {
+    SqzHub::Instance().SetWidgetTop(className, topMost);
+}
+
+void SqzApplication::ResizeView(const QString& className, int w, int h) {
+    SqzHub::Instance().SetWidgetSize(className, w, h);
+}
+
+void SqzApplication::MoveView(const QString& className, int x, int y) {
+    SqzHub::Instance().SetWidgetPos(className, x, y);
+}
+
+void SqzApplication::OpenService(const QString& className) {
+    SqzHub::Instance().CreateObject(className);
+}
+
+void SqzApplication::CloseService(const QString& className) {
+    SqzHub::Instance().CloseObj(className);
+}
+
+void SqzApplication::CloseServiceLater(const QString& className) {
+    SqzHub::Instance().CloseObjLater(className);
+}
+
+void SqzApplication::RestartService(const QString& className) {
+    SqzHub::Instance().ResetObj(className);
+}
+
+bool SqzApplication::HasService(const QString& className) const {
+    return SqzHub::Instance().IsExist(className);
 }
 
 
@@ -178,12 +236,6 @@ void SqzApplication::ReleaseAllResources()
     hub.CloseAll();
 }
 
-bool SqzApplication::InitState()
-{
-    SqzState::Instance()->SetAutoCleanup(m_Cfg.AutoCleanMs, m_Cfg.StaleMs);
-    loginfo << "[SqzApp] 全局状态仓库初始化完成";
-    return true;
-}
 
 void SqzApplication::CreateServices()
 {
@@ -210,40 +262,42 @@ void SqzApplication::CreateViews()
     for (const auto& v : m_Cfg.ViewList)
     {
         QObject* viewObj = nullptr;
-        if (v.ViewType == "Widget")
+        if (v.ViewType == "SqzWidget")
         {
-            viewObj = hub.CreateWidget(v.ClassName);
-            QWidget* win = qobject_cast<QWidget*>(viewObj);
-            if (!win)
-            {
-                logwarn << "[SqzApp] 创建Widget失败:" << v.ClassName;
-                continue;
+            if (v.AutoStart){
+                viewObj = hub.CreateWidget(v.ClassName);
+
+                QWidget* win = qobject_cast<QWidget*>(viewObj);
+                if (!win)
+                {
+                    logwarn << "[SqzApp] 创建Widget失败:" << v.ClassName;
+                    continue;
+                }
+                // 绑定主窗口关闭退出
+                if (v.IsMain)
+                {
+                    m_MainWindow = win;
+                    connect(win, &QWidget::close, this, &SqzApplication::OnMainWindowClose);
+                }
             }
-            if (!v.AutoShow)
-                hub.HideWidget(v.ClassName);
-            // 绑定主窗口关闭退出
-            if (v.IsMain)
-            {
-                m_MainWindow = win;
-                connect(win, &QWidget::close, this, &SqzApplication::OnMainWindowClose);
-            }
+
         }
-        else if (v.ViewType == "Quick")
+        else if (v.ViewType == "SqzQuick")
         {
-            viewObj = hub.CreateQuick(v.ClassName,v.QmlSource);
-            SqzQuick* quick = qobject_cast<SqzQuick*>(viewObj);
-            if (!quick)
-            {
-                logwarn << "[SqzApp] 创建Quick视图失败:" << v.ClassName;
-                continue;
+            if (v.AutoStart){
+                viewObj = hub.CreateQuick(v.ClassName,v.QmlSource);
+
+                SqzQuick* quick = qobject_cast<SqzQuick*>(viewObj);
+                if (!quick)
+                {
+                    logwarn << "[SqzApp] 创建Quick视图失败:" << v.ClassName;
+                    continue;
+                }
+                // 把JSON配置的QmlSource设置到对象属性
+                viewObj->setProperty("m_qmlSourcePath", v.QmlSource);
             }
-            // 把JSON配置的QmlSource设置到对象属性
-            viewObj->setProperty("m_qmlSourcePath", v.QmlSource);
-            if (!v.AutoShow)
-                hub.HideQuick(v.ClassName);
         }
         ApplyProps(viewObj, v.Props);
-        loginfo << "[SqzApp] 创建视图[" << v.ViewType << "]:" << v.ClassName;
     }
 }
 

@@ -11,9 +11,9 @@
  *        推荐使用 SqzHub 创建子类实例，避免直接 new。
  */
 #include <QWidget>
+#include <QMetaObject>
 #include "SqzGlobal.h"
-#include "SqzApplication.h"
-
+#include "SqzClassReg.h"
 namespace  Sqz {
 class SQZ_FRAMEWORK_API SqzWidget : public QWidget
 {
@@ -80,7 +80,6 @@ protected:
     virtual void onInit() {}
 
     //对象即将销毁前回调
-    ///
     virtual void onClose() {}
 
     //获取子类名称（必须实现）

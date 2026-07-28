@@ -3,6 +3,7 @@
 #define SqzQuick_H
 
 #include <QObject>
+#include <QMetaObject>
 #include "SqzClassReg.h"
 #include "SqzGlobal.h"
 #include "SqzApplication.h"

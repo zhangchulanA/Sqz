@@ -142,8 +142,8 @@ void UdpServer::ReceiveData()
         qint64 size = m_Socket->readDatagram(data.data(),data.size(),&senderAddress,&senderPort);
         if(size != -1)
         {
-            SqzBus::Send("GET_UDP_DATA",{QVariant::fromValue(senderAddress),senderPort,data});
-            //            emit DataReceived(data);
+            //            SqzBus::Send("GET_UDP_DATA",{QVariant::fromValue(senderAddress),senderPort,data});
+            emit DataReceivedAndIP(senderAddress,senderPort,data);
         }
     }
 
