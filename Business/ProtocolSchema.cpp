@@ -5,9 +5,7 @@
 #include <limits>
 #include <cmath>
 #include <algorithm>
-
 namespace Sqz {
-
 // ==================== 辅助静态函数 ====================
 static inline quint64 maskBits(int bitLength) {
     if (bitLength <= 0 || bitLength > ProtocolSchema::MAX_BIT_WIDTH)
@@ -15,7 +13,7 @@ static inline quint64 maskBits(int bitLength) {
     return (bitLength == 64) ? ~0ULL : (1ULL << bitLength) - 1;
 }
 
-
+// 将整数分解为大端比特排列的字节数组
 static QByteArray decomposeToBigEndianBits(quint64 value, int bitLength) {
     int byteLen = (bitLength + 7) / 8;
     QByteArray bytes(byteLen, 0);
@@ -26,22 +24,19 @@ static QByteArray decomposeToBigEndianBits(quint64 value, int bitLength) {
     }
     return bytes;
 }
-
 // ==================== ProtocolSchema 类实现 ====================
 ProtocolSchema::ProtocolSchema()
 {
 }
-
 ProtocolSchema::~ProtocolSchema()
 {
 }
-
-// ---------- 原有实现（完全不变）----------
 ProtocolSchema& ProtocolSchema::addField(const QString& name, int startByte, int startBit,
                                          int bitLength, ValueType type, Endian endian,
                                          BitOrder bitOrder, bool isSigned,
                                          double factor, double offset, QString* err) {
     QMutexLocker lock(&m_mutex);
+    // 参数合法性校验
     if (name.trimmed().isEmpty()) {
         if (err) *err = "Field name cannot be empty";
         return *this;
@@ -58,6 +53,7 @@ ProtocolSchema& ProtocolSchema::addField(const QString& name, int startByte, int
         if (err) *err = QString("Field %1 bitLength must 1~64").arg(name);
         return *this;
     }
+    // 同名字段重复检测
     for (const auto& f : m_fields) {
         if (f.name == name) {
             if (err) *err = QString("Duplicate field name: %1").arg(name);
@@ -79,7 +75,6 @@ ProtocolSchema& ProtocolSchema::addField(const QString& name, int startByte, int
     m_fields.append(f);
     return *this;
 }
-
 ProtocolSchema& ProtocolSchema::addVariableField(const QString& name, int startByte, int startBit,
                                                  const QString& lenField, ValueType type,
                                                  Endian endian, BitOrder bitOrder,
@@ -101,6 +96,7 @@ ProtocolSchema& ProtocolSchema::addVariableField(const QString& name, int startB
         if (err) *err = QString("Var field %1 startBit must 0~7").arg(name);
         return *this;
     }
+    // 同名字段重复检测
     for (const auto& f : m_fields) {
         if (f.name == name) {
             if (err) *err = QString("Duplicate var field name: %1").arg(name);
@@ -122,13 +118,10 @@ ProtocolSchema& ProtocolSchema::addVariableField(const QString& name, int startB
     m_fields.append(f);
     return *this;
 }
-
 void ProtocolSchema::clear() {
     QMutexLocker lock(&m_mutex);
     m_fields.clear();
-    clearMaps(); // 也清除映射
 }
-
 bool ProtocolSchema::validateSchema(QString* errMsg) const
 {
     QMutexLocker lock(&m_mutex);
@@ -137,7 +130,6 @@ bool ProtocolSchema::validateSchema(QString* errMsg) const
         return false;
     return true;
 }
-
 bool ProtocolSchema::hasVarCycleDependency(QStringList& cycleList, QString* err) const
 {
     QHash<QString, QString> varMap;
@@ -166,7 +158,6 @@ bool ProtocolSchema::hasVarCycleDependency(QStringList& cycleList, QString* err)
     }
     return false;
 }
-
 QVector<ProtocolSchema::Field> ProtocolSchema::getSortedFields() const
 {
     QMutexLocker lock(&m_mutex);
@@ -176,7 +167,6 @@ QVector<ProtocolSchema::Field> ProtocolSchema::getSortedFields() const
     });
     return copy;
 }
-
 QStringList ProtocolSchema::checkOverlap(const QJsonObject& runtimeVarData, QString* err) const {
     QMutexLocker lock(&m_mutex);
     QStringList overlaps;
@@ -187,6 +177,7 @@ QStringList ProtocolSchema::checkOverlap(const QJsonObject& runtimeVarData, QStr
         if (f.bitLength > 0) {
             end = start + f.bitLength;
         } else {
+            // 动态变长字段计算运行时bit范围
             if (!runtimeVarData.contains(f.lenField)) {
                 if (err) *err = QString("Overlap check missing len field %1 for %2").arg(f.lenField, f.name);
                 continue;
@@ -214,8 +205,7 @@ QStringList ProtocolSchema::checkOverlap(const QJsonObject& runtimeVarData, QStr
     }
     return overlaps;
 }
-
-// ---------- 原有位操作（完全不变）----------
+// ---------- 核心：按 Physical 或 MsbFirst 读取比特 ----------
 bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLength,
                               quint64& out, Endian endian, BitOrder bitOrder, QString* err) const {
     out = 0;
@@ -237,6 +227,7 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
         if (err) *err = "Empty input data buffer";
         return false;
     }
+    // 对于 Physical 模式：直接按物理比特索引读取，bit0 为最低位
     if (bitOrder == Physical) {
         quint64 value = 0;
         for (int i = 0; i < bitLength; ++i) {
@@ -246,8 +237,10 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
             quint8 byte = static_cast<quint8>(data.at(byteIdx));
             quint8 bitVal = (byte >> bitInByte) & 0x01;
             if (bitVal)
-                value |= (1ULL << i);
+                value |= (1ULL << i);   // 第 i 个读到的比特成为整数的第 i 位
         }
+        // 对于 Physical 模式，字节序仅当 bitLength > 8 时影响多字节整数的字节顺序
+        // 但 Physical 模式已经按物理小端顺序组装了 value（低位在低地址），如果用户要求大端，需要交换字节
         if (bitLength > 8 && endian == BigEndian) {
             int byteCount = (bitLength + 7) / 8;
             quint64 swapped = 0;
@@ -259,15 +252,18 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
         out = value & maskBits(bitLength);
         return true;
     }
+    // ========== MsbFirst 模式 ==========
     int startByte = bitOffset / 8;
     int startBitInByte = bitOffset % 8;
     int endByte = (bitOffset + bitLength - 1) / 8;
     int byteSpan = endByte - startByte + 1;
     QByteArray bytes = data.mid(startByte, byteSpan);
+    // MsbFirst 下，字节内比特顺序就是自然顺序，无需反转
+    // 但需要将提取的比特段按大端方式组合（先读到的为高位）
     quint64 value = 0;
     int bitsLeft = bitLength;
     int byteIdx = 0;
-    int bitPos = startBitInByte;
+    int bitPos = startBitInByte; // 当前字节内起始位（0 = 最高位）
     while (bitsLeft > 0 && byteIdx < bytes.size()) {
         quint8 byte = static_cast<quint8>(bytes[byteIdx]);
         int bitsFromThisByte = qMin(8 - bitPos, bitsLeft);
@@ -278,6 +274,7 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
         bitPos = 0;
         ++byteIdx;
     }
+    // 字节序转换（仅当 bitLength > 8 且需要小端时）
     if (bitLength > 8 && endian == LittleEndian) {
         int byteCount = (bitLength + 7) / 8;
         quint64 swapped = 0;
@@ -289,7 +286,7 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
     out = value & maskBits(bitLength);
     return true;
 }
-
+// ---------- 写入比特（对称于 readBits） ----------
 bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, quint64 value,
                                Endian endian, BitOrder bitOrder, QString* errorMsg) const {
     if (bitOffset < 0) {
@@ -311,7 +308,9 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
         return false;
     }
     value &= maskBits(bitLength);
+    // Physical 模式
     if (bitOrder == Physical) {
+        // 如果要求大端字节序且长度>8，先转换 value 为小端内部表示（与read对称逆运算）
         quint64 toWrite = value;
         if (bitLength > 8 && endian == BigEndian) {
             int byteCount = (bitLength + 7) / 8;
@@ -321,6 +320,7 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
             }
             toWrite = swapped;
         }
+        // 按物理比特索引写入
         for (int i = 0; i < bitLength; ++i) {
             qint64 bitIdx = static_cast<qint64>(bitOffset) + i;
             int byteIdx = static_cast<int>(bitIdx / 8);
@@ -334,6 +334,8 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
         }
         return true;
     }
+    // ========== MsbFirst 模式 ==========
+    // 先处理字节序（仅当长度>8时）
     quint64 internalValue = value;
     if (bitLength > 8 && endian == LittleEndian) {
         int byteCount = (bitLength + 7) / 8;
@@ -343,10 +345,11 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
         }
         internalValue = swapped;
     }
+    // 分解为大端比特排列的字节数组
     QByteArray bitsBytes = decomposeToBigEndianBits(internalValue, bitLength);
     int bitsWritten = 0;
     int srcByteIdx = 0;
-    int srcBitPos = 0;
+    int srcBitPos = 0; // 在源字节内的比特位置（0 = 最高位）
     while (bitsWritten < bitLength && srcByteIdx < bitsBytes.size()) {
         quint8 srcByte = static_cast<quint8>(bitsBytes[srcByteIdx]);
         int bitsRemainingInSrc = 8 - srcBitPos;
@@ -356,6 +359,7 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
         int bitsToWrite = qMin(bitsRemainingInSrc, bitLength - bitsWritten);
         quint8 srcSegment = (srcByte >> (8 - srcBitPos - bitsToWrite)) & ((1 << bitsToWrite) - 1);
         uchar* targetByte = reinterpret_cast<uchar*>(data.data() + targetByteIdx);
+        // 修复 bitsToWrite=8 移位溢出问题
         quint8 clearMask;
         if (bitsToWrite == 8) {
             clearMask = 0x00;
@@ -373,7 +377,7 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
     }
     return true;
 }
-
+// ---------- 字节数组读取（复用 readBits） ----------
 bool ProtocolSchema::readBitsToBytes(const QByteArray& data, int bitOffset, int bitLength,
                                      QByteArray& out, Endian endian, BitOrder bitOrder, QString* err) const {
     out.clear();
@@ -403,7 +407,7 @@ bool ProtocolSchema::readBitsToBytes(const QByteArray& data, int bitOffset, int 
     }
     return true;
 }
-
+// ---------- 字节数组写入 ----------
 bool ProtocolSchema::writeBitsToBytes(QByteArray& data, int bitOffset, const QByteArray& bytes,
                                       Endian endian, BitOrder bitOrder, QString* errorMsg) const {
     if (bitOffset < 0) return true;
@@ -415,6 +419,7 @@ bool ProtocolSchema::writeBitsToBytes(QByteArray& data, int bitOffset, const QBy
         if (errorMsg) *errorMsg = "WriteBitsToBytes out of bounds";
         return false;
     }
+    // 逐个字节写入
     QByteArray toWrite = bytes;
     for (int i = 0; i < toWrite.size(); ++i) {
         quint8 byteVal = static_cast<quint8>(toWrite[i]);
@@ -426,13 +431,14 @@ bool ProtocolSchema::writeBitsToBytes(QByteArray& data, int bitOffset, const QBy
     }
     return true;
 }
-
+// ---------- JSON 值转换 ----------
 QByteArray ProtocolSchema::encodeValue(const QJsonValue& value, ValueType type, int fixedBytes,
                                        QString* errorMsg) const {
     QByteArray result;
     switch (type) {
     case HexString: {
         QString hex = value.toString().trimmed();
+        // 检测奇数长度十六进制
         if ((hex.length() % 2) != 0) {
             if (errorMsg) *errorMsg = QString("Hex string length must even, got %1").arg(hex.length());
             return QByteArray();
@@ -473,7 +479,6 @@ QByteArray ProtocolSchema::encodeValue(const QJsonValue& value, ValueType type, 
     }
     return result;
 }
-
 bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool isSigned,
                                     double factor, double offset,
                                     quint64& out, QString* errorMsg) const {
@@ -488,6 +493,7 @@ bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool
         return false;
     }
     double rawDouble = (physicalValue - offset) / factor;
+    // 四舍五入修复截断精度丢失
     qint64 signedRaw = static_cast<qint64>(std::round(rawDouble));
     if (isSigned) {
         qint64 minVal;
@@ -496,7 +502,7 @@ bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool
             minVal = std::numeric_limits<qint64>::min();
             maxVal = std::numeric_limits<qint64>::max();
         } else {
-            minVal = -(1LL << (bitLength - 1));
+            minVal = -(1ULL << (bitLength - 1));
             maxVal = static_cast<qint64>((1ULL << (bitLength - 1)) - 1);
         }
         if (signedRaw < minVal || signedRaw > maxVal) {
@@ -516,10 +522,10 @@ bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool
     }
     return true;
 }
-
 double ProtocolSchema::applyLinearTransform(quint64 rawValue, double factor, double offset,
                                             bool isSigned, int bitLength) {
     qint64 signedRaw = static_cast<qint64>(rawValue);
+    // 修复64位有符号整数符号扩展缺失问题
     if (isSigned) {
         if (bitLength == 64) {
             signedRaw = static_cast<qint64>(rawValue);
@@ -530,13 +536,12 @@ double ProtocolSchema::applyLinearTransform(quint64 rawValue, double factor, dou
     double value = static_cast<double>(signedRaw);
     return value * factor + offset;
 }
-
-// ---------- 内部解析（不应用映射）----------
-QJsonObject ProtocolSchema::parseInternal(const QByteArray& data, QString* errorMsg) const
-{
+// ---------- 公有解析和打包 ----------
+QJsonObject ProtocolSchema::parse(const QByteArray& data, QString* errorMsg) const {
+    QMutexLocker lock(&m_mutex);
     QJsonObject result;
     QString errBuf;
-
+    // 先解析固定长度字段
     for (const Field& f : m_fields) {
         if (f.bitLength > 0) {
             qint64 bitOffset64 = absoluteBitOffset(f);
@@ -577,7 +582,7 @@ QJsonObject ProtocolSchema::parseInternal(const QByteArray& data, QString* error
             }
         }
     }
-
+    // 再解析变长字段
     for (const Field& f : m_fields) {
         if (f.bitLength == 0) {
             if (!result.contains(f.lenField)) {
@@ -627,185 +632,20 @@ QJsonObject ProtocolSchema::parseInternal(const QByteArray& data, QString* error
     }
     return result;
 }
-
-// ---------- 新增：枚举映射实现 ----------
-ProtocolSchema& ProtocolSchema::map(const QString& field, const QMap<int, QString>& mapping)
-{
+bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* errorMsg) const {
     QMutexLocker lock(&m_mutex);
-    if (!mapping.isEmpty()) {
-        m_enumMaps[field] = mapping;
-    }
-    return *this;
-}
-
-ProtocolSchema& ProtocolSchema::map(const QString& field, std::initializer_list<std::pair<int, QString>> mapping)
-{
-    QMutexLocker lock(&m_mutex);
-    QMap<int, QString> map;
-    for (const auto& pair : mapping) {
-        map[pair.first] = pair.second;
-    }
-    if (!map.isEmpty()) {
-        m_enumMaps[field] = map;
-    }
-    return *this;
-}
-
-ProtocolSchema& ProtocolSchema::rmap(const QString& field)
-{
-    QMutexLocker lock(&m_mutex);
-    if (m_enumMaps.contains(field)) {
-        m_reverseFields.insert(field);
-    }
-    return *this;
-}
-
-ProtocolSchema& ProtocolSchema::rmap(const QStringList& fields)
-{
-    QMutexLocker lock(&m_mutex);
-    for (const QString& field : fields) {
-        if (m_enumMaps.contains(field)) {
-            m_reverseFields.insert(field);
-        }
-    }
-    return *this;
-}
-
-QMap<int, QString> ProtocolSchema::getMap(const QString& field) const
-{
-    QMutexLocker lock(&m_mutex);
-    return m_enumMaps.value(field);
-}
-
-void ProtocolSchema::clearMaps()
-{
-    QMutexLocker lock(&m_mutex);
-    m_enumMaps.clear();
-    m_reverseFields.clear();
-}
-
-QJsonObject ProtocolSchema::applyMaps(const QJsonObject& input) const
-{
-    QMutexLocker lock(&m_mutex);
-    QJsonObject result = input;
-
-    for (auto it = m_enumMaps.begin(); it != m_enumMaps.end(); ++it) {
-        const QString& fieldName = it.key();
-        const QMap<int, QString>& mapping = it.value();
-
-        if (result.contains(fieldName)) {
-            QJsonValue value = result[fieldName];
-            if (value.isDouble()) {
-                int intValue = value.toInt();
-                if (mapping.contains(intValue)) {
-                    result[fieldName] = mapping[intValue];
-                } else {
-                    result[fieldName] = QString("未知(%1)").arg(intValue);
-                }
-            }
-        }
-    }
-    return result;
-}
-
-QJsonObject ProtocolSchema::reverseMaps(const QJsonObject& input, QString* errorMsg) const
-{
-    QMutexLocker lock(&m_mutex);
-    QJsonObject result = input;
-
-    for (const QString& fieldName : m_reverseFields) {
-        if (!m_enumMaps.contains(fieldName)) continue;
-
-        if (result.contains(fieldName)) {
-            QJsonValue value = result[fieldName];
-
-            if (value.isString()) {
-                QString text = value.toString();
-                const QMap<int, QString>& mapping = m_enumMaps[fieldName];
-
-                bool found = false;
-                for (auto it = mapping.begin(); it != mapping.end(); ++it) {
-                    if (it.value() == text) {
-                        result[fieldName] = it.key();
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    if (errorMsg) {
-                        *errorMsg = QString("Unknown enum text '%1' for field '%2'")
-                                       .arg(text, fieldName);
-                    }
-                    return QJsonObject();
-                }
-            }
-        }
-    }
-    return result;
-}
-
-// ---------- 公有 parse 和 pack（重载，支持映射）----------
-QJsonObject ProtocolSchema::parse(const QByteArray& data, QString* errorMsg) const
-{
-    QMutexLocker lock(&m_mutex);
-    QJsonObject rawResult = parseInternal(data, errorMsg);
-    if (errorMsg && !errorMsg->isEmpty()) {
-        return rawResult;
-    }
-    return applyMaps(rawResult);
-}
-
-bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* errorMsg) const
-{
-    QMutexLocker lock(&m_mutex);
-
-    // 反向映射（文本→数字）
-    QJsonObject numericValues = values;
-
-    for (const QString& fieldName : m_reverseFields) {
-        if (!m_enumMaps.contains(fieldName)) continue;
-
-        if (values.contains(fieldName)) {
-            QJsonValue value = values[fieldName];
-
-            if (value.isString()) {
-                QString text = value.toString();
-                const QMap<int, QString>& mapping = m_enumMaps[fieldName];
-
-                bool found = false;
-                for (auto it = mapping.begin(); it != mapping.end(); ++it) {
-                    if (it.value() == text) {
-                        numericValues[fieldName] = it.key();
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    if (errorMsg) {
-                        *errorMsg = QString("Unknown enum text '%1' for field '%2'")
-                                       .arg(text, fieldName);
-                    }
-                    return false;
-                }
-            }
-        }
-    }
-
-    // ---------- 原有 pack 逻辑（复制过来，用 numericValues）----------
     QString errBuf;
     QHash<QString, QString> lenToVar;
     QHash<QString, int> varLengths;
     QHash<QString, QByteArray> varContents;
-
+    // 长度字段 -> 变长字段映射
     for (const Field& f : m_fields) {
         if (f.bitLength == 0) lenToVar[f.lenField] = f.name;
     }
-
+    // 计算变长字段内容
     for (const Field& f : m_fields) {
         if (f.bitLength == 0) {
-            QJsonValue val = numericValues.value(f.name);
+            QJsonValue val = values.value(f.name);
             if (val.isNull() || val.isUndefined()) {
                 errBuf = QString("Missing value for variable field '%1'").arg(f.name);
                 if (errorMsg) *errorMsg = errBuf;
@@ -827,7 +667,7 @@ bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* e
             varLengths[f.name] = content.size();
         }
     }
-
+    // 计算总最大bit，防止int溢出
     qint64 maxBit = 0;
     for (const Field& f : m_fields) {
         qint64 bitStart = absoluteBitOffset(f);
@@ -845,6 +685,7 @@ bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* e
         if (errorMsg) *errorMsg = errBuf;
         return false;
     }
+    // 分配内存
     qint64 byteCount64 = (maxBit + 7) / 8;
     if (byteCount64 > std::numeric_limits<int>::max()) {
         errBuf = "Frame size overflow int limit";
@@ -854,7 +695,7 @@ bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* e
     int byteCount = static_cast<int>(byteCount64);
     out.resize(byteCount);
     out.fill(0);
-
+    // 按bit偏移升序排序字段写入，防止覆盖
     QVector<Field> sortedFields = getSortedFields();
     for (const Field& f : sortedFields) {
         qint64 bitOffset64 = absoluteBitOffset(f);
@@ -868,7 +709,8 @@ bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* e
             if (lenToVar.contains(f.name)) {
                 QString varName = lenToVar[f.name];
                 int lenBytes = varLengths.value(varName, -1);
-                if (lenBytes > MAX_VAR_BYTE_SIZE) {
+                if (lenBytes > MAX_VAR_BYTE_SIZE)
+                {
                     errBuf = QString("Variable length %1 exceeds max limit %2").arg(lenBytes).arg(MAX_VAR_BYTE_SIZE);
                     if (errorMsg) *errorMsg = errBuf;
                     return false;
@@ -892,7 +734,7 @@ bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* e
                     return false;
                 }
             } else {
-                QJsonValue val = numericValues.value(f.name);
+                QJsonValue val = values.value(f.name);
                 if (val.isNull() || val.isUndefined()) {
                     errBuf = QString("Missing value for field '%1'").arg(f.name);
                     if (errorMsg) *errorMsg = errBuf;
@@ -941,12 +783,9 @@ bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* e
     }
     return true;
 }
-
-QByteArray ProtocolSchema::packToArray(const QJsonObject& values, QString* errorMsg) const
-{
+QByteArray ProtocolSchema::packToArray(const QJsonObject& values, QString* errorMsg) const {
     QByteArray result;
     if (!pack(values, result, errorMsg)) result.clear();
     return result;
 }
-
-} // namespace Sqz
+}

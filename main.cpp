@@ -1,140 +1,61 @@
-
-#include <QApplication>
-#include <QHBoxLayout>
-#include <QMainWindow>
-#include <QSpinBox>
-#include <QTextEdit>
-#include "Translator.h"
-#include "SqzHub.h"
-#include "ThreadPool.h"
-#include "Logger.h"
-#include "TimerUtils.h"
-
-#include "CustomSearchBox.h"
-#include "FlexData.h"
+#include <QCoreApplication>
+#include <QDebug>
+#include <QJsonDocument>
 #include "ProtocolSchema.h"
-#include "ChainBranch.h"
-#include <FluentCard.h>
-#include "MsgBox.h"
-#include "SuperTableAll.h"
-#include "UiUtils.h"
-#include "RadioLink.h"
-#include "SqzState.h"
-#include <QAbstractNativeEventFilter>
-#include <SqzApplication.h>
-#include <DataTransporter.h>
-#include <ShortcutManager.h>
-#include "SERIALIZE.h"
-using namespace Net;
+
 using namespace Sqz;
 
-void ProtocolSchemaTest()
-{
-    ProtocolSchema schema;
+int main(int argc, char *argv[]) {
+    QCoreApplication app(argc, argv);
+    QString err;
 
-        // ========== 1. 定义协议 ==========
-        schema.addField("mode", 0, 0, 8, ProtocolSchema::UInt)
-              .addField("status", 1, 0, 8, ProtocolSchema::UInt)
-              .addField("error", 2, 0, 8, ProtocolSchema::UInt);
+    // 测试1：固定长度整数（小端 + Physical）
+    ProtocolSchema s1;
+    s1.addField("temp", 0, 0, 16, ProtocolSchema::Int, ProtocolSchema::LittleEndian,
+                ProtocolSchema::Physical, true, 0.1, -273.15);
+    QByteArray raw1 = QByteArray::fromHex("0A00");
+    QJsonObject parsed1 = s1.parse(raw1, &err);
+    qDebug() << "Test1 temp:" << parsed1["temp"].toDouble() << "err:" << err;
 
-        // ========== 2. 添加枚举映射 ==========
-        // mode映射
-        schema.map("mode", {
-            {0, "停止"},
-            {1, "启动"},
-            {2, "手动"},
-            {3, "调试"}
-        });
+    // 测试2：固定长度整数（大端 + MsbFirst）
+    ProtocolSchema s2;
+    s2.addField("value", 0, 0, 12, ProtocolSchema::UInt, ProtocolSchema::BigEndian,
+                ProtocolSchema::MsbFirst);
+    QByteArray raw2 = QByteArray::fromHex("ABC0");
+    QJsonObject parsed2 = s2.parse(raw2, &err);
+    qDebug() << "Test2 value:" << parsed2["value"].toInt() << "err:" << err;
 
-        // status映射
-        schema.map("status", {
-            {0, "空闲"},
-            {1, "运行"},
-            {2, "故障"},
-            {3, "待机"}
-        });
+    // 测试3：变长字段 + 长度字段
+    ProtocolSchema s3;
+    s3.addField("len", 0, 0, 8, ProtocolSchema::UInt);
+    s3.addVariableField("data", 1, 0, "len", ProtocolSchema::HexString);
+    QByteArray raw3 = QByteArray::fromHex("034A4B4C");
+    QJsonObject parsed3 = s3.parse(raw3, &err);
+    qDebug() << "Test3 len:" << parsed3["len"].toInt() << "data:" << parsed3["data"].toString();
 
-        // error映射
-        schema.map("error", {
-            {0, "正常"},
-            {1, "超时"},
-            {2, "参数错误"},
-            {3, "硬件故障"}
-        });
+    // 测试4：打包对称性验证
+    QJsonObject pack3{{"len", 3}, {"data", "4A4B4C"}};
+    QByteArray packed3;
+    if (s3.pack(pack3, packed3, &err)) {
+        qDebug() << "Test4 packed:" << packed3.toHex() << "match:" << (packed3 == raw3);
+    } else {
+        qDebug() << "Test4 pack failed:" << err;
+    }
 
-        // ========== 3. 启用反向映射（支持打包时使用文本） ==========
-        schema.rmap("mode")
-              .rmap("status")
-              .rmap("error");
+    // 测试5：字段重叠检测
+    ProtocolSchema s4;
+    s4.addField("f1", 0, 0, 8);
+    s4.addField("f2", 0, 2, 4);
+    QStringList overlaps = s4.checkOverlap({}, &err);
+    qDebug() << "Test5 overlaps:" << overlaps << "err:" << err;
 
-        // ========== 4. 测试解析 ==========
-        qDebug() << "=== 解析测试 ===";
-        QByteArray rxData;
-        rxData.append(0x01);  // mode=1 → "启动"
-        rxData.append(0x02);  // status=2 → "故障"
-        rxData.append(0x01);  // error=1 → "超时"
+    // 测试6：错误场景 - 缺少字段
+    ProtocolSchema s5;
+    s5.addField("required", 0, 0, 8);
+    QJsonObject empty;
+    QByteArray out;
+    bool ok = s5.pack(empty, out, &err);
+    qDebug() << "Test6 pack ok:" << ok << "err:" << err;
 
-        QJsonObject result = schema.parse(rxData);
-
-        qDebug() << "mode:" << result["mode"].toString();      // "启动"
-        qDebug() << "status:" << result["status"].toString();   // "故障"
-        qDebug() << "error:" << result["error"].toString();     // "超时"
-
-        // 查看原始数值（如果有需要）
-        qDebug() << "mode_raw:" << result["mode_raw"].toInt();   // 1 (如果映射中有未知值会添加)
-
-        // ========== 5. 测试打包（使用文本） ==========
-        qDebug() << "\n=== 打包测试 ===";
-        QJsonObject txData;
-        txData["mode"] = "启动";    // 文本 → 自动转 1
-        txData["status"] = "运行";   // 文本 → 自动转 1
-        txData["error"] = "正常";    // 文本 → 自动转 0
-
-        QByteArray packed;
-        QString errorMsg;
-        if (schema.pack(txData, packed, &errorMsg)) {
-            qDebug() << "打包成功！";
-            qDebug() << "packed hex:" << packed.toHex();        // "010100"
-            qDebug() << "mode字节:" << (int)(quint8)packed[0];  // 1
-            qDebug() << "status字节:" << (int)(quint8)packed[1]; // 1
-            qDebug() << "error字节:" << (int)(quint8)packed[2];  // 0
-        } else {
-            qDebug() << "打包失败:" << errorMsg;
-        }
-
-        // ========== 6. 验证对称性 ==========
-        qDebug() << "\n=== 对称性验证 ===";
-        QJsonObject parsed = schema.parse(packed);
-
-        QJsonDocument doc1(txData);
-        QJsonDocument doc2(parsed);
-
-        // ✅ 正确方式
-        qDebug().noquote() << "原始JSON:" << QString::fromUtf8(doc1.toJson());
-        qDebug().noquote() << "解析JSON:" << QString::fromUtf8(doc2.toJson());
-
-        // 验证是否一致
-        bool isEqual = (txData["mode"].toString() == parsed["mode"].toString());
-        qDebug() << "mode一致:" << (isEqual ? "✅" : "❌");
-
-        isEqual = (txData["status"].toString() == parsed["status"].toString());
-        qDebug() << "status一致:" << (isEqual ? "✅" : "❌");
-
-        isEqual = (txData["error"].toString() == parsed["error"].toString());
-        qDebug() << "error一致:" << (isEqual ? "✅" : "❌");
-}
-
-
-int main(int argc, char *argv[])
-{
-    QApplication coreApp(argc, argv);
-    Logger::instance().init("./","log");
-    SqzApplication App;
-
-    if (!App.Init())
-        return -1;
-        App.LogRegClass();
-
-        ProtocolSchemaTest();
-    return coreApp.exec();
+    return 0;
 }
