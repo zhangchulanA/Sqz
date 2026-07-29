@@ -7,6 +7,7 @@
  *   - 支持两种比特顺序：MsbFirst（字节内高位在前）和 Physical（物理位索引，bit0=最低位）
  *   - 只有长度 >8 位时才应用字节序（Endian），单字节内忽略 Endian
  *   - 支持变长字段（长度由另一个字段决定）
+ *   - 支持条件分支（根据字段值决定后续字段解析）
  *   - 支持线性变换：实际值 = 原始值 * factor + offset（系数和偏移）
  *   - 支持多种数据类型：有/无符号整数、十六进制字符串、Base64、原始字节数组、UTF-8字符串
  *   - 解析结果输出为 QJsonObject，打包输入也为 QJsonObject
@@ -28,41 +29,70 @@
  *   QJsonObject tx;
  *   tx["temperature"] = 25.6;
  *   QByteArray packed = schema.packToArray(tx);
+ *
+ *   // 4. 条件分支示例
+ *   schema.addField("type", 0, 0, 8);
+ *   schema.when("type", 1)
+ *       .addField("temp", 1, 0, 16, ProtocolSchema::Int)
+ *       .when("type", 2)
+ *       .addField("pressure", 1, 0, 32, ProtocolSchema::UInt)
+ *       .otherwise()
+ *       .addField("error", 1, 0, 8, ProtocolSchema::UInt)
+ *       .endBranch();
  *****************************************************************************/
 #ifndef PROTOCOLSCHEMA_H
 #define PROTOCOLSCHEMA_H
+
 #include <QByteArray>
 #include <QJsonObject>
 #include <QString>
 #include <QVector>
 #include <QMutex>
 #include <QPair>
+#include <QVariant>
 #include "SqzGlobal.h"
+
 namespace Sqz {
+
+// ==================== 全局枚举定义 ====================
+
+// 字节序（只有多字节整数 >8 位时才有效）
+enum Endian {
+    LittleEndian,   // 小端：低地址存放低字节
+    BigEndian       // 大端：低地址存放高字节
+};
+
+// 字节内比特顺序
+enum BitOrder {
+    MsbFirst,   // 高位优先：bit7 为最高位（常规网络协议），startBit=0 表示从字节高位开始
+    Physical    // 物理位索引：bit0 为最低位，startBit=0 表示从字节的最右侧（bit0）开始，不反转权重
+};
+
+// 字段值类型（JSON中存储的形式）
+enum ValueType {
+    Int,            // 有符号整数（JSON存储为数字）
+    UInt,           // 无符号整数（JSON存储为数字）
+    HexString,      // 十六进制字符串（例如 "1A2B"）
+    Base64,         // Base64编码的字符串
+    RawBytes,       // 原始字节数组（JSON中存储为Base64）
+    String          // UTF-8字符串
+};
+
+// ==================== 前向声明 ====================
+class ProtocolSchema;
+class ConditionalBuilder;
+
+// ==================== ProtocolSchema 类 ====================
 class SQZ_FRAMEWORK_API ProtocolSchema
 {
+    friend class ConditionalBuilder;  // 允许 ConditionalBuilder 访问私有成员
 
 public:
+    // 全局常量配置
+    static constexpr int MAX_BIT_WIDTH = 64;
+    static constexpr int MAX_VAR_BYTE_SIZE = 1024 * 1024;
+    static constexpr double FLOAT_EPS = 1e-9;
 
-    // 字节序（只有多字节整数 >8 位时才有效）
-    enum Endian {
-        LittleEndian,   // 小端：低地址存放低字节
-        BigEndian       // 大端：低地址存放高字节
-    };
-    // 字节内比特顺序
-    enum BitOrder {
-        MsbFirst,   // 高位优先：bit7 为最高位（常规网络协议），startBit=0 表示从字节高位开始
-        Physical    // 物理位索引：bit0 为最低位，startBit=0 表示从字节的最右侧（bit0）开始，不反转权重
-    };
-    // 字段值类型（JSON中存储的形式）
-    enum ValueType {
-        Int,            // 有符号整数（JSON存储为数字）
-        UInt,           // 无符号整数（JSON存储为数字）
-        HexString,      // 十六进制字符串（例如 "1A2B"）
-        Base64,         // Base64编码的字符串
-        RawBytes,       // 原始字节数组（JSON中存储为Base64）
-        String          // UTF-8字符串
-    };
     // 单个字段的定义
     struct Field {
         QString name;           // 字段名（JSON中的key）
@@ -76,24 +106,24 @@ public:
         QString lenField;       // 变长字段依赖的长度字段名（bitLength==0时有效）
         double factor;          // 系数（默认1.0）
         double offset;          // 偏移（默认0.0）
-    };
 
-    // 全局常量配置
-    static constexpr int MAX_BIT_WIDTH = 64;
-    static constexpr int MAX_VAR_BYTE_SIZE = 1024 * 1024;
-    static constexpr double FLOAT_EPS = 1e-9;
+        // 条件分支相关
+        QList<QPair<QString, QVariant>> conditions; // 所有条件 (AND逻辑, 空列表=无条件)
+        bool isDefaultBranch;   // 是否为默认分支
+        QString defaultBranchField; // 默认分支对应的条件字段名
+    };
 
     ProtocolSchema();
     ~ProtocolSchema();
 
-    // 添加固定长度字段（链式调用）
+    // ---------- 固定长度字段 ----------
     // name: 字段名
     // startByte: 起始字节偏移
     // startBit: 起始位（0~7，由 BitOrder 决定其物理含义）
     // bitLength: 比特长度（1~64）
     // type: 值类型，默认无符号整数
     // endian: 字节序，默认小端（仅 bitLength > 8 时有效）
-    // bitOrder: 比特顺序，默认 MsbFirst
+    // bitOrder: 比特顺序，默认 Physical
     // isSigned: 仅对Int有效，默认false
     // factor: 系数，默认1.0
     // offset: 偏移，默认0.0
@@ -103,7 +133,7 @@ public:
                              double factor = 1.0, double offset = 0.0,
                              QString* err = nullptr);
 
-    // 添加变长字段（长度由另一个整数字段的值决定，单位：字节）
+    // ---------- 变长字段 ----------
     // name: 字段名
     // startByte: 起始字节偏移
     // startBit: 起始位
@@ -116,13 +146,26 @@ public:
                                      double factor = 1.0, double offset = 0.0,
                                      QString* err = nullptr);
 
-    // 清空所有字段定义
+    // ---------- 条件分支 ----------
+    // 开始一个条件分支：当 fieldName 的值等于 value 时，后续字段生效
+    // 必须先定义条件字段本身（通过 addField）
+    ConditionalBuilder when(const QString& fieldName, const QVariant& value);
+
+    // 默认分支：当条件不匹配任何 when 时生效
+    ConditionalBuilder otherwise();
+
+    // ---------- 清空 ----------
     void clear();
 
+    // ---------- 验证 ----------
     // 检测字段定义是否有重叠（静态固定字段+运行时变长动态范围）
     // 返回重叠的字段名列表（空表示无重叠）
     QStringList checkOverlap(const QJsonObject& runtimeVarData = {}, QString* err = nullptr) const;
 
+    // 校验字段配置合法性（外部可调用预校验）
+    bool validateSchema(QString* errMsg = nullptr) const;
+
+    // ---------- 解析和打包 ----------
     // 解析二进制数据为JSON对象
     // data: 原始数据
     // errorMsg: 输出错误信息（可选）
@@ -137,12 +180,20 @@ public:
     // 打包的便捷版本，直接返回字节数组（失败返回空）
     QByteArray packToArray(const QJsonObject& values, QString* errorMsg = nullptr) const;
 
-    // 校验字段配置合法性（外部可调用预校验）
-    bool validateSchema(QString* errMsg = nullptr) const;
-
 private:
     mutable QMutex m_mutex{QMutex::Recursive};
     QVector<Field> m_fields;    // 存储所有字段定义
+
+    // 字段排序缓存：避免 pack() 中每次调用 getSortedFields() 都重新排序
+    // 当 m_fields 变化时通过 invalidateSortCache() 置失效
+    mutable QVector<Field> m_sortedFieldsCache;
+    mutable bool m_sortCacheValid{false};
+
+    // 最近一次 when() 使用的条件字段名，供 otherwise() 直接在 ProtocolSchema 上调用时使用
+    QString m_lastConditionField;
+
+    // 使排序缓存失效（在字段增删时调用）
+    inline void invalidateSortCache() const { m_sortCacheValid = false; }
 
     // ---------- 底层位操作（私有）----------
     // 读取最多64位整数（任意比特偏移）
@@ -187,9 +238,64 @@ private:
     // 按绝对bit偏移升序排序字段（打包防止覆盖）
     QVector<Field> getSortedFields() const;
 
+    // 评估条件是否满足
+    bool evaluateCondition(const Field& field, const QJsonObject& context) const;
 
+    // 解析单个字段（内部使用）
+    bool parseField(const Field& field, const QByteArray& data, QJsonObject& result,
+                    QString* errorMsg) const;
+
+    // 解析变长字段（内部使用）：根据长度字段读取变长数据并按类型转换
+    bool parseVariableField(const Field& field, const QByteArray& data, QJsonObject& result,
+                            QString* errorMsg) const;
 };
 
-     using PtlSc = ProtocolSchema;
-}
+// ==================== ConditionalBuilder 类 ====================
+// 条件分支构建器，支持链式调用
+class SQZ_FRAMEWORK_API ConditionalBuilder
+{
+public:
+    // 构造函数（由 ProtocolSchema 调用）
+    ConditionalBuilder(ProtocolSchema* schema, const QString& conditionField,
+                       const QVariant& conditionValue, bool isDefault = false);
+    ~ConditionalBuilder();
+
+    // ---------- 添加字段到当前分支 ----------
+    // 所有参数同 ProtocolSchema::addField
+    ConditionalBuilder& addField(const QString& name, int startByte, int startBit, int bitLength,
+                                 ValueType type = UInt, Endian endian = LittleEndian,
+                                 BitOrder bitOrder = Physical, bool isSigned = false,
+                                 double factor = 1.0, double offset = 0.0,
+                                 QString* err = nullptr);
+
+    // 添加变长字段到当前分支
+    ConditionalBuilder& addVariableField(const QString& name, int startByte, int startBit,
+                                         const QString& lenField, ValueType type = RawBytes,
+                                         Endian endian = LittleEndian, BitOrder bitOrder = MsbFirst,
+                                         double factor = 1.0, double offset = 0.0,
+                                         QString* err = nullptr);
+
+    // ---------- 条件分支嵌套 ----------
+    // 在当前分支内部开启新的条件分支
+    ConditionalBuilder when(const QString& fieldName, const QVariant& value);
+
+    // 当前分支的默认分支
+    ConditionalBuilder otherwise();
+
+    // ---------- 结束分支 ----------
+    // 结束当前条件分支，返回到上一级
+    ProtocolSchema& endBranch();
+
+private:
+    ProtocolSchema* m_schema;           // 关联的 schema
+    QString m_conditionField;           // 当前分支的条件字段
+    QVariant m_conditionValue;          // 当前分支的条件值
+    bool m_isDefault;                   // 是否为默认分支
+    QList<QPair<QString, QVariant>> m_inheritedConditions; // 从父级继承的条件列表（AND逻辑）
+};
+
+using PtlSc = ProtocolSchema;
+
+} // namespace Sqz
+
 #endif // PROTOCOLSCHEMA_H

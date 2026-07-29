@@ -5,8 +5,12 @@
 #include <limits>
 #include <cmath>
 #include <algorithm>
+
 namespace Sqz {
+
 // ==================== 辅助静态函数 ====================
+
+// 生成指定位长的掩码
 static inline quint64 maskBits(int bitLength) {
     if (bitLength <= 0 || bitLength > ProtocolSchema::MAX_BIT_WIDTH)
         return 0;
@@ -24,18 +28,20 @@ static QByteArray decomposeToBigEndianBits(quint64 value, int bitLength) {
     }
     return bytes;
 }
+
 // ==================== ProtocolSchema 类实现 ====================
-ProtocolSchema::ProtocolSchema()
-{
-}
-ProtocolSchema::~ProtocolSchema()
-{
-}
+
+ProtocolSchema::ProtocolSchema() { }
+
+ProtocolSchema::~ProtocolSchema() { }
+
+// ---------- 添加固定长度字段 ----------
 ProtocolSchema& ProtocolSchema::addField(const QString& name, int startByte, int startBit,
                                          int bitLength, ValueType type, Endian endian,
                                          BitOrder bitOrder, bool isSigned,
                                          double factor, double offset, QString* err) {
     QMutexLocker lock(&m_mutex);
+
     // 参数合法性校验
     if (name.trimmed().isEmpty()) {
         if (err) *err = "Field name cannot be empty";
@@ -53,6 +59,7 @@ ProtocolSchema& ProtocolSchema::addField(const QString& name, int startByte, int
         if (err) *err = QString("Field %1 bitLength must 1~64").arg(name);
         return *this;
     }
+
     // 同名字段重复检测
     for (const auto& f : m_fields) {
         if (f.name == name) {
@@ -60,6 +67,7 @@ ProtocolSchema& ProtocolSchema::addField(const QString& name, int startByte, int
             return *this;
         }
     }
+
     Field f;
     f.name = name;
     f.startByte = startByte;
@@ -72,14 +80,21 @@ ProtocolSchema& ProtocolSchema::addField(const QString& name, int startByte, int
     f.factor = factor;
     f.offset = offset;
     f.lenField = "";
+    f.conditions.clear();       // 空列表=无条件
+    f.isDefaultBranch = false;
+    f.defaultBranchField = "";
     m_fields.append(f);
+    invalidateSortCache();  // 字段变化，使排序缓存失效
     return *this;
 }
+
+// ---------- 添加变长字段 ----------
 ProtocolSchema& ProtocolSchema::addVariableField(const QString& name, int startByte, int startBit,
                                                  const QString& lenField, ValueType type,
                                                  Endian endian, BitOrder bitOrder,
                                                  double factor, double offset, QString* err) {
     QMutexLocker lock(&m_mutex);
+
     if (name.trimmed().isEmpty()) {
         if (err) *err = "Variable field name cannot be empty";
         return *this;
@@ -96,6 +111,7 @@ ProtocolSchema& ProtocolSchema::addVariableField(const QString& name, int startB
         if (err) *err = QString("Var field %1 startBit must 0~7").arg(name);
         return *this;
     }
+
     // 同名字段重复检测
     for (const auto& f : m_fields) {
         if (f.name == name) {
@@ -103,11 +119,12 @@ ProtocolSchema& ProtocolSchema::addVariableField(const QString& name, int startB
             return *this;
         }
     }
+
     Field f;
     f.name = name;
     f.startByte = startByte;
     f.startBit = startBit;
-    f.bitLength = 0;
+    f.bitLength = 0;            // 0 表示变长
     f.type = type;
     f.endian = endian;
     f.bitOrder = bitOrder;
@@ -115,28 +132,51 @@ ProtocolSchema& ProtocolSchema::addVariableField(const QString& name, int startB
     f.lenField = lenField;
     f.factor = factor;
     f.offset = offset;
+    f.conditions.clear();
+    f.isDefaultBranch = false;
+    f.defaultBranchField = "";
     m_fields.append(f);
+    invalidateSortCache();  // 字段变化，使排序缓存失效
     return *this;
 }
+
+// ---------- 条件分支入口 ----------
+// 记录条件字段名，供 otherwise() 直接在 ProtocolSchema 上调用时使用
+ConditionalBuilder ProtocolSchema::when(const QString& fieldName, const QVariant& value) {
+    m_lastConditionField = fieldName;
+    return ConditionalBuilder(this, fieldName, value, false);
+}
+
+// 使用最近一次 when() 的条件字段名作为默认分支的条件字段
+ConditionalBuilder ProtocolSchema::otherwise() {
+    return ConditionalBuilder(this, m_lastConditionField, QVariant(), true);
+}
+
+// ---------- 清空 ----------
 void ProtocolSchema::clear() {
     QMutexLocker lock(&m_mutex);
     m_fields.clear();
+    m_lastConditionField.clear();  // 重置条件字段记录
+    invalidateSortCache();  // 清空字段，使排序缓存失效
 }
-bool ProtocolSchema::validateSchema(QString* errMsg) const
-{
+
+// ---------- 验证 ----------
+bool ProtocolSchema::validateSchema(QString* errMsg) const {
     QMutexLocker lock(&m_mutex);
     QStringList cycle;
     if (hasVarCycleDependency(cycle, errMsg))
         return false;
     return true;
 }
-bool ProtocolSchema::hasVarCycleDependency(QStringList& cycleList, QString* err) const
-{
+
+// 检测变长字段循环依赖
+bool ProtocolSchema::hasVarCycleDependency(QStringList& cycleList, QString* err) const {
     QHash<QString, QString> varMap;
     for (const auto& f : m_fields) {
         if (f.bitLength == 0)
             varMap[f.name] = f.lenField;
     }
+
     QSet<QString> visited;
     for (const auto& var : varMap.keys()) {
         QString cur = var;
@@ -158,19 +198,33 @@ bool ProtocolSchema::hasVarCycleDependency(QStringList& cycleList, QString* err)
     }
     return false;
 }
-QVector<ProtocolSchema::Field> ProtocolSchema::getSortedFields() const
-{
+
+// 获取按绝对比特偏移排序的字段列表
+// 使用缓存机制：若字段定义未变化则直接返回缓存结果，避免重复排序
+// 返回: 排序后的字段副本
+QVector<ProtocolSchema::Field> ProtocolSchema::getSortedFields() const {
     QMutexLocker lock(&m_mutex);
+    // 缓存命中：直接返回缓存副本
+    if (m_sortCacheValid && !m_sortedFieldsCache.isEmpty()) {
+        return m_sortedFieldsCache;
+    }
+    // 缓存未命中：复制并排序
     QVector<Field> copy = m_fields;
     std::sort(copy.begin(), copy.end(), [](const Field& a, const Field& b) {
         return absoluteBitOffset(a) < absoluteBitOffset(b);
     });
+    // 更新缓存
+    m_sortedFieldsCache = copy;
+    m_sortCacheValid = true;
     return copy;
 }
+
+// ---------- 字段重叠检测 ----------
 QStringList ProtocolSchema::checkOverlap(const QJsonObject& runtimeVarData, QString* err) const {
     QMutexLocker lock(&m_mutex);
     QStringList overlaps;
     QVector<QPair<qint64, qint64>> fieldRanges;
+
     for (const auto& f : m_fields) {
         qint64 start = absoluteBitOffset(f);
         qint64 end;
@@ -190,6 +244,7 @@ QStringList ProtocolSchema::checkOverlap(const QJsonObject& runtimeVarData, QStr
         }
         fieldRanges.append({start, end});
     }
+
     for (int i = 0; i < fieldRanges.size(); ++i) {
         qint64 aS = fieldRanges[i].first;
         qint64 aE = fieldRanges[i].second;
@@ -205,10 +260,455 @@ QStringList ProtocolSchema::checkOverlap(const QJsonObject& runtimeVarData, QStr
     }
     return overlaps;
 }
-// ---------- 核心：按 Physical 或 MsbFirst 读取比特 ----------
+
+// ---------- 评估条件 ----------
+// 判断给定字段的条件分支是否在当前上下文下生效
+// field:   待评估的字段（含 conditions/defaultBranchField/isDefaultBranch）
+// context: 已解析字段的 JSON 对象，用于查询条件字段值
+// 返回:    条件满足返回 true，否则 false
+// 注意：比较时对数值类型做宽容处理（int vs double 视为相等）
+static bool variantMatch(const QVariant& a, const QVariant& b) {
+    if (a == b) return true;
+    // 数值类型宽容比较：int/uint/longlong 等与 double 之间的比较
+    bool okA = false, okB = false;
+    double dA = a.toDouble(&okA);
+    double dB = b.toDouble(&okB);
+    if (okA && okB) {
+        return qAbs(dA - dB) < 1e-9;
+    }
+    return false;
+}
+
+bool ProtocolSchema::evaluateCondition(const Field& field, const QJsonObject& context) const {
+    // 无条件字段（条件列表为空且非默认分支）始终生效
+    if (field.conditions.isEmpty() && !field.isDefaultBranch) {
+        return true;
+    }
+
+    // 检查所有条件 (AND 逻辑)
+    for (const auto& cond : field.conditions) {
+        if (!context.contains(cond.first)) {
+            return false;
+        }
+        if (!variantMatch(context[cond.first].toVariant(), cond.second)) {
+            return false;
+        }
+    }
+
+    // 默认分支：仅当所有非默认分支均不匹配时才生效
+    if (field.isDefaultBranch) {
+        for (const auto& other : m_fields) {
+            if (other.isDefaultBranch) continue;
+            if (other.conditions.isEmpty()) continue;
+            // 检查其他分支是否匹配当前默认分支对应的条件字段
+            if (other.conditions.first().first == field.defaultBranchField) {
+                bool allMatch = true;
+                for (const auto& cond : other.conditions) {
+                    if (!context.contains(cond.first) ||
+                        !variantMatch(context[cond.first].toVariant(), cond.second)) {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (allMatch) return false; // 有匹配的非默认分支，默认分支不生效
+            }
+        }
+        return true;
+    }
+
+    return true;
+}
+
+// ---------- 解析单个字段 ----------
+bool ProtocolSchema::parseField(const Field& f, const QByteArray& data,
+                                 QJsonObject& result, QString* errorMsg) const {
+    qint64 bitOffset64 = absoluteBitOffset(f);
+    if (bitOffset64 > std::numeric_limits<int>::max()) {
+        if (errorMsg) *errorMsg = QString("Field %1 bit offset overflow").arg(f.name);
+        result.insert(f.name, QJsonValue::Null);
+        return false;
+    }
+    int bitOffset = static_cast<int>(bitOffset64);
+
+    // 解析整数字段
+    if (f.type == Int || f.type == UInt) {
+        quint64 raw;
+        QString subErr;
+        if (!readBits(data, bitOffset, f.bitLength, raw, f.endian, f.bitOrder, &subErr)) {
+            if (errorMsg) *errorMsg = QString("Failed to read field '%1': %2").arg(f.name, subErr);
+            result.insert(f.name, QJsonValue::Null);
+            return false;
+        }
+        double finalVal = applyLinearTransform(raw, f.factor, f.offset, f.isSigned, f.bitLength);
+        result.insert(f.name, finalVal);
+        return true;
+    }
+
+    // 解析字节类型字段
+    QByteArray bytes;
+    QString subErr;
+    if (!readBitsToBytes(data, bitOffset, f.bitLength, bytes, f.endian, f.bitOrder, &subErr)) {
+        if (errorMsg) *errorMsg = QString("Failed to read field '%1': %2").arg(f.name, subErr);
+        result.insert(f.name, QJsonValue::Null);
+        return false;
+    }
+
+    switch (f.type) {
+        case HexString: result.insert(f.name, QString::fromLatin1(bytes.toHex())); break;
+        case Base64:    result.insert(f.name, QString::fromLatin1(bytes.toBase64())); break;
+        case RawBytes:  result.insert(f.name, QString::fromLatin1(bytes.toBase64())); break;
+        case String:    result.insert(f.name, QString::fromUtf8(bytes)); break;
+        default:        result.insert(f.name, QJsonValue::Null);
+    }
+    return true;
+}
+
+// ---------- 解析 ----------
+// 将二进制数据按字段定义解析为 JSON 对象
+// 解析顺序：1) 无条件固定字段 2) 无条件变长字段 3) 条件字段（依赖前两步结果）
+// data:     原始二进制数据
+// errorMsg: 错误信息输出（可选）
+// 返回:     包含所有已解析字段的 JSON 对象
+QJsonObject ProtocolSchema::parse(const QByteArray& data, QString* errorMsg) const {
+    QMutexLocker lock(&m_mutex);
+    QJsonObject result;  // 直接用 result 做条件判断，支持嵌套条件实时求值
+
+    // 第一遍：解析所有无条件固定长度字段（conditions为空、非默认分支、且bitLength>0）
+    // 这些字段是协议的基础，必须先完成解析以供后续变长/条件字段依赖
+    for (const Field& f : m_fields) {
+        if (f.conditions.isEmpty() && !f.isDefaultBranch && f.bitLength > 0) {
+            parseField(f, data, result, errorMsg);
+        }
+    }
+
+    // 第二遍：解析所有无条件变长字段（conditions为空、非默认分支、且bitLength==0）
+    // 变长字段依赖长度字段的值，因此必须在固定字段解析完成后进行
+    for (const Field& f : m_fields) {
+        if (f.conditions.isEmpty() && !f.isDefaultBranch && f.bitLength == 0) {
+            parseVariableField(f, data, result, errorMsg);
+        }
+    }
+
+    // 第三遍：解析条件字段（包括固定长度和变长，以及默认分支）
+    // 使用 result 而非 context 做条件判断，使嵌套条件中父字段解析后立即可用
+    for (const Field& f : m_fields) {
+        // 无条件非默认分支已在前面处理
+        if (f.conditions.isEmpty() && !f.isDefaultBranch) {
+            continue;
+        }
+
+        // 先检查条件是否满足，不满足则跳过该字段（使用 result 做实时判断）
+        if (!evaluateCondition(f, result)) {
+            continue;
+        }
+
+        // 条件满足，按字段类型解析
+        if (f.bitLength > 0) {
+            parseField(f, data, result, errorMsg);
+        } else {
+            parseVariableField(f, data, result, errorMsg);
+        }
+    }
+
+    return result;
+}
+
+// ---------- 解析变长字段（内部辅助）----------
+// 根据长度字段指示的字节数，从 data 中读取变长数据并转换为对应类型写入 result
+// field:    变长字段定义（bitLength == 0）
+// data:     原始二进制数据
+// result:   解析结果输出（同时作为长度字段值的来源）
+// errorMsg: 错误信息输出
+// 返回:     解析成功返回 true
+bool ProtocolSchema::parseVariableField(const Field& f, const QByteArray& data,
+                                        QJsonObject& result, QString* errorMsg) const {
+    // 校验长度字段是否已解析
+    if (!result.contains(f.lenField)) {
+        if (errorMsg) *errorMsg = QString("Length field '%1' missing for '%2'").arg(f.lenField, f.name);
+        result.insert(f.name, QJsonValue::Null);
+        return false;
+    }
+
+    // 读取长度值并校验范围
+    bool ok = false;
+    qint64 lenBytes = result[f.lenField].toVariant().toLongLong(&ok);
+    if (!ok || lenBytes < 0 || lenBytes > MAX_VAR_BYTE_SIZE) {
+        if (errorMsg) *errorMsg = QString("Invalid length for field '%1'").arg(f.name);
+        result.insert(f.name, QJsonValue::Null);
+        return false;
+    }
+
+    // 计算比特偏移并防止 int 溢出
+    qint64 bitOffset64 = absoluteBitOffset(f);
+    if (bitOffset64 > std::numeric_limits<int>::max()) {
+        if (errorMsg) *errorMsg = QString("Var field %1 bit offset overflow").arg(f.name);
+        result.insert(f.name, QJsonValue::Null);
+        return false;
+    }
+    int bitOffset = static_cast<int>(bitOffset64);
+    qint64 bitLength64 = lenBytes * 8;
+
+    // 边界检查：确保变长字段不超出数据范围
+    qint64 totalBits = static_cast<qint64>(data.size()) * 8;
+    if (bitOffset64 + bitLength64 > totalBits) {
+        if (errorMsg) *errorMsg = QString("Variable field '%1' out of bounds").arg(f.name);
+        result.insert(f.name, QJsonValue::Null);
+        return false;
+    }
+    int bitLength = static_cast<int>(bitLength64);
+
+    // 读取原始字节
+    QByteArray bytes;
+    QString subErr;
+    if (!readBitsToBytes(data, bitOffset, bitLength, bytes, f.endian, f.bitOrder, &subErr)) {
+        if (errorMsg) *errorMsg = subErr;
+        result.insert(f.name, QJsonValue::Null);
+        return false;
+    }
+
+    // 按字段类型转换为 JSON 值
+    switch (f.type) {
+        case HexString: result.insert(f.name, QString::fromLatin1(bytes.toHex())); break;
+        case Base64:    result.insert(f.name, QString::fromLatin1(bytes.toBase64())); break;
+        case RawBytes:  result.insert(f.name, QString::fromLatin1(bytes.toBase64())); break;
+        case String:    result.insert(f.name, QString::fromUtf8(bytes)); break;
+        default:        result.insert(f.name, QJsonValue::Null);
+    }
+    return true;
+}
+
+// ---------- 打包 ----------
+// 将 JSON 对象按字段定义打包为二进制数据
+// 失败时 out 会被清空，确保调用方拿到干净的空数据
+bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* errorMsg) const {
+    QMutexLocker lock(&m_mutex);
+
+    // 使用 lambda 包裹主体逻辑，确保所有 return false 路径退出后统一清空 out
+    bool ok = [&]() -> bool {
+        QString errBuf;
+        QHash<QString, QString> lenToVar;
+        QHash<QString, int> varLengths;
+        QHash<QString, QByteArray> varContents;
+        QJsonObject context = values;  // 用于条件求值的上下文
+
+        // 构建长度字段 -> 变长字段映射（仅无条件非默认分支）
+        for (const Field& f : m_fields) {
+            if (f.bitLength == 0 && f.conditions.isEmpty() && !f.isDefaultBranch) {
+                lenToVar[f.lenField] = f.name;
+            }
+        }
+
+        // 计算无条件变长字段的内容（仅无条件非默认分支）
+        for (const Field& f : m_fields) {
+            if (f.bitLength == 0 && f.conditions.isEmpty() && !f.isDefaultBranch) {
+                QJsonValue val = values.value(f.name);
+                if (val.isNull() || val.isUndefined()) {
+                    errBuf = QString("Missing value for variable field '%1'").arg(f.name);
+                    if (errorMsg) *errorMsg = errBuf;
+                    return false;
+                }
+                QString subErr;
+                QByteArray content = encodeValue(val, f.type, -1, &subErr);
+                if (content.isNull()) {
+                    errBuf = QString("Encode var field %1 failed: %2").arg(f.name, subErr);
+                    if (errorMsg) *errorMsg = errBuf;
+                    return false;
+                }
+                if (content.size() > MAX_VAR_BYTE_SIZE) {
+                    errBuf = QString("Var field %1 size exceed max limit %2").arg(f.name).arg(MAX_VAR_BYTE_SIZE);
+                    if (errorMsg) *errorMsg = errBuf;
+                    return false;
+                }
+                varContents[f.name] = content;
+                varLengths[f.name] = content.size();
+            }
+        }
+
+        // 计算条件变长字段的内容（根据条件值或默认分支）
+        for (const Field& f : m_fields) {
+            if (f.bitLength == 0 && (!f.conditions.isEmpty() || f.isDefaultBranch)) {
+                if (evaluateCondition(f, context)) {
+                    QJsonValue val = values.value(f.name);
+                    if (val.isNull() || val.isUndefined()) {
+                        errBuf = QString("Missing value for variable field '%1'").arg(f.name);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                    QString subErr;
+                    QByteArray content = encodeValue(val, f.type, -1, &subErr);
+                    if (content.isNull()) {
+                        errBuf = QString("Encode var field %1 failed: %2").arg(f.name, subErr);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                    if (content.size() > MAX_VAR_BYTE_SIZE) {
+                        errBuf = QString("Var field %1 size exceed max limit %2").arg(f.name).arg(MAX_VAR_BYTE_SIZE);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                    varContents[f.name] = content;
+                    varLengths[f.name] = content.size();
+                }
+            }
+        }
+
+        // 计算总最大bit，防止int溢出
+        qint64 maxBit = 0;
+        for (const Field& f : m_fields) {
+            qint64 bitStart = absoluteBitOffset(f);
+            qint64 bitEnd = bitStart;
+            if (f.bitLength > 0) {
+                bitEnd += f.bitLength - 1;
+            } else {
+                QByteArray content = varContents.value(f.name);
+                if (!content.isEmpty()) bitEnd += static_cast<qint64>(content.size()) * 8 - 1;
+            }
+            if (bitEnd > maxBit) maxBit = bitEnd;
+        }
+
+        if (maxBit < 0) {
+            errBuf = "Calculated frame bit length negative";
+            if (errorMsg) *errorMsg = errBuf;
+            return false;
+        }
+
+        // 分配内存
+        qint64 byteCount64 = (maxBit + 7) / 8;
+        if (byteCount64 > std::numeric_limits<int>::max()) {
+            errBuf = "Frame size overflow int limit";
+            if (errorMsg) *errorMsg = errBuf;
+            return false;
+        }
+        int byteCount = static_cast<int>(byteCount64);
+        out.resize(byteCount);
+        out.fill(0);
+
+        // 按bit偏移升序排序字段写入，防止覆盖
+        QVector<Field> sortedFields = getSortedFields();
+        for (const Field& f : sortedFields) {
+            // 条件字段或默认分支：检查条件是否满足
+            if ((!f.conditions.isEmpty() || f.isDefaultBranch) && !evaluateCondition(f, context)) {
+                continue;  // 条件不满足，跳过此字段
+            }
+
+            qint64 bitOffset64 = absoluteBitOffset(f);
+            if (bitOffset64 > std::numeric_limits<int>::max()) {
+                errBuf = QString("Field %1 bit offset overflow").arg(f.name);
+                if (errorMsg) *errorMsg = errBuf;
+                return false;
+            }
+            int bitOffset = static_cast<int>(bitOffset64);
+
+            if (f.bitLength > 0) {
+                // 长度字段（可能同时是条件字段）
+                if (lenToVar.contains(f.name)) {
+                    QString varName = lenToVar[f.name];
+                    int lenBytes = varLengths.value(varName, -1);
+                    if (lenBytes > MAX_VAR_BYTE_SIZE) {
+                        errBuf = QString("Variable length %1 exceeds max limit %2").arg(lenBytes).arg(MAX_VAR_BYTE_SIZE);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                    if (lenBytes < 0) {
+                        errBuf = QString("Length field '%1' for '%2' not computed").arg(f.name, varName);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                    quint64 intVal = static_cast<quint64>(lenBytes);
+                    quint64 masked = intVal & maskBits(f.bitLength);
+                    if (masked != intVal) {
+                        errBuf = QString("Length value %1 overflow field %2 bit width").arg(lenBytes).arg(f.name);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                    QString subErr;
+                    if (!writeBits(out, bitOffset, f.bitLength, masked, f.endian, f.bitOrder, &subErr)) {
+                        errBuf = QString("Write len field %1 failed: %2").arg(f.name, subErr);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                } else {
+                    QJsonValue val = values.value(f.name);
+                    if (val.isNull() || val.isUndefined()) {
+                        errBuf = QString("Missing value for field '%1'").arg(f.name);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                    if (f.type == Int || f.type == UInt) {
+                        quint64 intVal;
+                        QString subErr;
+                        if (!valueToInteger(val, f.bitLength, f.isSigned, f.factor, f.offset, intVal, &subErr)) {
+                            errBuf = QString("Convert field %1 value failed: %2").arg(f.name, subErr);
+                            if (errorMsg) *errorMsg = errBuf;
+                            return false;
+                        }
+                        if (!writeBits(out, bitOffset, f.bitLength, intVal, f.endian, f.bitOrder, &subErr)) {
+                            errBuf = QString("Write field %1 failed: %2").arg(f.name, subErr);
+                            if (errorMsg) *errorMsg = errBuf;
+                            return false;
+                        }
+                    } else {
+                        int fixedBytes = (f.bitLength + 7) / 8;
+                        QString subErr;
+                        QByteArray bytes = encodeValue(val, f.type, fixedBytes, &subErr);
+                        if (bytes.isNull()) {
+                            errBuf = QString("Encode field %1 failed: %2").arg(f.name, subErr);
+                            if (errorMsg) *errorMsg = errBuf;
+                            return false;
+                        }
+                        if (!writeBitsToBytes(out, bitOffset, bytes, f.endian, f.bitOrder, &subErr)) {
+                            errBuf = QString("Write bytes field %1 failed: %2").arg(f.name, subErr);
+                            if (errorMsg) *errorMsg = errBuf;
+                            return false;
+                        }
+                    }
+                }
+            } else {
+                // 变长字段写入
+                QByteArray content = varContents.value(f.name);
+                if (!content.isEmpty()) {
+                    QString subErr;
+                    if (!writeBitsToBytes(out, bitOffset, content, f.endian, f.bitOrder, &subErr)) {
+                        errBuf = QString("Write var field %1 failed: %2").arg(f.name, subErr);
+                        if (errorMsg) *errorMsg = errBuf;
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }();
+
+    // 失败时清空输出缓冲区，确保调用方拿到干净的空数据
+    if (!ok) {
+        out.clear();
+        return false;
+    }
+    return true;
+}
+
+// ---------- 打包便捷版本 ----------
+QByteArray ProtocolSchema::packToArray(const QJsonObject& values, QString* errorMsg) const {
+    QByteArray result;
+    if (!pack(values, result, errorMsg)) result.clear();
+    return result;
+}
+
+// ---------- 核心位操作 readBits ----------
+// 从数据缓冲区读取任意比特偏移和长度（1~64位）的整数
+// data:     输入数据缓冲区
+// bitOffset: 起始比特偏移（0-based）
+// bitLength: 读取的比特数（1~64）
+// out:      输出读取到的无符号整数值
+// endian:   字节序（仅 bitLength > 8 时有效）
+// bitOrder:  字节内比特顺序（Physical 或 MsbFirst）
+// err:      错误信息输出
+// 返回:     成功返回 true
 bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLength,
                               quint64& out, Endian endian, BitOrder bitOrder, QString* err) const {
     out = 0;
+    // 参数校验：偏移非负、长度合法
     if (bitOffset < 0) {
         if (err) *err = "bitOffset negative";
         return false;
@@ -217,17 +717,20 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
         if (err) *err = QString("bitLength out of limit 1~64, got %1").arg(bitLength);
         return false;
     }
+    // 空数据检查必须在越界检查之前，否则空数据的越界计算无意义
+    if (data.isEmpty()) {
+        if (err) *err = "Empty input data buffer";
+        return false;
+    }
+    // 越界检查：使用 64 位运算防止溢出
     qint64 totalBits = static_cast<qint64>(data.size()) * 8;
     qint64 targetEndBit = static_cast<qint64>(bitOffset) + bitLength;
     if (targetEndBit > totalBits) {
         if (err) *err = "Read out of data bit bounds";
         return false;
     }
-    if (data.isEmpty()) {
-        if (err) *err = "Empty input data buffer";
-        return false;
-    }
-    // 对于 Physical 模式：直接按物理比特索引读取，bit0 为最低位
+
+    // Physical 模式：bit0 为最低位，按物理比特索引逐位读取
     if (bitOrder == Physical) {
         quint64 value = 0;
         for (int i = 0; i < bitLength; ++i) {
@@ -237,10 +740,9 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
             quint8 byte = static_cast<quint8>(data.at(byteIdx));
             quint8 bitVal = (byte >> bitInByte) & 0x01;
             if (bitVal)
-                value |= (1ULL << i);   // 第 i 个读到的比特成为整数的第 i 位
+                value |= (1ULL << i);
         }
-        // 对于 Physical 模式，字节序仅当 bitLength > 8 时影响多字节整数的字节顺序
-        // 但 Physical 模式已经按物理小端顺序组装了 value（低位在低地址），如果用户要求大端，需要交换字节
+        // 字节序处理：仅多字节（>8位）时生效，反转字节顺序以匹配大端语义
         if (bitLength > 8 && endian == BigEndian) {
             int byteCount = (bitLength + 7) / 8;
             quint64 swapped = 0;
@@ -252,18 +754,18 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
         out = value & maskBits(bitLength);
         return true;
     }
-    // ========== MsbFirst 模式 ==========
+
+    // MsbFirst 模式：startBit=0 表示从字节高位开始，按网络字节序逐位读取
     int startByte = bitOffset / 8;
     int startBitInByte = bitOffset % 8;
     int endByte = (bitOffset + bitLength - 1) / 8;
     int byteSpan = endByte - startByte + 1;
     QByteArray bytes = data.mid(startByte, byteSpan);
-    // MsbFirst 下，字节内比特顺序就是自然顺序，无需反转
-    // 但需要将提取的比特段按大端方式组合（先读到的为高位）
+
     quint64 value = 0;
     int bitsLeft = bitLength;
     int byteIdx = 0;
-    int bitPos = startBitInByte; // 当前字节内起始位（0 = 最高位）
+    int bitPos = startBitInByte;
     while (bitsLeft > 0 && byteIdx < bytes.size()) {
         quint8 byte = static_cast<quint8>(bytes[byteIdx]);
         int bitsFromThisByte = qMin(8 - bitPos, bitsLeft);
@@ -274,7 +776,8 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
         bitPos = 0;
         ++byteIdx;
     }
-    // 字节序转换（仅当 bitLength > 8 且需要小端时）
+
+    // 字节序处理：MsbFirst 默认按大端组装，若需小端则反转字节顺序
     if (bitLength > 8 && endian == LittleEndian) {
         int byteCount = (bitLength + 7) / 8;
         quint64 swapped = 0;
@@ -286,7 +789,8 @@ bool ProtocolSchema::readBits(const QByteArray& data, int bitOffset, int bitLeng
     out = value & maskBits(bitLength);
     return true;
 }
-// ---------- 写入比特（对称于 readBits） ----------
+
+// ---------- 核心位操作 writeBits ----------
 bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, quint64 value,
                                Endian endian, BitOrder bitOrder, QString* errorMsg) const {
     if (bitOffset < 0) {
@@ -308,9 +812,9 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
         return false;
     }
     value &= maskBits(bitLength);
+
     // Physical 模式
     if (bitOrder == Physical) {
-        // 如果要求大端字节序且长度>8，先转换 value 为小端内部表示（与read对称逆运算）
         quint64 toWrite = value;
         if (bitLength > 8 && endian == BigEndian) {
             int byteCount = (bitLength + 7) / 8;
@@ -320,7 +824,6 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
             }
             toWrite = swapped;
         }
-        // 按物理比特索引写入
         for (int i = 0; i < bitLength; ++i) {
             qint64 bitIdx = static_cast<qint64>(bitOffset) + i;
             int byteIdx = static_cast<int>(bitIdx / 8);
@@ -334,8 +837,8 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
         }
         return true;
     }
-    // ========== MsbFirst 模式 ==========
-    // 先处理字节序（仅当长度>8时）
+
+    // MsbFirst 模式
     quint64 internalValue = value;
     if (bitLength > 8 && endian == LittleEndian) {
         int byteCount = (bitLength + 7) / 8;
@@ -345,11 +848,11 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
         }
         internalValue = swapped;
     }
-    // 分解为大端比特排列的字节数组
+
     QByteArray bitsBytes = decomposeToBigEndianBits(internalValue, bitLength);
     int bitsWritten = 0;
     int srcByteIdx = 0;
-    int srcBitPos = 0; // 在源字节内的比特位置（0 = 最高位）
+    int srcBitPos = 0;
     while (bitsWritten < bitLength && srcByteIdx < bitsBytes.size()) {
         quint8 srcByte = static_cast<quint8>(bitsBytes[srcByteIdx]);
         int bitsRemainingInSrc = 8 - srcBitPos;
@@ -359,7 +862,7 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
         int bitsToWrite = qMin(bitsRemainingInSrc, bitLength - bitsWritten);
         quint8 srcSegment = (srcByte >> (8 - srcBitPos - bitsToWrite)) & ((1 << bitsToWrite) - 1);
         uchar* targetByte = reinterpret_cast<uchar*>(data.data() + targetByteIdx);
-        // 修复 bitsToWrite=8 移位溢出问题
+
         quint8 clearMask;
         if (bitsToWrite == 8) {
             clearMask = 0x00;
@@ -377,7 +880,8 @@ bool ProtocolSchema::writeBits(QByteArray& data, int bitOffset, int bitLength, q
     }
     return true;
 }
-// ---------- 字节数组读取（复用 readBits） ----------
+
+// ---------- readBitsToBytes ----------
 bool ProtocolSchema::readBitsToBytes(const QByteArray& data, int bitOffset, int bitLength,
                                      QByteArray& out, Endian endian, BitOrder bitOrder, QString* err) const {
     out.clear();
@@ -391,6 +895,7 @@ bool ProtocolSchema::readBitsToBytes(const QByteArray& data, int bitOffset, int 
         if (err) *err = "Bytes read out of data bounds";
         return false;
     }
+
     int byteLen = (bitLength + 7) / 8;
     out.resize(byteLen);
     out.fill(0);
@@ -407,11 +912,13 @@ bool ProtocolSchema::readBitsToBytes(const QByteArray& data, int bitOffset, int 
     }
     return true;
 }
-// ---------- 字节数组写入 ----------
+
+// ---------- writeBitsToBytes ----------
 bool ProtocolSchema::writeBitsToBytes(QByteArray& data, int bitOffset, const QByteArray& bytes,
                                       Endian endian, BitOrder bitOrder, QString* errorMsg) const {
     if (bitOffset < 0) return true;
     if (bytes.isEmpty()) return true;
+
     qint64 totalBits = static_cast<qint64>(data.size()) * 8;
     int bitLength = bytes.size() * 8;
     qint64 targetEndBit = static_cast<qint64>(bitOffset) + bitLength;
@@ -419,10 +926,9 @@ bool ProtocolSchema::writeBitsToBytes(QByteArray& data, int bitOffset, const QBy
         if (errorMsg) *errorMsg = "WriteBitsToBytes out of bounds";
         return false;
     }
-    // 逐个字节写入
-    QByteArray toWrite = bytes;
-    for (int i = 0; i < toWrite.size(); ++i) {
-        quint8 byteVal = static_cast<quint8>(toWrite[i]);
+
+    for (int i = 0; i < bytes.size(); ++i) {
+        quint8 byteVal = static_cast<quint8>(bytes[i]);
         QString subErr;
         if (!writeBits(data, bitOffset + i * 8, 8, byteVal, endian, bitOrder, &subErr)) {
             if (errorMsg) *errorMsg = subErr;
@@ -431,44 +937,45 @@ bool ProtocolSchema::writeBitsToBytes(QByteArray& data, int bitOffset, const QBy
     }
     return true;
 }
-// ---------- JSON 值转换 ----------
+
+// ---------- encodeValue ----------
 QByteArray ProtocolSchema::encodeValue(const QJsonValue& value, ValueType type, int fixedBytes,
                                        QString* errorMsg) const {
     QByteArray result;
     switch (type) {
-    case HexString: {
-        QString hex = value.toString().trimmed();
-        // 检测奇数长度十六进制
-        if ((hex.length() % 2) != 0) {
-            if (errorMsg) *errorMsg = QString("Hex string length must even, got %1").arg(hex.length());
-            return QByteArray();
+        case HexString: {
+            QString hex = value.toString().trimmed();
+            if ((hex.length() % 2) != 0) {
+                if (errorMsg) *errorMsg = QString("Hex string length must even, got %1").arg(hex.length());
+                return QByteArray();
+            }
+            result = QByteArray::fromHex(hex.toLatin1());
+            if (result.isEmpty() && !hex.isEmpty()) {
+                if (errorMsg) *errorMsg = "Invalid hex string";
+                return QByteArray();
+            }
+            break;
         }
-        result = QByteArray::fromHex(hex.toLatin1());
-        if (result.isEmpty() && !hex.isEmpty()) {
-            if (errorMsg) *errorMsg = "Invalid hex string";
-            return QByteArray();
+        case Base64:
+        case RawBytes: {
+            QString b64 = value.toString().trimmed();
+            result = QByteArray::fromBase64(b64.toLatin1());
+            if (result.isEmpty() && !b64.isEmpty()) {
+                if (errorMsg) *errorMsg = "Invalid base64 string";
+                return QByteArray();
+            }
+            break;
         }
-        break;
-    }
-    case Base64:
-    case RawBytes: {
-        QString b64 = value.toString().trimmed();
-        result = QByteArray::fromBase64(b64.toLatin1());
-        if (result.isEmpty() && !b64.isEmpty()) {
-            if (errorMsg) *errorMsg = "Invalid base64 string";
-            return QByteArray();
+        case String: {
+            QString str = value.toString();
+            result = str.toUtf8();
+            break;
         }
-        break;
+        default:
+            if (errorMsg) *errorMsg = "encodeValue called on non-bytes type";
+            return QByteArray();
     }
-    case String: {
-        QString str = value.toString();
-        result = str.toUtf8();
-        break;
-    }
-    default:
-        if (errorMsg) *errorMsg = "encodeValue called on non-bytes type";
-        return QByteArray();
-    }
+
     if (fixedBytes > 0) {
         if (result.size() < fixedBytes) {
             result.append(fixedBytes - result.size(), '\0');
@@ -479,6 +986,8 @@ QByteArray ProtocolSchema::encodeValue(const QJsonValue& value, ValueType type, 
     }
     return result;
 }
+
+// ---------- valueToInteger ----------
 bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool isSigned,
                                     double factor, double offset,
                                     quint64& out, QString* errorMsg) const {
@@ -487,14 +996,16 @@ bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool
         if (errorMsg) *errorMsg = "Value is not a number";
         return false;
     }
+
     double physicalValue = value.toDouble();
     if (qAbs(factor) < FLOAT_EPS) {
         if (errorMsg) *errorMsg = "Factor is zero, cannot invert";
         return false;
     }
+
     double rawDouble = (physicalValue - offset) / factor;
-    // 四舍五入修复截断精度丢失
     qint64 signedRaw = static_cast<qint64>(std::round(rawDouble));
+
     if (isSigned) {
         qint64 minVal;
         qint64 maxVal;
@@ -522,270 +1033,199 @@ bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool
     }
     return true;
 }
+
+// ---------- applyLinearTransform ----------
+// 将原始整数值（读取后）应用系数和偏移变换为最终物理值
+// 对有符号字段进行符号扩展，注意 64 位字段需特殊处理以避免溢出
+// rawValue:  读取到的无符号原始值
+// factor:    线性变换系数
+// offset:    线性变换偏移
+// isSigned:  字段是否为有符号类型
+// bitLength: 字段比特长度（1~64）
+// 返回:      变换后的物理值 = rawValue * factor + offset
 double ProtocolSchema::applyLinearTransform(quint64 rawValue, double factor, double offset,
                                             bool isSigned, int bitLength) {
-    qint64 signedRaw = static_cast<qint64>(rawValue);
-    // 修复64位有符号整数符号扩展缺失问题
-    if (isSigned) {
-        if (bitLength == 64) {
+    if (!isSigned) {
+        // 无符号字段：直接用 quint64 转 double，避免符号扩展
+        // 注意：double 仅有 53 位尾数，64 位无符号整数会丢失精度
+        // 但这是 JSON double 的固有限制，无法同时保证范围和精度
+        double value = static_cast<double>(rawValue);
+        return value * factor + offset;
+    }
+
+    // 有符号字段：进行符号扩展后再转换
+    qint64 signedRaw = 0;
+    if (bitLength == 64) {
+        // 64 位有符号整数：直接位转换（C++ 标准保证 quint64 与 qint64 互转保留位模式）
+        signedRaw = static_cast<qint64>(rawValue);
+    } else if (bitLength > 0) {
+        // 非 64 位有符号：检查最高有效位是否为 1，是则进行符号扩展
+        quint64 signBit = 1ULL << (bitLength - 1);
+        if (rawValue & signBit) {
+            // 符号扩展：将高位全部置 1
+            signedRaw = static_cast<qint64>(rawValue | (~0ULL << bitLength));
+        } else {
             signedRaw = static_cast<qint64>(rawValue);
-        } else if ((rawValue >> (bitLength - 1)) & 0x01) {
-            signedRaw |= (~0ULL << bitLength);
         }
     }
+
     double value = static_cast<double>(signedRaw);
     return value * factor + offset;
 }
-// ---------- 公有解析和打包 ----------
-QJsonObject ProtocolSchema::parse(const QByteArray& data, QString* errorMsg) const {
-    QMutexLocker lock(&m_mutex);
-    QJsonObject result;
-    QString errBuf;
-    // 先解析固定长度字段
-    for (const Field& f : m_fields) {
-        if (f.bitLength > 0) {
-            qint64 bitOffset64 = absoluteBitOffset(f);
-            if (bitOffset64 > std::numeric_limits<int>::max()) {
-                errBuf = QString("Field %1 bit offset overflow int").arg(f.name);
-                if (errorMsg) *errorMsg = errBuf;
-                result.insert(f.name, QJsonValue::Null);
-                continue;
-            }
-            int bitOffset = static_cast<int>(bitOffset64);
-            if (f.type == Int || f.type == UInt) {
-                quint64 raw;
-                QString subErr;
-                if (!readBits(data, bitOffset, f.bitLength, raw, f.endian, f.bitOrder, &subErr)) {
-                    errBuf = QString("Failed to read field '%1': %2").arg(f.name, subErr);
-                    if (errorMsg) *errorMsg = errBuf;
-                    result.insert(f.name, QJsonValue::Null);
-                    continue;
-                }
-                double finalVal = applyLinearTransform(raw, f.factor, f.offset, f.isSigned, f.bitLength);
-                result.insert(f.name, finalVal);
-            } else {
-                QByteArray bytes;
-                QString subErr;
-                if (!readBitsToBytes(data, bitOffset, f.bitLength, bytes, f.endian, f.bitOrder, &subErr)) {
-                    errBuf = QString("Failed to read field '%1': %2").arg(f.name, subErr);
-                    if (errorMsg) *errorMsg = errBuf;
-                    result.insert(f.name, QJsonValue::Null);
-                    continue;
-                }
-                switch (f.type) {
-                case HexString: result.insert(f.name, QString::fromLatin1(bytes.toHex())); break;
-                case Base64:    result.insert(f.name, QString::fromLatin1(bytes.toBase64())); break;
-                case RawBytes:  result.insert(f.name, QString::fromLatin1(bytes.toBase64())); break;
-                case String:    result.insert(f.name, QString::fromUtf8(bytes)); break;
-                default:        result.insert(f.name, QJsonValue::Null);
-                }
-            }
+
+// ==================== ConditionalBuilder 类实现 ====================
+
+ConditionalBuilder::ConditionalBuilder(ProtocolSchema* schema, const QString& conditionField,
+                                       const QVariant& conditionValue, bool isDefault)
+    : m_schema(schema)
+    , m_conditionField(conditionField)
+    , m_conditionValue(conditionValue)
+    , m_isDefault(isDefault) { }
+
+ConditionalBuilder::~ConditionalBuilder() { }
+
+// 添加固定长度字段到当前分支
+ConditionalBuilder& ConditionalBuilder::addField(const QString& name, int startByte, int startBit,
+                                                 int bitLength, ValueType type, Endian endian,
+                                                 BitOrder bitOrder, bool isSigned,
+                                                 double factor, double offset, QString* err) {
+    QMutexLocker lock(&m_schema->m_mutex);
+
+    // 参数校验
+    if (name.trimmed().isEmpty()) {
+        if (err) *err = "Field name cannot be empty";
+        return *this;
+    }
+    if (startByte < 0) {
+        if (err) *err = QString("Field %1 startByte negative").arg(name);
+        return *this;
+    }
+    if (startBit < 0 || startBit > 7) {
+        if (err) *err = QString("Field %1 startBit must 0~7").arg(name);
+        return *this;
+    }
+    if (bitLength < 1 || bitLength > ProtocolSchema::MAX_BIT_WIDTH) {
+        if (err) *err = QString("Field %1 bitLength must 1~64").arg(name);
+        return *this;
+    }
+
+    // 同名字段重复检测
+    for (const auto& f : m_schema->m_fields) {
+        if (f.name == name) {
+            if (err) *err = QString("Duplicate field name: %1").arg(name);
+            return *this;
         }
     }
-    // 再解析变长字段
-    for (const Field& f : m_fields) {
-        if (f.bitLength == 0) {
-            if (!result.contains(f.lenField)) {
-                errBuf = QString("Length field '%1' missing for '%2'").arg(f.lenField, f.name);
-                if (errorMsg) *errorMsg = errBuf;
-                result.insert(f.name, QJsonValue::Null);
-                continue;
-            }
-            bool ok;
-            qint64 lenBytes = result[f.lenField].toVariant().toLongLong(&ok);
-            if (!ok || lenBytes < 0 || lenBytes > MAX_VAR_BYTE_SIZE) {
-                errBuf = QString("Invalid length for field '%1'").arg(f.name);
-                if (errorMsg) *errorMsg = errBuf;
-                result.insert(f.name, QJsonValue::Null);
-                continue;
-            }
-            qint64 bitOffset64 = absoluteBitOffset(f);
-            if (bitOffset64 > std::numeric_limits<int>::max()) {
-                errBuf = QString("Var field %1 bit offset overflow int").arg(f.name);
-                if (errorMsg) *errorMsg = errBuf;
-                result.insert(f.name, QJsonValue::Null);
-                continue;
-            }
-            int bitOffset = static_cast<int>(bitOffset64);
-            int bitLength = static_cast<int>(lenBytes * 8);
-            qint64 totalBits = static_cast<qint64>(data.size()) * 8;
-            if (bitOffset64 + bitLength > totalBits) {
-                errBuf = QString("Variable field '%1' out of bounds").arg(f.name);
-                if (errorMsg) *errorMsg = errBuf;
-                result.insert(f.name, QJsonValue::Null);
-                continue;
-            }
-            QByteArray bytes;
-            QString subErr;
-            if (!readBitsToBytes(data, bitOffset, bitLength, bytes, f.endian, f.bitOrder, &subErr)) {
-                result.insert(f.name, QJsonValue::Null);
-                continue;
-            }
-            switch (f.type) {
-            case HexString: result.insert(f.name, QString::fromLatin1(bytes.toHex())); break;
-            case Base64:    result.insert(f.name, QString::fromLatin1(bytes.toBase64())); break;
-            case RawBytes:  result.insert(f.name, QString::fromLatin1(bytes.toBase64())); break;
-            case String:    result.insert(f.name, QString::fromUtf8(bytes)); break;
-            default:        result.insert(f.name, QJsonValue::Null);
-            }
-        }
+
+    ProtocolSchema::Field f;
+    f.name = name;
+    f.startByte = startByte;
+    f.startBit = startBit;
+    f.bitLength = bitLength;
+    f.type = type;
+    f.endian = endian;
+    f.bitOrder = bitOrder;
+    f.isSigned = isSigned;
+    f.factor = factor;
+    f.offset = offset;
+    f.lenField = "";
+    f.conditions = m_inheritedConditions;
+    if (!m_conditionField.isEmpty() && !m_isDefault) {
+        f.conditions.append({m_conditionField, m_conditionValue});
     }
-    return result;
+    f.isDefaultBranch = m_isDefault;
+    if (m_isDefault) {
+        f.defaultBranchField = m_conditionField;
+    } else {
+        f.defaultBranchField = "";
+    }
+    m_schema->m_fields.append(f);
+    m_schema->invalidateSortCache();  // 字段变化，使排序缓存失效
+    return *this;
 }
-bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* errorMsg) const {
-    QMutexLocker lock(&m_mutex);
-    QString errBuf;
-    QHash<QString, QString> lenToVar;
-    QHash<QString, int> varLengths;
-    QHash<QString, QByteArray> varContents;
-    // 长度字段 -> 变长字段映射
-    for (const Field& f : m_fields) {
-        if (f.bitLength == 0) lenToVar[f.lenField] = f.name;
+
+// 添加变长字段到当前分支
+ConditionalBuilder& ConditionalBuilder::addVariableField(const QString& name, int startByte, int startBit,
+                                                         const QString& lenField, ValueType type,
+                                                         Endian endian, BitOrder bitOrder,
+                                                         double factor, double offset, QString* err) {
+    QMutexLocker lock(&m_schema->m_mutex);
+
+    if (name.trimmed().isEmpty()) {
+        if (err) *err = "Variable field name cannot be empty";
+        return *this;
     }
-    // 计算变长字段内容
-    for (const Field& f : m_fields) {
-        if (f.bitLength == 0) {
-            QJsonValue val = values.value(f.name);
-            if (val.isNull() || val.isUndefined()) {
-                errBuf = QString("Missing value for variable field '%1'").arg(f.name);
-                if (errorMsg) *errorMsg = errBuf;
-                return false;
-            }
-            QString subErr;
-            QByteArray content = encodeValue(val, f.type, -1, &subErr);
-            if (content.isNull()) {
-                errBuf = QString("Encode var field %1 failed: %2").arg(f.name, subErr);
-                if (errorMsg) *errorMsg = errBuf;
-                return false;
-            }
-            if (content.size() > MAX_VAR_BYTE_SIZE) {
-                errBuf = QString("Var field %1 size exceed max limit %2").arg(f.name).arg(MAX_VAR_BYTE_SIZE);
-                if (errorMsg) *errorMsg = errBuf;
-                return false;
-            }
-            varContents[f.name] = content;
-            varLengths[f.name] = content.size();
+    if (lenField.trimmed().isEmpty()) {
+        if (err) *err = QString("Var field %1 lenField empty").arg(name);
+        return *this;
+    }
+    if (startByte < 0) {
+        if (err) *err = QString("Var field %1 startByte negative").arg(name);
+        return *this;
+    }
+    if (startBit < 0 || startBit > 7) {
+        if (err) *err = QString("Var field %1 startBit must 0~7").arg(name);
+        return *this;
+    }
+
+    // 同名字段重复检测
+    for (const auto& f : m_schema->m_fields) {
+        if (f.name == name) {
+            if (err) *err = QString("Duplicate var field name: %1").arg(name);
+            return *this;
         }
     }
-    // 计算总最大bit，防止int溢出
-    qint64 maxBit = 0;
-    for (const Field& f : m_fields) {
-        qint64 bitStart = absoluteBitOffset(f);
-        qint64 bitEnd = bitStart;
-        if (f.bitLength > 0) {
-            bitEnd += f.bitLength - 1;
-        } else {
-            QByteArray content = varContents.value(f.name);
-            if (!content.isEmpty()) bitEnd += static_cast<qint64>(content.size()) * 8 - 1;
-        }
-        if (bitEnd > maxBit) maxBit = bitEnd;
+
+    ProtocolSchema::Field f;
+    f.name = name;
+    f.startByte = startByte;
+    f.startBit = startBit;
+    f.bitLength = 0;
+    f.type = type;
+    f.endian = endian;
+    f.bitOrder = bitOrder;
+    f.isSigned = false;
+    f.lenField = lenField;
+    f.factor = factor;
+    f.offset = offset;
+    f.conditions = m_inheritedConditions;
+    if (!m_conditionField.isEmpty() && !m_isDefault) {
+        f.conditions.append({m_conditionField, m_conditionValue});
     }
-    if (maxBit < 0) {
-        errBuf = "Calculated frame bit length negative";
-        if (errorMsg) *errorMsg = errBuf;
-        return false;
+    f.isDefaultBranch = m_isDefault;
+    if (m_isDefault) {
+        f.defaultBranchField = m_conditionField;
+    } else {
+        f.defaultBranchField = "";
     }
-    // 分配内存
-    qint64 byteCount64 = (maxBit + 7) / 8;
-    if (byteCount64 > std::numeric_limits<int>::max()) {
-        errBuf = "Frame size overflow int limit";
-        if (errorMsg) *errorMsg = errBuf;
-        return false;
-    }
-    int byteCount = static_cast<int>(byteCount64);
-    out.resize(byteCount);
-    out.fill(0);
-    // 按bit偏移升序排序字段写入，防止覆盖
-    QVector<Field> sortedFields = getSortedFields();
-    for (const Field& f : sortedFields) {
-        qint64 bitOffset64 = absoluteBitOffset(f);
-        if (bitOffset64 > std::numeric_limits<int>::max()) {
-            errBuf = QString("Field %1 bit offset overflow int").arg(f.name);
-            if (errorMsg) *errorMsg = errBuf;
-            return false;
-        }
-        int bitOffset = static_cast<int>(bitOffset64);
-        if (f.bitLength > 0) {
-            if (lenToVar.contains(f.name)) {
-                QString varName = lenToVar[f.name];
-                int lenBytes = varLengths.value(varName, -1);
-                if (lenBytes > MAX_VAR_BYTE_SIZE)
-                {
-                    errBuf = QString("Variable length %1 exceeds max limit %2").arg(lenBytes).arg(MAX_VAR_BYTE_SIZE);
-                    if (errorMsg) *errorMsg = errBuf;
-                    return false;
-                }
-                if (lenBytes < 0) {
-                    errBuf = QString("Length field '%1' for '%2' not computed").arg(f.name, varName);
-                    if (errorMsg) *errorMsg = errBuf;
-                    return false;
-                }
-                quint64 intVal = static_cast<quint64>(lenBytes);
-                quint64 masked = intVal & maskBits(f.bitLength);
-                if (masked != intVal) {
-                    errBuf = QString("Length value %1 overflow field %2 bit width").arg(lenBytes).arg(f.name);
-                    if (errorMsg) *errorMsg = errBuf;
-                    return false;
-                }
-                QString subErr;
-                if (!writeBits(out, bitOffset, f.bitLength, masked, f.endian, f.bitOrder, &subErr)) {
-                    errBuf = QString("Write len field %1 failed: %2").arg(f.name, subErr);
-                    if (errorMsg) *errorMsg = errBuf;
-                    return false;
-                }
-            } else {
-                QJsonValue val = values.value(f.name);
-                if (val.isNull() || val.isUndefined()) {
-                    errBuf = QString("Missing value for field '%1'").arg(f.name);
-                    if (errorMsg) *errorMsg = errBuf;
-                    return false;
-                }
-                if (f.type == Int || f.type == UInt) {
-                    quint64 intVal;
-                    QString subErr;
-                    if (!valueToInteger(val, f.bitLength, f.isSigned, f.factor, f.offset, intVal, &subErr)) {
-                        errBuf = QString("Convert field %1 value failed: %2").arg(f.name, subErr);
-                        if (errorMsg) *errorMsg = errBuf;
-                        return false;
-                    }
-                    if (!writeBits(out, bitOffset, f.bitLength, intVal, f.endian, f.bitOrder, &subErr)) {
-                        errBuf = QString("Write field %1 failed: %2").arg(f.name, subErr);
-                        if (errorMsg) *errorMsg = errBuf;
-                        return false;
-                    }
-                } else {
-                    int fixedBytes = (f.bitLength + 7) / 8;
-                    QString subErr;
-                    QByteArray bytes = encodeValue(val, f.type, fixedBytes, &subErr);
-                    if (bytes.isNull()) {
-                        errBuf = QString("Encode field %1 failed: %2").arg(f.name, subErr);
-                        if (errorMsg) *errorMsg = errBuf;
-                        return false;
-                    }
-                    if (!writeBitsToBytes(out, bitOffset, bytes, f.endian, f.bitOrder, &subErr)) {
-                        errBuf = QString("Write bytes field %1 failed: %2").arg(f.name, subErr);
-                        if (errorMsg) *errorMsg = errBuf;
-                        return false;
-                    }
-                }
-            }
-        } else {
-            QByteArray content = varContents.value(f.name);
-            if (!content.isEmpty()) {
-                QString subErr;
-                if (!writeBitsToBytes(out, bitOffset, content, f.endian, f.bitOrder, &subErr)) {
-                    errBuf = QString("Write var field %1 failed: %2").arg(f.name, subErr);
-                    if (errorMsg) *errorMsg = errBuf;
-                    return false;
-                }
-            }
-        }
-    }
-    return true;
+    m_schema->m_fields.append(f);
+    m_schema->invalidateSortCache();  // 字段变化，使排序缓存失效
+    return *this;
 }
-QByteArray ProtocolSchema::packToArray(const QJsonObject& values, QString* errorMsg) const {
-    QByteArray result;
-    if (!pack(values, result, errorMsg)) result.clear();
-    return result;
+
+// 在当前分支内部开启新的条件分支
+ConditionalBuilder ConditionalBuilder::when(const QString& fieldName, const QVariant& value) {
+    ConditionalBuilder builder(m_schema, fieldName, value, false);
+    // 继承当前 builder 的条件列表，形成 AND 逻辑
+    builder.m_inheritedConditions = m_inheritedConditions;
+    if (!m_conditionField.isEmpty() && !m_isDefault) {
+        builder.m_inheritedConditions.append({m_conditionField, m_conditionValue});
+    }
+    return builder;
 }
+
+// 当前分支的默认分支
+ConditionalBuilder ConditionalBuilder::otherwise() {
+    // 使用当前 builder 的条件字段作为默认分支的条件字段
+    ConditionalBuilder builder(m_schema, m_conditionField, QVariant(), true);
+    // 继承父级条件
+    builder.m_inheritedConditions = m_inheritedConditions;
+    return builder;
 }
+
+// 结束当前分支
+ProtocolSchema& ConditionalBuilder::endBranch() {
+    return *m_schema;
+}
+
+} // namespace Sqz

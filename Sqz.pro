@@ -67,7 +67,6 @@ include(Global/Global.pri)
 include(Net/Net.pri)
 
 SOURCES += \
-    ProtocolSchemaTest.cpp \
     SqzQuickTest.cpp \
     SqzTest.cpp \
     main.cpp \
