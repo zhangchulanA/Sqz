@@ -1,0 +1,82 @@
+{
+  "protocolName": "工业物联网测试帧 v1.0",
+  "defaults": {
+    "endian": "LittleEndian",
+    "bitOrder": "Physical",
+    "type": "UInt",
+    "isSigned": false,
+    "factor": 1.0,
+    "offset": 0.0
+  },
+  "enumMaps": {
+    "frameType": { "1": "数据帧", "2": "命令帧", "3": "心跳帧" },
+    "alarm": { "0": "正常", "1": "预警", "2": "报警" }
+  },
+  "fields": [
+    {
+      "name": "head",
+      "startByte": 0, "startBit": 0, "bitLength": 8,
+      "type": "HexString",
+      "comment": "固定帧头，始终解析（type 覆盖 defaults，endian/bitOrder 继承）"
+    },
+    {
+      "name": "type",
+      "startByte": 1, "startBit": 0, "bitLength": 8,
+      "enumMap": "frameType",
+      "comment": "主类型，命名枚举引用 frameType；type 未写则继承 defaults.UInt"
+    },
+    {
+      "name": "subType",
+      "startByte": 2, "startBit": 0, "bitLength": 8,
+      "conditions": [ { "field": "type", "value": 1 } ],
+      "enumMap": { "1": "温度", "2": "压力" },
+      "comment": "子类型，仅 type=1 生效；内联 enumMap"
+    },
+    {
+      "name": "temp",
+      "startByte": 3, "startBit": 0, "bitLength": 16,
+      "type": "Int", "isSigned": true, "factor": 0.1, "offset": -40.0,
+      "conditions": [ { "field": "type", "value": 1 }, { "field": "subType", "value": 1 } ],
+      "comment": "温度，线性变换 raw*0.1-40；type=1 且 subType=1 生效"
+    },
+    {
+      "name": "tempAlarm",
+      "startByte": 5, "startBit": 0, "bitLength": 8,
+      "conditions": [ { "field": "type", "value": 1 }, { "field": "subType", "value": 1 } ],
+      "enumMap": "alarm",
+      "comment": "温度报警，命名枚举引用 alarm"
+    },
+    {
+      "name": "cmdPayloadLen",
+      "startByte": 2, "startBit": 0, "bitLength": 16,
+      "conditions": [ { "field": "type", "value": 2 } ],
+      "comment": "命令帧负载长度，type=2 生效"
+    },
+    {
+      "name": "cmdPayload",
+      "startByte": 4, "startBit": 0, "bitLength": 0,
+      "type": "String", "lenField": "cmdPayloadLen",
+      "conditions": [ { "field": "type", "value": 2 } ],
+      "comment": "变长命令负载，长度由 cmdPayloadLen 决定"
+    },
+    {
+      "name": "heartbeat",
+      "startByte": 2, "startBit": 0, "bitLength": 8,
+      "conditions": [ { "field": "type", "value": 3 } ],
+      "comment": "心跳计数，type=3 生效"
+    },
+    {
+      "name": "timestamp",
+      "startByte": 3, "startBit": 0, "bitLength": 32,
+      "conditions": [ { "field": "type", "value": 3 } ],
+      "comment": "时间戳，type=3 生效"
+    },
+    {
+      "name": "unknown",
+      "startByte": 2, "startBit": 0, "bitLength": 32,
+      "type": "HexString",
+      "isDefaultBranch": true, "defaultBranchField": "type",
+      "comment": "默认分支：type 非 1/2/3 时读取 4 字节原始数据"
+    }
+  ]
+}

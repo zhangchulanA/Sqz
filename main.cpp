@@ -1,876 +1,392 @@
 /*****************************************************************************
- * 文件: main.cpp
- * 功能: ProtocolSchema 全接口测试程序（非Qt Test框架，直接运行验证）
- * 接口覆盖:
- *   ProtocolSchema:
- *     1.  构造/析构
- *     2.  addField()         - 固定长度字段（全参数组合）
- *     3.  addVariableField() - 变长字段
- *     4.  when()/otherwise() - 条件分支
- *     5.  clear()           - 清空
- *     6.  checkOverlap()    - 字段重叠检测
- *     7.  validateSchema()  - schema 校验
- *     8.  parse()           - 二进制解析
- *     9.  pack()            - JSON 打包
- *     10. packToArray()     - 便捷打包
- *   ConditionalBuilder:
- *     11. addField()              - 条件分支内添加固定字段
- *     12. addVariableField()      - 条件分支内添加变长字段
- *     13. when()/otherwise()      - 嵌套条件
- *     14. endBranch()             - 结束分支
- * 作者: AI Test Generator
- * 日期: 2026-07-29
+ * 综合示例：ProtocolSchema 全功能演示与验证
+ *
+ * 设计思路：用一个"智能传感器帧"协议把所有功能串起来，每个测试函数聚焦一个
+ * 功能点，函数前有详细注释讲解用法与原理。既是测试也是教学示例。
+ *
+ * 覆盖功能:
+ *   1. 位域字段（字节内任意比特偏移与长度）
+ *   2. 字节序 LittleEndian/BigEndian、比特顺序 Physical/MsbFirst
+ *   3. 多种 ValueType：Int/UInt/HexString/Base64/RawBytes/String
+ *   4. 线性变换 factor/offset（物理值 = 原始值*factor + offset）
+ *   5. 枚举映射 map（链式，与线性变换互斥，解析输出字符串/打包反查）
+ *   6. 变长字段 addVariableField（长度由另一字段决定，打包时自动回写长度）
+ *   7. 条件分支 when/otherwise/endBranch
+ *   8. 嵌套条件（子分支继承父分支条件，AND 逻辑）
+ *   9. JSON 加载 loadJson/loadFile（defaults 缺省继承 + enumMaps 命名引用）
+ *  10. parse/pack 往返一致性
+ *  11. 错误处理（缺值/越界/类型不符）
+ *  12. 辅助接口 checkOverlap/validateSchema/clear
+ *
+ * 编译: qmake test_demo.pro && mingw32-make
+ * 运行: ./release/test_demo.exe
  *****************************************************************************/
-
+#include "ProtocolSchema.h"
 #include <QCoreApplication>
 #include <QDebug>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QJsonArray>
-#include <QElapsedTimer>
-#include <QDateTime>
-
-// 包含被测头文件（实现由.pro的SOURCES提供）
-#include "ProtocolSchema.h"
 
 using namespace Sqz;
 
-// ==================== 测试统计 ====================
-struct TestStats {
-    int passed = 0;
-    int failed = 0;
-    int total = 0;
-    QString currentCase;
+// 简易断言宏：累计统计通过/失败数，便于汇总
+static int g_pass = 0;
+static int g_fail = 0;
+#define CHECK(cond, msg) do { \
+    if (cond) { ++g_pass; qDebug() << "[ PASS ]" << msg; } \
+    else { ++g_fail; qDebug() << "[ FAIL ]" << msg << " (line" << __LINE__ << ")"; } \
+} while(0)
 
-    void check(bool condition, const QString& desc) {
-        total++;
-        if (condition) {
-            passed++;
-            qDebug() << "  [PASS]" << desc;
-        } else {
-            failed++;
-            qDebug() << "  [FAIL]" << desc;
-        }
-    }
+// ==================== 测试用例 ====================
 
-    void startCase(const QString& name) {
-        currentCase = name;
-        qDebug() << "\n=====" << name << "=====";
-    }
+/*--------------------------------------------------------------------
+ * 测试1：位域 + 字节序 + 比特顺序
+ * 演示：一个字节内拆出多个字段；多字节字段的大/小端差异
+ * Physical 模式下 startBit=0 表示从 bit0（最低位）开始
+ *--------------------------------------------------------------------*/
+static void test_bitfield_endian() {
+    qDebug() << "\n=== test_bitfield_endian ===";
+    ProtocolSchema s;
 
-    void summary() {
-        qDebug() << "\n========================================";
-        qDebug() << "测试汇总: 总计=" << total
-                 << " 通过=" << passed
-                 << " 失败=" << failed;
-        qDebug() << "通过率:" << (total > 0 ? QString::number(passed * 100.0 / total, 'f', 1) + "%" : "N/A");
-        qDebug() << "========================================";
-    }
-};
+    // byte0 拆成两半：低4位 lowNibble，高4位 highNibble（Physical 位索引）
+    s.addField("lowNibble",  0, 0, 4, UInt, LittleEndian, Physical)
+     .addField("highNibble", 0, 4, 4, UInt, LittleEndian, Physical)
+     // byte1~2：16位无符号，分别用小端和大端读取对比
+     .addField("valLE", 1, 0, 16, UInt, LittleEndian, Physical)
+     .addField("valBE", 1, 0, 16, UInt, BigEndian,    Physical);
 
-static TestStats g_stats;
+    // 0x1A = 0001 1010 → low=1010=10, high=0001=1
+    // 0x34 0x12 → 小端=0x1234=4660, 大端=0x3412=13330
+    QByteArray rx = QByteArray::fromHex("1a3412");
+    QJsonObject j = s.parse(rx);
+    qDebug() << "parsed:" << QJsonDocument(j).toJson(QJsonDocument::Compact);
 
-// ==================== 辅助宏 ====================
-#define CHECK(cond, desc) g_stats.check(cond, desc)
+    CHECK(j.value("lowNibble").toInt()  == 10,    "lowNibble=10 (bit0-3 of 0x1A)");
+    CHECK(j.value("highNibble").toInt() == 1,     "highNibble=1 (bit4-7 of 0x1A)");
+    CHECK(j.value("valLE").toInt()      == 4660,  "valLE=0x1234 (LittleEndian)");
+    CHECK(j.value("valBE").toInt()      == 13330, "valBE=0x3412 (BigEndian)");
+}
 
-// ==================== 主测试函数 ====================
+/*--------------------------------------------------------------------
+ * 测试2：多种 ValueType（HexString / Base64 / RawBytes / String）
+ * 演示：不同类型字段解析后的 JSON 值形式
+ *--------------------------------------------------------------------*/
+static void test_value_types() {
+    qDebug() << "\n=== test_value_types ===";
+    ProtocolSchema s;
+    s.addField("hex",  0, 0, 8, HexString)   // → 十六进制字符串 "ab"
+     .addField("b64",  1, 0, 8, Base64)      // → Base64 编码串
+     .addField("raw",  2, 0, 8, RawBytes)    // → Base64 串（原始字节）
+     .addField("str",  3, 0, 8, String);     // → UTF-8 字符串
+
+    // 0xAB 'Z' 'Z' 'H' → hex="ab", str="H"
+    QByteArray rx;
+    rx.append(static_cast<char>(0xAB));
+    rx.append('Z'); rx.append('Z'); rx.append('H');
+    QJsonObject j = s.parse(rx);
+    qDebug() << "parsed:" << QJsonDocument(j).toJson(QJsonDocument::Compact);
+
+    CHECK(j.value("hex").toString() == "ab", "hex=\"ab\" (HexString)");
+    CHECK(j.value("str").toString() == "H",  "str=\"H\" (UTF-8 String)");
+    CHECK(j.value("b64").isString(),         "b64 is string (Base64)");
+    CHECK(j.value("raw").isString(),         "raw is string (Base64)");
+}
+
+/*--------------------------------------------------------------------
+ * 测试3：线性变换 factor/offset
+ * 原理：物理值 = 原始值 * factor + offset；打包时逆变换还原原始值
+ * 例：温度 8bit 有符号，factor=0.5, offset=-20 → raw=100 时 100*0.5-20=30℃
+ *--------------------------------------------------------------------*/
+static void test_linear_transform() {
+    qDebug() << "\n=== test_linear_transform ===";
+    ProtocolSchema s;
+    // 8位有符号整数，系数0.5偏移-20
+    s.addField("temp", 0, 0, 8, Int, LittleEndian, Physical, true, 0.5, -20.0);
+
+    // raw=100 → 100*0.5-20 = 30.0
+    QJsonObject j = s.parse(QByteArray::fromHex("64"));
+    qDebug() << "parsed:" << QJsonDocument(j).toJson(QJsonDocument::Compact);
+    CHECK(qAbs(j.value("temp").toDouble() - 30.0) < 1e-9, "temp=30.0 (raw 100 *0.5 -20)");
+
+    // 反向打包：物理值 30.0 → 逆变换 (30+20)/0.5=100 → 0x64
+    QJsonObject tx; tx["temp"] = 30.0;
+    QByteArray packed = s.packToArray(tx);
+    qDebug() << "packed:" << packed.toHex();
+    CHECK((quint8)packed[0] == 100, "pack temp=30.0 → raw 0x64 (inverse transform)");
+}
+
+/*--------------------------------------------------------------------
+ * 测试4：枚举映射 map（链式 + 与线性变换互斥）
+ * 规则：启用 map 后 factor/offset 自动失效；解析输出字符串；打包接受字符串反查
+ *--------------------------------------------------------------------*/
+static void test_enum_map() {
+    qDebug() << "\n=== test_enum_map ===";
+    ProtocolSchema s;
+    // status 字段：0→关机 1→开机 2→待机，链式 map
+    s.addField("status", 0, 0, 8, UInt)
+     .map(0, QStringLiteral("关机"))
+     .map(1, QStringLiteral("开机"))
+     .map(2, QStringLiteral("待机"));
+
+    // 解析 raw=1 → "开机"，value 必为字符串类型
+    QJsonObject j = s.parse(QByteArray::fromHex("01"));
+    qDebug() << "parsed:" << QJsonDocument(j).toJson(QJsonDocument::Compact);
+    CHECK(j.value("status").isString(),                          "status is string type");
+    CHECK(j.value("status").toString() == QStringLiteral("开机"), "status=开机 (raw 1)");
+
+    // 打包：传字符串 "待机" → 反查 raw=2 → 0x02
+    QJsonObject tx; tx["status"] = QStringLiteral("待机");
+    QByteArray packed = s.packToArray(tx);
+    qDebug() << "packed:" << packed.toHex();
+    CHECK((quint8)packed[0] == 2, "pack \"待机\" → raw 0x02 (reverse map)");
+
+    // 互斥验证：map 启用后即便设了 factor/offset 也不生效
+    ProtocolSchema s2;
+    s2.addField("v", 0, 0, 8, UInt, LittleEndian, Physical, false, 2.0, 1.0)
+      .map(1, "ONE");   // 加 map 后 factor=2/offset=1 自动失效
+    QJsonObject j2 = s2.parse(QByteArray::fromHex("01"));
+    CHECK(j2.value("v").toString() == "ONE", "map disables linear transform (factor/offset ignored)");
+}
+
+/*--------------------------------------------------------------------
+ * 测试5：变长字段 addVariableField
+ * 原理：变长字段长度由 lenField 指向的字段值决定；打包时自动回写长度
+ *--------------------------------------------------------------------*/
+static void test_variable_field() {
+    qDebug() << "\n=== test_variable_field ===";
+    ProtocolSchema s;
+    // byte0: 长度字段 len；byte1起: 变长字符串 payload，长度=len
+    s.addField("len", 0, 0, 8, UInt)
+     .addVariableField("payload", 1, 0, "len", String);
+
+    // len=5, payload="hello"
+    QByteArray rx = QByteArray::fromHex("05") + "hello";
+    QJsonObject j = s.parse(rx);
+    qDebug() << "parsed:" << QJsonDocument(j).toJson(QJsonDocument::Compact);
+    CHECK(j.value("len").toInt() == 5,                      "len=5");
+    CHECK(j.value("payload").toString() == QStringLiteral("hello"), "payload=hello");
+
+    // 打包：只传 payload，len 自动回写为 5
+    QJsonObject tx; tx["payload"] = QStringLiteral("world");
+    QByteArray packed = s.packToArray(tx);
+    qDebug() << "packed:" << packed.toHex();
+    CHECK((quint8)packed[0] == 5,                              "len auto-written =5");
+    CHECK(packed.mid(1) == QByteArray("world"),                "payload=world");
+}
+
+/*--------------------------------------------------------------------
+ * 测试6：条件分支 when/otherwise/endBranch
+ * 原理：when(field,value) 后续字段仅在条件满足时解析；otherwise 为默认分支
+ * 条件基于原始数值比较（枚举字段自动反查）
+ *--------------------------------------------------------------------*/
+static void test_conditional_branch() {
+    qDebug() << "\n=== test_conditional_branch ===";
+    ProtocolSchema s;
+    // byte0: type 条件字段；byte1: 按分支不同字段
+    s.addField("type", 0, 0, 8, UInt)
+      .map(1, "DATA")      // type 带枚举，验证条件按原始值比较
+      .map(2, "CMD");
+    s.when("type", 1)                          // type==1 数据帧
+        .addField("dataVal", 1, 0, 8, UInt)
+        .endBranch();
+    s.when("type", 2)                          // type==2 命令帧
+        .addField("cmdVal", 1, 0, 8, UInt)
+        .endBranch();
+    s.otherwise()                              // 默认分支：其它 type
+        .addField("errVal", 1, 0, 8, UInt)
+        .endBranch();
+
+    // type=1（DATA）→ dataVal 生效，cmdVal/errVal 不出现
+    QJsonObject j1 = s.parse(QByteArray::fromHex("0199"));
+    qDebug() << "type=1:" << QJsonDocument(j1).toJson(QJsonDocument::Compact);
+    CHECK(j1.value("type").toString() == "DATA",       "type=DATA (enum, raw 1)");
+    CHECK(j1.value("dataVal").toInt() == 0x99,         "dataVal active when type==1");
+    CHECK(!j1.contains("cmdVal") && !j1.contains("errVal"), "other branches skipped");
+
+    // type=9（未命中枚举→"9"，落入默认分支）→ errVal 生效
+    QJsonObject j9 = s.parse(QByteArray::fromHex("0955"));
+    qDebug() << "type=9:" << QJsonDocument(j9).toJson(QJsonDocument::Compact);
+    CHECK(j9.value("type").toString() == "9",          "type=9 unmapped -> \"9\"");
+    CHECK(j9.value("errVal").toInt() == 0x55,          "errVal active (default branch)");
+}
+
+/*--------------------------------------------------------------------
+ * 测试7：嵌套条件（子分支继承父分支条件，AND 逻辑）
+ * 场景：type==1 且 subType==1 时才解析 temp
+ *--------------------------------------------------------------------*/
+static void test_nested_condition() {
+    qDebug() << "\n=== test_nested_condition ===";
+    ProtocolSchema s;
+    s.addField("type",    0, 0, 8, UInt);
+    s.addField("subType", 1, 0, 8, UInt);
+    // 嵌套：type==1 内部再 when subType==1，子分支继承父条件（AND 逻辑）
+    // endBranch 仅结束最内层分支并返回 ProtocolSchema&（外层空分支析构无害）
+    s.when("type", 1)
+        .when("subType", 1)
+        .addField("temp", 2, 0, 8, Int, LittleEndian, Physical, true, 0.1, -40.0)
+        .endBranch();
+
+    // type=1, subType=1 → temp 生效
+    QJsonObject j1 = s.parse(QByteArray::fromHex("010164"));  // temp raw=100 → 100*0.1-40=-30
+    qDebug() << "type=1,subType=1:" << QJsonDocument(j1).toJson(QJsonDocument::Compact);
+    CHECK(j1.contains("temp"),                            "temp active (type=1 AND subType=1)");
+    CHECK(qAbs(j1.value("temp").toDouble() - (-30.0)) < 1e-9, "temp=-30.0 (raw 100)");
+
+    // type=1, subType=2 → temp 不生效（AND 条件不满足）
+    QJsonObject j2 = s.parse(QByteArray::fromHex("010200"));
+    qDebug() << "type=1,subType=2:" << QJsonDocument(j2).toJson(QJsonDocument::Compact);
+    CHECK(!j2.contains("temp"), "temp skipped (subType!=1, AND fails)");
+}
+
+/*--------------------------------------------------------------------
+ * 测试8：JSON 加载 loadJson（defaults 缺省继承 + enumMaps 命名引用）
+ * 演示：顶层 defaults 提供缺省值，字段未写时继承；enumMap 可命名引用
+ *--------------------------------------------------------------------*/
+static void test_json_load() {
+    qDebug() << "\n=== test_json_load ===";
+    // 内联构造协议 JSON（避免依赖外部文件）
+    QJsonObject proto;
+    proto["protocolName"] = QStringLiteral("演示协议");
+    // defaults：所有字段未显式指定时继承这些值
+    proto["defaults"] = QJsonObject{
+        {"endian", "LittleEndian"}, {"bitOrder", "Physical"},
+        {"type", "UInt"}, {"factor", 1.0}, {"offset", 0.0}
+    };
+    // enumMaps：命名枚举库，字段 enumMap 可用字符串引用
+    proto["enumMaps"] = QJsonObject{
+        {"devType", QJsonObject{{"1", "传感器"}, {"2", "执行器"}}}
+    };
+    QJsonArray fields;
+    // head：显式 type=HexString，覆盖 defaults 的 UInt
+    fields.append(QJsonObject{{"name","head"},{"startByte",0},{"startBit",0},{"bitLength",8},{"type","HexString"}});
+    // devType：未写 type → 继承 defaults.UInt；enumMap 命名引用 "devType"
+    fields.append(QJsonObject{{"name","devType"},{"startByte",1},{"startBit",0},{"bitLength",8},{"enumMap","devType"}});
+    proto["fields"] = fields;
+
+    ProtocolSchema s;
+    QString err;
+    bool ok = s.loadJson(proto, &err);
+    if (!ok) qDebug() << "err:" << err;
+    CHECK(ok, "loadJson success");
+    CHECK(s.protocolName() == QStringLiteral("演示协议"), "protocolName correct");
+
+    // 解析：head=0xAA, devType=1 → "传感器"
+    QJsonObject j = s.parse(QByteArray::fromHex("aa01"));
+    qDebug() << "parsed:" << QJsonDocument(j).toJson(QJsonDocument::Compact);
+    CHECK(j.value("head").toString() == "aa",                 "head=\"aa\" (HexString overrides defaults)");
+    CHECK(j.value("devType").toString() == QStringLiteral("传感器"), "devType=传感器 (named enumMap ref, type inherited)");
+}
+
+/*--------------------------------------------------------------------
+ * 测试9：parse/pack 往返一致性
+ * 演示：解析后再打包，应得到等价数据（枚举字符串 + 线性变换 + 条件）
+ *--------------------------------------------------------------------*/
+static void test_roundtrip() {
+    qDebug() << "\n=== test_roundtrip ===";
+    ProtocolSchema s;
+    s.addField("status", 0, 0, 8, UInt).map(0,"OFF").map(1,"ON");
+    s.addField("temp",   1, 0, 8, Int, LittleEndian, Physical, true, 0.5, -20.0);
+
+    // 原始数据 → JSON
+    QByteArray rx = QByteArray::fromHex("0164");  // status=1→ON, temp raw=100→30
+    QJsonObject j1 = s.parse(rx);
+    qDebug() << "parse:" << QJsonDocument(j1).toJson(QJsonDocument::Compact);
+
+    // JSON → 打包 → 再解析，校验一致
+    QByteArray packed = s.packToArray(j1);
+    qDebug() << "packed:" << packed.toHex();
+    QJsonObject j2 = s.parse(packed);
+    qDebug() << "roundtrip:" << QJsonDocument(j2).toJson(QJsonDocument::Compact);
+
+    CHECK(j2.value("status").toString() == "ON",                "roundtrip status=ON");
+    CHECK(qAbs(j2.value("temp").toDouble() - 30.0) < 1e-9,      "roundtrip temp=30.0");
+    CHECK(packed.toHex() == "0164",                             "roundtrip bytes match original");
+}
+
+/*--------------------------------------------------------------------
+ * 测试10：错误处理
+ * 演示：数据不足、打包缺值、map 类型不符等错误均被捕获
+ *--------------------------------------------------------------------*/
+static void test_error_handling() {
+    qDebug() << "\n=== test_error_handling ===";
+    ProtocolSchema s;
+    s.addField("a", 0, 0, 8, UInt)
+     .addField("b", 1, 0, 8, UInt);
+
+    // 解析数据不足：只有1字节，b 字段越界 → b 为 null
+    QString err;
+    QJsonObject j = s.parse(QByteArray::fromHex("01"), &err);
+    qDebug() << "short data parse:" << QJsonDocument(j).toJson(QJsonDocument::Compact) << "err:" << err;
+    CHECK(j.value("a").toInt() == 1,  "a parsed from short data");
+    CHECK(j.value("b").isNull(),      "b null when data out of bounds");
+
+    // 打包缺值：JSON 缺 b → 报错并返回空
+    QJsonObject tx; tx["a"] = 1;   // 故意不传 b
+    QByteArray packed = s.packToArray(tx, &err);
+    qDebug() << "pack missing b:" << err;
+    CHECK(packed.isEmpty(),                 "pack returns empty when value missing");
+    CHECK(err.contains("Missing value"),    "err mentions 'Missing value'");
+
+    // map 作用于非整数字段 → 报错
+    ProtocolSchema s2;
+    QString e2;
+    s2.addField("str", 0, 0, 8, String).map(0, "X", &e2);
+    qDebug() << "map on String err:" << e2;
+    CHECK(e2.contains("type mismatch"), "map on non-Int field returns error");
+}
+
+/*--------------------------------------------------------------------
+ * 测试11：辅助接口 checkOverlap / validateSchema / clear
+ * 演示：字段重叠检测、配置校验、清空
+ *--------------------------------------------------------------------*/
+static void test_aux_interfaces() {
+    qDebug() << "\n=== test_aux_interfaces ===";
+    ProtocolSchema s;
+    // 两个字段重叠：a 占 byte0 全部，b 占 byte0 高4位
+    s.addField("a", 0, 0, 8, UInt)
+     .addField("b", 0, 4, 4, UInt);
+
+    QStringList overlaps = s.checkOverlap();
+    qDebug() << "overlaps:" << overlaps;
+    CHECK(!overlaps.isEmpty(),                "checkOverlap detects a/b overlap");
+    CHECK(overlaps.join("").contains("a"),    "overlap report includes a");
+    CHECK(overlaps.join("").contains("b"),    "overlap report includes b");
+
+    // validateSchema：合法配置应通过
+    QString err;
+    CHECK(s.validateSchema(&err),             "validateSchema passes for valid config");
+
+    // clear：清空后无字段，parse 返回空对象
+    s.clear();
+    QJsonObject j = s.parse(QByteArray::fromHex("0102"));
+    CHECK(j.isEmpty(),                        "schema empty after clear()");
+}
+
+// ==================== 主函数 ====================
 int main(int argc, char* argv[])
 {
     QCoreApplication app(argc, argv);
-    g_stats.startCase("ProtocolSchema 全接口测试");
+    qDebug() << "========== ProtocolSchema 全功能综合示例 ==========";
 
-    // ================================================
-    // 1. 构造/析构 + addField 基础
-    // ================================================
-    {
-        g_stats.startCase("1. 构造/析构 + addField 基础");
+    test_bitfield_endian();      // 1. 位域 + 字节序 + 比特顺序
+    test_value_types();          // 2. 多种 ValueType
+    test_linear_transform();     // 3. 线性变换
+    test_enum_map();             // 4. 枚举映射 + 互斥
+    test_variable_field();       // 5. 变长字段
+    test_conditional_branch();   // 6. 条件分支
+    test_nested_condition();     // 7. 嵌套条件
+    test_json_load();            // 8. JSON 加载
+    test_roundtrip();            // 9. 往返一致性
+    test_error_handling();       // 10. 错误处理
+    test_aux_interfaces();       // 11. 辅助接口
 
-        ProtocolSchema schema;
-        QString err;
-
-        // 1.1 添加单字节无符号整数
-        schema.addField("reg", 0, 0, 8, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err);
-        CHECK(err.isEmpty(), "addField 基本: 无错误");
-
-        // 1.2 解析验证
-        QByteArray data = QByteArray::fromHex("2A");
-        QJsonObject result = schema.parse(data, &err);
-        CHECK(err.isEmpty(), "解析: 无错误");
-        CHECK(result["reg"].toDouble() == 42.0, "解析值正确: 0x2A = 42");
-
-        // 1.3 打包验证
-        QJsonObject values;
-        values["reg"] = QJsonValue(42);
-        QByteArray packed = schema.packToArray(values, &err);
-        CHECK(err.isEmpty(), "打包: 无错误");
-        CHECK(packed == data, "打包数据正确");
-
-        // 1.4 往返验证
-        QJsonObject roundTrip = schema.parse(packed, &err);
-        CHECK(roundTrip["reg"].toDouble() == 42.0, "往返一致");
+    qDebug() << "\n========== 结果汇总 ==========";
+    qDebug() << "PASS:" << g_pass << "  FAIL:" << g_fail;
+    if (g_fail == 0) {
+        qDebug() << "所有测试通过 ✓";
+        return 0;
     }
-
-    // ================================================
-    // 2. addField - 全部 ValueType 类型
-    // ================================================
-    {
-        g_stats.startCase("2. addField 全类型");
-
-        // 2.1 Int 类型（有符号整数）
-        {
-            ProtocolSchema schema;
-            schema.addField("signed_val", 0, 0, 16, Int,
-                            LittleEndian, Physical,
-                            true, 1.0, 0.0);
-            // 解析 -1 (0xFFFF in little endian)
-            QByteArray data = QByteArray::fromHex("FFFF");
-            QJsonObject result = schema.parse(data);
-            CHECK(result["signed_val"].toDouble() == -1.0, "Int16 -1");
-
-            // 解析 -32768 (最小值)
-            data = QByteArray::fromHex("0080");
-            result = schema.parse(data);
-            CHECK(result["signed_val"].toDouble() == -32768.0, "Int16 -32768");
-
-            // 解析 32767 (最大值)
-            data = QByteArray::fromHex("FF7F");
-            result = schema.parse(data);
-            CHECK(result["signed_val"].toDouble() == 32767.0, "Int16 32767");
-        }
-
-        // 2.2 UInt 类型
-        {
-            ProtocolSchema schema;
-            schema.addField("unsigned_val", 0, 0, 32, UInt,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("0A000000"); // 10
-            QJsonObject result = schema.parse(data);
-            CHECK(result["unsigned_val"].toDouble() == 10.0, "UInt32 10");
-        }
-
-        // 2.3 HexString 类型
-        {
-            ProtocolSchema schema;
-            schema.addField("hex_data", 0, 0, 16, HexString,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("DEAD");
-            QJsonObject result = schema.parse(data);
-            QString hexStr = result["hex_data"].toString();
-            CHECK(hexStr.toUpper().contains("DEAD"), "HexString 解析");
-
-            // 打包
-            QJsonObject values;
-            values["hex_data"] = QJsonValue("DEAD");
-            QByteArray packed = schema.packToArray(values);
-            CHECK(packed == data, "HexString 打包");
-        }
-
-        // 2.4 Base64 类型
-        {
-            ProtocolSchema schema;
-            schema.addField("b64_data", 0, 0, 8, Base64,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("41"); // 'A'
-            QJsonObject result = schema.parse(data);
-            CHECK(!result["b64_data"].toString().isEmpty(), "Base64 解析");
-        }
-
-        // 2.5 RawBytes 类型
-        {
-            ProtocolSchema schema;
-            schema.addField("raw_data", 0, 0, 8, RawBytes,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("42"); // 'B'
-            QJsonObject result = schema.parse(data);
-            CHECK(!result["raw_data"].toString().isEmpty(), "RawBytes 解析");
-        }
-
-        // 2.6 String 类型
-        {
-            ProtocolSchema schema;
-            schema.addField("text", 0, 0, 24, String,
-                            LittleEndian, Physical);
-            QByteArray data("Hi!", 3);
-            QJsonObject result = schema.parse(data);
-            CHECK(result["text"].toString() == "Hi!", "String 解析");
-
-            // 打包
-            QJsonObject values;
-            values["text"] = QJsonValue("Hi!");
-            QByteArray packed = schema.packToArray(values);
-            CHECK(packed == data, "String 打包");
-        }
-    }
-
-    // ================================================
-    // 3. 字节序与位序组合
-    // ================================================
-    {
-        g_stats.startCase("3. 字节序与位序组合");
-
-        // 3.1 LittleEndian + Physical (默认小端)
-        {
-            ProtocolSchema schema;
-            schema.addField("le_val", 0, 0, 16, UInt,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("3412"); // 0x1234
-            QJsonObject result = schema.parse(data);
-            CHECK(result["le_val"].toDouble() == 4660.0, "LE+Physical: 0x1234");
-        }
-
-        // 3.2 BigEndian + MsbFirst (网络字节序)
-        {
-            ProtocolSchema schema;
-            schema.addField("be_val", 0, 0, 16, UInt,
-                            BigEndian, MsbFirst);
-            QByteArray data = QByteArray::fromHex("1234"); // 0x1234
-            QJsonObject result = schema.parse(data);
-            CHECK(result["be_val"].toDouble() == 4660.0, "BE+MsbFirst: 0x1234");
-        }
-
-        // 3.3 LittleEndian + MsbFirst
-        {
-            ProtocolSchema schema;
-            schema.addField("le_msb", 0, 0, 16, UInt,
-                            LittleEndian, MsbFirst);
-            QByteArray data = QByteArray::fromHex("1234");
-            QJsonObject result = schema.parse(data);
-            qDebug() << "LE+MsbFirst result:" << result["le_msb"].toDouble();
-            // MsbFirst先按大端组装，再做LittleEndian反转
-            // 原始字节: 12 34 -> MsbFirst组装: 0x1234 -> LE反转: 0x3412 (13330)
-            CHECK(result["le_msb"].toDouble() == 13330.0, "LE+MsbFirst: 0x3412");
-        }
-
-        // 3.4 单字节位域（字节序无效）
-        {
-            ProtocolSchema schema;
-            schema.addField("low_nibble", 0, 0, 4, UInt,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("AF"); // 低4位 = 0xF = 15
-            QJsonObject result = schema.parse(data);
-            CHECK(result["low_nibble"].toDouble() == 15.0, "单字节位域: 无符号低4位=15");
-        }
-
-        // 3.5 单比特域
-        {
-            ProtocolSchema schema;
-            schema.addField("bit7", 0, 7, 1, UInt,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("80"); // bit7 = 1
-            QJsonObject result = schema.parse(data);
-            CHECK(result["bit7"].toDouble() == 1.0, "单比特: bit7=1");
-
-            data = QByteArray::fromHex("7F"); // bit7 = 0
-            result = schema.parse(data);
-            CHECK(result["bit7"].toDouble() == 0.0, "单比特: bit7=0");
-        }
-
-        // 3.6 MsbFirst 取高4位
-        {
-            ProtocolSchema schema;
-            schema.addField("high_nibble", 0, 0, 4, UInt,
-                            LittleEndian, MsbFirst);
-            QByteArray data = QByteArray::fromHex("5F"); // 高4位 = 0x5 = 5
-            QJsonObject result = schema.parse(data);
-            CHECK(result["high_nibble"].toDouble() == 5.0, "MsbFirst取高4位=5");
-        }
-    }
-
-    // ================================================
-    // 4. 线性变换（系数/偏移）
-    // ================================================
-    {
-        g_stats.startCase("4. 线性变换");
-
-        // 4.1 正数系数
-        {
-            ProtocolSchema schema;
-            schema.addField("temp", 0, 0, 8, UInt,
-                            LittleEndian, Physical,
-                            false, 0.1, 25.0);
-            QByteArray data = QByteArray::fromHex("64"); // 100
-            QJsonObject result = schema.parse(data);
-            double temp = result["temp"].toDouble();
-            CHECK(qAbs(temp - 35.0) < 0.01, QString("系数0.1+偏移25: 100*0.1+25=%1").arg(temp));
-
-            // 打包往返
-            QJsonObject values;
-            values["temp"] = QJsonValue(35.0);
-            QByteArray packed = schema.packToArray(values);
-            QJsonObject rt = schema.parse(packed);
-            CHECK(qAbs(rt["temp"].toDouble() - 35.0) < 0.01, "线性变换往返一致");
-        }
-
-        // 4.2 负数系数
-        {
-            ProtocolSchema schema;
-            schema.addField("inverted", 0, 0, 8, UInt,
-                            LittleEndian, Physical,
-                            false, -2.0, 100.0);
-            QByteArray data = QByteArray::fromHex("0A"); // 10
-            QJsonObject result = schema.parse(data);
-            double val = result["inverted"].toDouble();
-            CHECK(qAbs(val - 80.0) < 0.01, QString("负系数-2+偏移100: 10*(-2)+100=%1").arg(val));
-        }
-
-        // 4.3 零系数（解析正常，打包失败）
-        {
-            ProtocolSchema schema;
-            schema.addField("zero_factor", 0, 0, 8, UInt,
-                            LittleEndian, Physical,
-                            false, 0.0, 50.0);
-            QByteArray data = QByteArray::fromHex("42");
-            QJsonObject result = schema.parse(data);
-            CHECK(qAbs(result["zero_factor"].toDouble() - 50.0) < 0.01,
-                  "零系数: 所有值均为offset");
-
-            // 打包应失败
-            QJsonObject values;
-            values["zero_factor"] = QJsonValue(50.0);
-            QString err;
-            QByteArray packed = schema.packToArray(values, &err);
-            CHECK(packed.isEmpty(), "零系数打包应失败");
-            CHECK(!err.isEmpty(), "零系数打包有错误信息");
-        }
-    }
-
-    // ================================================
-    // 5. 多字节整数边界
-    // ================================================
-    {
-        g_stats.startCase("5. 多字节整数边界");
-
-        // 5.1 64位最大值
-        {
-            ProtocolSchema schema;
-            schema.addField("max_u64", 0, 0, 64, UInt,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("FFFFFFFFFFFFFFFF");
-            QJsonObject result = schema.parse(data);
-            double val = result["max_u64"].toDouble();
-            qDebug() << "UINT64_MAX 解析值:" << val;
-            CHECK(val > 9e18, "UINT64_MAX 接近1.8e19");
-        }
-
-        // 5.2 64位有符号最小值
-        {
-            ProtocolSchema schema;
-            schema.addField("min_i64", 0, 0, 64, Int,
-                            LittleEndian, Physical,
-                            true);
-            QByteArray data = QByteArray::fromHex("0000000000000080"); // INT64_MIN
-            QJsonObject result = schema.parse(data);
-            qDebug() << "INT64_MIN:" << result["min_i64"].toDouble();
-            CHECK(result["min_i64"].toDouble() < 0, "INT64_MIN 为负数");
-        }
-
-        // 5.3 32位有符号负数
-        {
-            ProtocolSchema schema;
-            schema.addField("neg_i32", 0, 0, 32, Int,
-                            LittleEndian, Physical,
-                            true);
-            QByteArray data = QByteArray::fromHex("FFFFFFFF"); // -1
-            QJsonObject result = schema.parse(data);
-            CHECK(result["neg_i32"].toDouble() == -1.0, "INT32 -1");
-        }
-
-        // 5.4 16位有符号边界值
-        {
-            ProtocolSchema schema;
-            schema.addField("i16", 0, 0, 16, Int,
-                            LittleEndian, Physical,
-                            true);
-            struct TestCase { const char* hex; double expected; const char* desc; };
-            TestCase cases[] = {
-                {"0000", 0.0, "零值"},
-                {"FF7F", 32767.0, "最大正数"},
-                {"0080", -32768.0, "最小负数"},
-                {"FFFF", -1.0, "-1"},
-                {"0100", 1.0, "最小正数"}
-            };
-            for (const auto& tc : cases) {
-                QByteArray data = QByteArray::fromHex(tc.hex);
-                QJsonObject result = schema.parse(data);
-                double actual = result["i16"].toDouble();
-                CHECK(qAbs(actual - tc.expected) < 0.01,
-                      QString("i16 %1: %2 -> %3").arg(tc.desc).arg(tc.hex).arg(actual));
-            }
-        }
-    }
-
-    // ================================================
-    // 6. addVariableField 变长字段
-    // ================================================
-    {
-        g_stats.startCase("6. addVariableField 变长字段");
-
-        // 6.1 基本变长
-        {
-            ProtocolSchema schema;
-            schema.addField("len", 0, 0, 8, UInt);
-            schema.addVariableField("payload", 1, 0, "len", RawBytes);
-
-            QByteArray data = QByteArray::fromHex("03414243"); // len=3, "ABC"
-            QJsonObject result = schema.parse(data);
-            CHECK(result.contains("payload"), "变长字段解析包含payload");
-
-            // 打包
-            QJsonObject values;
-            values["len"] = QJsonValue(3);
-            values["payload"] = QJsonValue(QString::fromLatin1(QByteArray::fromHex("414243").toBase64()));
-            QString err;
-            QByteArray packed = schema.packToArray(values, &err);
-            CHECK(!packed.isEmpty(), "变长字段打包成功");
-        }
-
-        // 6.2 零长度变长
-        {
-            ProtocolSchema schema;
-            schema.addField("len", 0, 0, 8, UInt);
-            schema.addVariableField("data", 1, 0, "len", RawBytes);
-
-            QByteArray data = QByteArray::fromHex("00"); // len=0
-            QJsonObject result = schema.parse(data);
-            CHECK(result.contains("data"), "零长度解析包含data");
-        }
-
-        // 6.3 缺失长度字段
-        {
-            ProtocolSchema schema;
-            schema.addVariableField("orphan", 0, 0, "no_such_field", RawBytes);
-
-            QByteArray data = QByteArray::fromHex("42");
-            QString err;
-            QJsonObject result = schema.parse(data, &err);
-            CHECK(!err.isEmpty(), "缺失lenField应有错误");
-        }
-    }
-
-    // ================================================
-    // 7. 条件分支 when/otherwise
-    // ================================================
-    {
-        g_stats.startCase("7. 条件分支 when/otherwise");
-
-        // 7.1 基本 when 条件
-        {
-            ProtocolSchema schema;
-            schema.addField("cmd", 0, 0, 8, UInt);
-
-            // cmd=1 -> 解析 value1
-            schema.when("cmd", 1)
-                  .addField("value1", 1, 0, 8, UInt);
-
-            // cmd=2 -> 解析 value2
-            schema.when("cmd", 2)
-                  .addField("value2", 1, 0, 16, UInt);
-
-            // 测试 cmd=1
-            QByteArray data1 = QByteArray::fromHex("0142");
-            QJsonObject r1 = schema.parse(data1);
-            CHECK(r1.contains("value1"), "cmd=1: 包含value1");
-            CHECK(r1["value1"].toDouble() == 66.0, "cmd=1: value1=66");
-            CHECK(!r1.contains("value2"), "cmd=1: 不含value2");
-
-            // 测试 cmd=2
-            QByteArray data2 = QByteArray::fromHex("027856");
-            QJsonObject r2 = schema.parse(data2);
-            CHECK(r2.contains("value2"), "cmd=2: 包含value2");
-            CHECK(r2["value2"].toDouble() == 22136.0, "cmd=2: value2=0x5678");
-            CHECK(!r2.contains("value1"), "cmd=2: 不含value1");
-
-            // 测试 cmd=99 (不匹配任何条件)
-            QByteArray data3 = QByteArray::fromHex("63");
-            QJsonObject r3 = schema.parse(data3);
-            CHECK(!r3.contains("value1"), "cmd=99: 不含value1");
-            CHECK(!r3.contains("value2"), "cmd=99: 不含value2");
-        }
-
-        // 7.2 otherwise 默认分支
-        {
-            ProtocolSchema schema;
-            schema.addField("type", 0, 0, 8, UInt);
-
-            schema.when("type", 1)
-                  .addField("temp", 1, 0, 16, Int,
-                            LittleEndian, Physical, true);
-
-            schema.otherwise()
-                  .addField("error_code", 1, 0, 8, UInt);
-
-            // type=1 匹配 when
-            QByteArray data1 = QByteArray::fromHex("011A00");
-            QJsonObject r1 = schema.parse(data1);
-            CHECK(r1.contains("temp"), "type=1: 匹配when包含temp");
-            CHECK(!r1.contains("error_code"), "type=1: 不含error_code");
-
-            // type=5 匹配 otherwise
-            QByteArray data2 = QByteArray::fromHex("05FF");
-            QJsonObject r2 = schema.parse(data2);
-            CHECK(r2.contains("error_code"), "type=5: 匹配otherwise包含error_code");
-            CHECK(!r2.contains("temp"), "type=5: 不含temp");
-        }
-
-        // 7.3 嵌套条件
-        {
-            ProtocolSchema schema;
-            schema.addField("cmd", 0, 0, 8, UInt);
-
-            schema.when("cmd", 1)
-                  .addField("sub", 1, 0, 8, UInt)
-                  .when("sub", 2)
-                  .addField("deep", 2, 0, 8, UInt)
-                  .endBranch();
-
-            // 完整匹配: cmd=1, sub=2
-            QByteArray data = QByteArray::fromHex("010242");
-            QJsonObject r = schema.parse(data);
-            CHECK(r.contains("deep"), "嵌套条件: 完整匹配包含deep");
-            CHECK(r["deep"].toDouble() == 66.0, "嵌套条件: deep=66");
-
-            // 外层匹配，内层不匹配: cmd=1, sub=3
-            QByteArray data2 = QByteArray::fromHex("0103");
-            QJsonObject r2 = schema.parse(data2);
-            CHECK(!r2.contains("deep"), "嵌套条件: 内层不匹配不含deep");
-        }
-
-        // 7.4 条件分支中的变长字段
-        {
-            ProtocolSchema schema;
-            schema.addField("cmd", 0, 0, 8, UInt);
-
-            schema.when("cmd", 1)
-                  .addField("data_len", 1, 0, 8, UInt)
-                  .addVariableField("payload", 2, 0, "data_len", String);
-
-            QByteArray data = QByteArray::fromHex("010548656C6C6F"); // cmd=1, len=5, "Hello"
-            QJsonObject r = schema.parse(data);
-            CHECK(r.contains("payload"), "条件变长: 包含payload");
-            CHECK(r["payload"].toString() == "Hello", "条件变长: payload=\"Hello\"");
-        }
-    }
-
-    // ================================================
-    // 8. clear() 清空
-    // ================================================
-    {
-        g_stats.startCase("8. clear() 清空");
-
-        ProtocolSchema schema;
-        schema.addField("f1", 0, 0, 8);
-        schema.addField("f2", 1, 0, 8);
-
-        QByteArray data = QByteArray::fromHex("4243");
-        QJsonObject r1 = schema.parse(data);
-        CHECK(r1.contains("f1"), "清空前: 包含f1");
-
-        schema.clear();
-        QJsonObject r2 = schema.parse(data);
-        CHECK(r2.isEmpty(), "清空后: 结果为空");
-
-        // 重新添加应正常工作
-        schema.addField("f3", 0, 0, 8);
-        QJsonObject r3 = schema.parse(data);
-        CHECK(r3.contains("f3"), "重添加后: 包含f3");
-    }
-
-    // ================================================
-    // 9. checkOverlap 重叠检测
-    // ================================================
-    {
-        g_stats.startCase("9. checkOverlap 重叠检测");
-
-        // 9.1 无重叠
-        {
-            ProtocolSchema schema;
-            schema.addField("f1", 0, 0, 8);
-            schema.addField("f2", 1, 0, 8);
-            QStringList overlaps = schema.checkOverlap();
-            CHECK(overlaps.isEmpty(), "无重叠: 空列表");
-        }
-
-        // 9.2 有重叠
-        {
-            ProtocolSchema schema;
-            schema.addField("f1", 0, 0, 16); // 占 bit 0-15
-            schema.addField("f2", 0, 0, 8);  // 占 bit 0-7 (重叠)
-            QStringList overlaps = schema.checkOverlap();
-            CHECK(!overlaps.isEmpty(), "有重叠: 非空列表");
-            qDebug() << "重叠字段:" << overlaps;
-        }
-
-        // 9.3 部分重叠
-        {
-            ProtocolSchema schema;
-            schema.addField("f1", 0, 4, 8);  // bit 4-11
-            schema.addField("f2", 0, 0, 8);  // bit 0-7 (与f1部分重叠)
-            QStringList overlaps = schema.checkOverlap();
-            CHECK(!overlaps.isEmpty(), "部分重叠: 非空列表");
-        }
-    }
-
-    // ================================================
-    // 10. validateSchema 校验
-    // ================================================
-    {
-        g_stats.startCase("10. validateSchema 校验");
-
-        // 10.1 有效 schema
-        {
-            ProtocolSchema schema;
-            schema.addField("len", 0, 0, 8);
-            schema.addVariableField("data", 1, 0, "len");
-            QString err;
-            bool valid = schema.validateSchema(&err);
-            CHECK(valid, "有效schema验证通过");
-        }
-
-        // 10.2 简单 schema (无变长)
-        {
-            ProtocolSchema schema;
-            schema.addField("a", 0, 0, 8);
-            schema.addField("b", 1, 0, 16);
-            QString err;
-            bool valid = schema.validateSchema(&err);
-            CHECK(valid, "简单schema验证通过");
-        }
-    }
-
-    // ================================================
-    // 11. 错误处理
-    // ================================================
-    {
-        g_stats.startCase("11. 错误处理");
-
-        ProtocolSchema schema;
-        QString err;
-
-        // 11.1 空字段名
-        schema.addField("", 0, 0, 8, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err);
-        CHECK(!err.isEmpty(), "空字段名: 有错误");
-
-        // 11.2 负数 startByte
-        err.clear();
-        schema.addField("bad", -1, 0, 8, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err);
-        CHECK(!err.isEmpty(), "负数startByte: 有错误");
-
-        // 11.3 超出范围 startBit
-        err.clear();
-        schema.addField("bad", 0, 8, 8, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err);
-        CHECK(!err.isEmpty(), "startBit=8: 有错误");
-
-        // 11.4 bitLength 超出范围
-        err.clear();
-        schema.addField("bad", 0, 0, 65, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err);
-        CHECK(!err.isEmpty(), "bitLength=65: 有错误");
-
-        // 11.5 重复字段名
-        err.clear();
-        schema.addField("dup", 0, 0, 8, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err);
-        err.clear();
-        schema.addField("dup", 1, 0, 8, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err);
-        CHECK(!err.isEmpty(), "重复字段名: 有错误");
-
-        // 11.6 空数据解析
-        schema.clear();
-        schema.addField("f1", 0, 0, 8);
-        QByteArray emptyData;
-        err.clear();
-        QJsonObject r = schema.parse(emptyData, &err);
-        CHECK(!err.isEmpty(), "空数据解析: 有错误");
-
-        // 11.7 不足数据解析
-        schema.clear();
-        schema.addField("f1", 0, 0, 16);
-        QByteArray shortData = QByteArray::fromHex("42"); // 只有1字节
-        err.clear();
-        r = schema.parse(shortData, &err);
-        CHECK(!err.isEmpty(), "不足数据解析: 有错误");
-
-        // 11.8 打包缺失值
-        schema.clear();
-        schema.addField("f1", 0, 0, 8);
-        QJsonObject emptyValues;
-        QByteArray packed;
-        err.clear();
-        bool ok = schema.pack(emptyValues, packed, &err);
-        CHECK(!ok, "缺失值打包: 返回失败");
-        CHECK(packed.isEmpty(), "缺失值打包: 返回空");
-        CHECK(!err.isEmpty(), "缺失值打包: 有错误");
-    }
-
-    // ================================================
-    // 12. 跨字节位域
-    // ================================================
-    {
-        g_stats.startCase("12. 跨字节位域");
-
-        // 12.1 跨2字节的10位域
-        // Physical模式: bit3为LSB, bit12为MSB
-        // 0x1F=00011111: bit3=1, bit4=1, bit5=1, bit6=1, bit7=0
-        // 0xFF=11111111: bit8=1, bit9=1, bit10=1, bit11=1, bit12=1
-        // 结果: 1111100011(二进制) = 995
-        {
-            ProtocolSchema schema;
-            schema.addField("cross", 0, 3, 10, UInt,
-                            LittleEndian, Physical);
-            QByteArray data = QByteArray::fromHex("1FFF");
-            QJsonObject result = schema.parse(data);
-            qDebug() << "跨字节10位:" << result["cross"].toDouble();
-            CHECK(result["cross"].toDouble() == 995.0, "跨字节10位=995");
-        }
-
-        // 12.2 非对齐位域
-        {
-            ProtocolSchema schema;
-            schema.addField("bit3_5", 0, 3, 3, UInt,
-                            LittleEndian, Physical);
-            schema.addField("bit6_7", 0, 6, 2, UInt,
-                            LittleEndian, Physical);
-            // 0xF4 = 11110100
-            // Physical模式: bit3=0, bit4=1, bit5=1 → 110(二进制)=6
-            //               bit6=1, bit7=1 → 11(二进制)=3
-            QByteArray data = QByteArray::fromHex("F4");
-            QJsonObject result = schema.parse(data);
-            CHECK(result["bit3_5"].toDouble() == 6.0, "bit3-5 (0,1,1)=6");
-            CHECK(result["bit6_7"].toDouble() == 3.0, "bit6-7 (1,1)=3");
-        }
-    }
-
-    // ================================================
-    // 13. 链式调用
-    // ================================================
-    {
-        g_stats.startCase("13. 链式调用");
-
-        ProtocolSchema schema;
-        QString err;
-
-        schema.addField("a", 0, 0, 8, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err)
-              .addField("b", 1, 0, 16, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err)
-              .addField("c", 3, 0, 32, UInt,
-                        LittleEndian, Physical,
-                        false, 1.0, 0.0, &err);
-
-        CHECK(err.isEmpty(), "链式调用: 无错误");
-
-        // 打包 (使用显式类型转换，避免unsigned int歧义)
-        QJsonObject values;
-        values["a"] = QJsonValue(static_cast<int>(0x00AA));       // 170
-        values["b"] = QJsonValue(static_cast<int>(0x1234));       // 4660
-        values["c"] = QJsonValue(static_cast<qlonglong>(0xDEADBEEF)); // 3735928559
-        QByteArray packed = schema.packToArray(values, &err);
-        CHECK(!packed.isEmpty(), "链式打包: 非空");
-        CHECK(packed.size() == 7, QString("链式打包: 长度=7 (实际=%1)").arg(packed.size()));
-
-        // 解析验证
-        QJsonObject result = schema.parse(packed, &err);
-        CHECK(result["a"].toDouble() == 170.0, "链式往返: a正确");
-        CHECK(result["b"].toDouble() == 4660.0, "链式往返: b正确");
-        CHECK(result["c"].toDouble() == 3735928559.0, "链式往返: c正确");
-    }
-
-    // ================================================
-    // 14. 真实协议场景
-    // ================================================
-    {
-        g_stats.startCase("14. 真实协议场景");
-
-        // 模拟传感器数据包
-        // Byte 0:   同步字节 (0xAA = 170)
-        // Byte 1:   传感器ID
-        // Byte 2-3: 温度 (有符号16位小端, 系数0.1, 偏移0)
-        // Byte 4-5: 气压 (无符号16位小端, 系数1, 偏移0)
-        // Byte 6:   状态标志 (bit0=就绪, bit1=错误)
-        ProtocolSchema schema;
-        schema.addField("sync", 0, 0, 8, UInt);
-        schema.addField("sensor_id", 1, 0, 8, UInt);
-        schema.addField("temperature", 2, 0, 16, Int,
-                        LittleEndian, Physical,
-                        true, 0.1, 0.0);
-        schema.addField("pressure", 4, 0, 16, UInt,
-                        LittleEndian, Physical);
-        schema.addField("status_ready", 6, 0, 1, UInt,
-                        LittleEndian, Physical);
-        schema.addField("status_error", 6, 1, 1, UInt,
-                        LittleEndian, Physical);
-
-        // 构建测试包: sync=0xAA, id=5, temp=25.6°C (raw=256=0x0100),
-        //            pressure=1013 (0x03F5), ready=1, error=0
-        // 数据: AA 05 00 01 F5 03 01
-        QByteArray packet = QByteArray::fromHex("AA05 0001 F503 01");
-        QString err;
-        QJsonObject result = schema.parse(packet, &err);
-        CHECK(err.isEmpty(), "传感器协议: 解析无错误");
-        CHECK(result["sync"].toDouble() == 170.0, "传感器: sync=0xAA=170");
-        CHECK(result["sensor_id"].toDouble() == 5.0, "传感器: id=5");
-        double temp = result["temperature"].toDouble();
-        CHECK(qAbs(temp - 25.6) < 0.1, QString("传感器: temp=25.6(实际=%1)").arg(temp));
-        CHECK(result["pressure"].toDouble() == 1013.0, "传感器: pressure=1013");
-        CHECK(result["status_ready"].toDouble() == 1.0, "传感器: ready=1");
-        CHECK(result["status_error"].toDouble() == 0.0, "传感器: error=0");
-
-        // 打包往返 (使用显式类型转换避免歧义)
-        QJsonObject tx;
-        tx["sync"] = QJsonValue(static_cast<int>(0x00AA));
-        tx["sensor_id"] = QJsonValue(5);
-        tx["temperature"] = QJsonValue(25.6);
-        tx["pressure"] = QJsonValue(1013);
-        tx["status_ready"] = QJsonValue(1);
-        tx["status_error"] = QJsonValue(0);
-        QByteArray txPacket = schema.packToArray(tx, &err);
-        CHECK(!txPacket.isEmpty(), "传感器: 打包非空");
-
-        // 再解析验证
-        QJsonObject rx = schema.parse(txPacket, &err);
-        CHECK(qAbs(rx["temperature"].toDouble() - 25.6) < 0.1,
-              "传感器: 打包往返温度一致");
-        CHECK(rx["pressure"].toDouble() == 1013.0,
-              "传感器: 打包往返气压一致");
-    }
-
-    // ================================================
-    // 15. 性能简单测试
-    // ================================================
-    {
-        g_stats.startCase("15. 性能简单测试");
-
-        ProtocolSchema schema;
-        for (int i = 0; i < 200; i++) {
-            schema.addField(QString("f_%1").arg(i), i, 0, 8, UInt);
-        }
-
-        QByteArray data(200, '\x2A');
-        QElapsedTimer timer;
-        timer.start();
-        QJsonObject result = schema.parse(data);
-        qint64 elapsed = timer.elapsed();
-        qDebug() << "200字段解析耗时:" << elapsed << "ms";
-        CHECK(result.contains("f_0"), "性能测试: f_0存在");
-        CHECK(result.contains("f_199"), "性能测试: f_199存在");
-    }
-
-    // ================================================
-    // 输出测试汇总
-    // ================================================
-    g_stats.summary();
-
-    return g_stats.failed > 0 ? 1 : 0;
+    qDebug() << "存在失败用例 ✗";
+    return 1;
 }

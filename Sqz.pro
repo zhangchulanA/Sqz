@@ -108,7 +108,8 @@ DISTFILES += \
     SqzAppConfig.json \
     SqzData/translator/English.json \
     SqzData/translator/简体中文.json \
-    SqzQuickTest.qml
+    SqzQuickTest.qml \
+    protocol.json
 #复制配置文件到输出目录
 
     config.files += $$PWD/SqzAppConfig.json

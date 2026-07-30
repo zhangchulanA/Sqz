@@ -2,6 +2,8 @@
 #include <QtEndian>
 #include <QDebug>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QFile>
 #include <limits>
 #include <cmath>
 #include <algorithm>
@@ -27,6 +29,57 @@ static QByteArray decomposeToBigEndianBits(quint64 value, int bitLength) {
         bytes[i] = static_cast<char>((value >> ((byteLen - 1 - i) * 8)) & 0xFF);
     }
     return bytes;
+}
+
+// ==================== JSON 加载辅助函数 ====================
+
+// 将字符串解析为 ValueType 枚举（大小写不敏感），失败返回 false
+static bool parseValueType(const QString& s, ValueType& out) {
+    const QString v = s.trimmed();
+    if (v.compare("Int", Qt::CaseInsensitive) == 0)        { out = Int;       return true; }
+    if (v.compare("UInt", Qt::CaseInsensitive) == 0)       { out = UInt;      return true; }
+    if (v.compare("HexString", Qt::CaseInsensitive) == 0)  { out = HexString; return true; }
+    if (v.compare("Base64", Qt::CaseInsensitive) == 0)     { out = Base64;    return true; }
+    if (v.compare("RawBytes", Qt::CaseInsensitive) == 0)   { out = RawBytes;  return true; }
+    if (v.compare("String", Qt::CaseInsensitive) == 0)     { out = String;    return true; }
+    return false;
+}
+
+// 将字符串解析为 Endian 枚举（大小写不敏感）
+static bool parseEndianStr(const QString& s, Endian& out) {
+    const QString v = s.trimmed();
+    if (v.compare("LittleEndian", Qt::CaseInsensitive) == 0) { out = LittleEndian; return true; }
+    if (v.compare("BigEndian", Qt::CaseInsensitive) == 0)    { out = BigEndian;    return true; }
+    return false;
+}
+
+// 将字符串解析为 BitOrder 枚举（大小写不敏感）
+static bool parseBitOrderStr(const QString& s, BitOrder& out) {
+    const QString v = s.trimmed();
+    if (v.compare("MsbFirst", Qt::CaseInsensitive) == 0) { out = MsbFirst; return true; }
+    if (v.compare("Physical", Qt::CaseInsensitive) == 0) { out = Physical; return true; }
+    return false;
+}
+
+// 将 enumMap 对象（{"0":"X","1":"Y"}）解析为 QHash<quint64,QString>
+// key 必须是可转 quint64 的数字字符串，value 必须为字符串
+static bool parseEnumMapObj(const QJsonObject& obj, QHash<quint64, QString>& out, QString* err) {
+    out.clear();
+    for (const QString& key : obj.keys()) {
+        bool ok = false;
+        qulonglong raw = key.toULongLong(&ok);
+        if (!ok) {
+            if (err) *err = QString("enumMap key '%1' not numeric").arg(key);
+            return false;
+        }
+        const QJsonValue& v = obj.value(key);
+        if (!v.isString()) {
+            if (err) *err = QString("enumMap key '%1' value must be string").arg(key);
+            return false;
+        }
+        out.insert(static_cast<quint64>(raw), v.toString());
+    }
+    return true;
 }
 
 // ==================== ProtocolSchema 类实现 ====================
@@ -80,6 +133,8 @@ ProtocolSchema& ProtocolSchema::addField(const QString& name, int startByte, int
     f.factor = factor;
     f.offset = offset;
     f.lenField = "";
+    f.valueMap.clear();         // 默认无枚举映射
+    f.hasMapping = false;
     f.conditions.clear();       // 空列表=无条件
     f.isDefaultBranch = false;
     f.defaultBranchField = "";
@@ -132,11 +187,44 @@ ProtocolSchema& ProtocolSchema::addVariableField(const QString& name, int startB
     f.lenField = lenField;
     f.factor = factor;
     f.offset = offset;
+    f.valueMap.clear();         // 默认无枚举映射
+    f.hasMapping = false;
     f.conditions.clear();
     f.isDefaultBranch = false;
     f.defaultBranchField = "";
     m_fields.append(f);
     invalidateSortCache();  // 字段变化，使排序缓存失效
+    return *this;
+}
+
+// ---------- 枚举映射 map ----------
+// 为最近添加的字段追加一条 原始字节值 -> 字符串 的映射
+// 互斥机制: 首次调用即标记 hasMapping=true 并将 factor/offset 重置为 1.0/0.0
+ProtocolSchema& ProtocolSchema::map(quint64 rawValue, const QString& str, QString* err) {
+    QMutexLocker lock(&m_mutex);
+
+    // 必须先添加字段
+    if (m_fields.isEmpty()) {
+        if (err) *err = "map() called before any addField/addVariableField";
+        return *this;
+    }
+    Field& f = m_fields.last();   // 作用于最近添加的字段
+
+    // 仅支持整数类型字段（字节值映射语义）
+    if (f.type != Int && f.type != UInt) {
+        if (err) *err = QString("map() only valid for Int/UInt field, field '%1' type mismatch").arg(f.name);
+        return *this;
+    }
+
+    // 追加（或覆盖）映射条目
+    f.valueMap.insert(rawValue, str);
+    // 启用映射：互斥地禁用线性变换
+    if (!f.hasMapping) {
+        f.hasMapping = true;
+        f.factor = 1.0;   // 重置系数，线性变换不再生效
+        f.offset = 0.0;   // 重置偏移
+    }
+    invalidateSortCache();  // 字段配置变化，使排序缓存失效（保持一致性）
     return *this;
 }
 
@@ -157,6 +245,7 @@ void ProtocolSchema::clear() {
     QMutexLocker lock(&m_mutex);
     m_fields.clear();
     m_lastConditionField.clear();  // 重置条件字段记录
+    m_protocolName.clear();        // 重置协议名
     invalidateSortCache();  // 清空字段，使排序缓存失效
 }
 
@@ -197,6 +286,304 @@ bool ProtocolSchema::hasVarCycleDependency(QStringList& cycleList, QString* err)
         }
     }
     return false;
+}
+
+// ---------- JSON 配置加载 ----------
+// 获取协议名（线程安全读）
+QString ProtocolSchema::protocolName() const {
+    QMutexLocker lock(&m_mutex);
+    return m_protocolName;
+}
+
+// 从 JSON 对象加载完整协议：clear -> 解析顶层 -> 逐字段 loadOneField -> validateSchema
+// 任意步骤失败均回滚到空 schema 并返回 false
+bool ProtocolSchema::loadJson(const QJsonObject& root, QString* err) {
+    QMutexLocker lock(&m_mutex);
+
+    // 失败时统一回滚到空 schema
+    auto fail = [this, err](const QString& msg) -> bool {
+        m_fields.clear();
+        m_protocolName.clear();
+        m_lastConditionField.clear();
+        invalidateSortCache();
+        if (err) *err = msg;
+        return false;
+    };
+
+    // 1) 先清空（clear() 会再锁一次，recursive mutex 安全；含 m_protocolName）
+    clear();
+
+    // 2) protocolName（可选，必须为字符串）
+    if (root.contains("protocolName")) {
+        const QJsonValue& v = root.value("protocolName");
+        if (!v.isString()) return fail("protocolName must be a string");
+        m_protocolName = v.toString();
+    }
+
+    // 3) defaults（可选对象，提供标量属性缺省值；enumMap 不参与继承）
+    QJsonObject defaults;
+    if (root.contains("defaults")) {
+        if (!root.value("defaults").isObject())
+            return fail("defaults must be an object");
+        defaults = root.value("defaults").toObject();
+    }
+
+    // 4) enumMaps（可选对象：命名枚举库，供字段 enumMap 字符串引用）
+    QJsonObject enumMaps;
+    if (root.contains("enumMaps")) {
+        if (!root.value("enumMaps").isObject())
+            return fail("enumMaps must be an object");
+        enumMaps = root.value("enumMaps").toObject();
+    }
+
+    // 5) fields（必填数组）
+    if (!root.contains("fields") || !root.value("fields").isArray())
+        return fail("fields must be an array");
+    const QJsonArray fields = root.value("fields").toArray();
+
+    // 6) 逐字段加载
+    for (int i = 0; i < fields.size(); ++i) {
+        if (!fields.at(i).isObject())
+            return fail(QString("fields[%1] must be an object").arg(i));
+        QString fieldErr;
+        if (!loadOneField(fields.at(i).toObject(), defaults, enumMaps, &fieldErr))
+            return fail(QString("fields[%1]: %2").arg(i).arg(fieldErr));
+    }
+
+    // 7) 校验变长字段循环依赖
+    QString cycleErr;
+    if (!validateSchema(&cycleErr))
+        return fail(QString("validateSchema failed: %1").arg(cycleErr));
+
+    if (err) err->clear();
+    return true;
+}
+
+// 从 JSON 文件加载协议定义（读文件 -> 解析 -> loadJson）
+bool ProtocolSchema::loadFile(const QString& path, QString* err) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (err) *err = QString("Cannot open file: %1").arg(path);
+        return false;
+    }
+    const QByteArray data = file.readAll();
+    file.close();
+
+    QJsonParseError parseErr;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseErr);
+    if (parseErr.error != QJsonParseError::NoError) {
+        if (err) *err = QString("JSON parse error at offset %1: %2")
+                            .arg(parseErr.offset).arg(parseErr.errorString());
+        return false;
+    }
+    if (!doc.isObject()) {
+        if (err) *err = "JSON root must be an object";
+        return false;
+    }
+    return loadJson(doc.object(), err);
+}
+
+// 加载单个字段：解析标量属性（带 defaults 继承）-> addField/addVariableField
+// -> 解析 enumMap（内联对象或命名引用）-> 调 map 写入
+// -> 在 m_fields.last() 上设置 conditions/isDefaultBranch/defaultBranchField
+// 不加锁（由 loadJson 持锁保证线程安全）
+bool ProtocolSchema::loadOneField(const QJsonObject& fo, const QJsonObject& defaults,
+                                  const QJsonObject& enumMaps, QString* err) {
+    // ---- 必填：name ----
+    if (!fo.contains("name") || !fo.value("name").isString()) {
+        if (err) *err = "field missing 'name'";
+        return false;
+    }
+    const QString name = fo.value("name").toString().trimmed();
+    if (name.isEmpty()) {
+        if (err) *err = "field name empty";
+        return false;
+    }
+
+    // ---- 必填：startByte（用 qint64 接收防溢出，再范围检查）----
+    if (!fo.contains("startByte")) {
+        if (err) *err = QString("field '%1' missing 'startByte'").arg(name);
+        return false;
+    }
+    qint64 sb64 = fo.value("startByte").toVariant().toLongLong();
+    if (sb64 < 0 || sb64 > std::numeric_limits<int>::max()) {
+        if (err) *err = QString("field '%1' startByte out of int range").arg(name);
+        return false;
+    }
+    const int startByte = static_cast<int>(sb64);
+
+    // ---- 必填：startBit（0~7）----
+    if (!fo.contains("startBit")) {
+        if (err) *err = QString("field '%1' missing 'startBit'").arg(name);
+        return false;
+    }
+    const int startBit = fo.value("startBit").toInt(-1);
+    if (startBit < 0 || startBit > 7) {
+        if (err) *err = QString("field '%1' startBit must be 0~7").arg(name);
+        return false;
+    }
+
+    // ---- lenField（可选；存在则走变长字段路径）----
+    QString lenField;
+    if (fo.contains("lenField") && fo.value("lenField").isString())
+        lenField = fo.value("lenField").toString().trimmed();
+
+    // ---- defaults 继承辅助：字段自身 > defaults > fallback ----
+    auto inheritStr = [&](const char* key, const QString& fallback) -> QString {
+        if (fo.contains(key)) return fo.value(key).toString();
+        if (defaults.contains(key)) return defaults.value(key).toString();
+        return fallback;
+    };
+    auto inheritDouble = [&](const char* key, double fallback) -> double {
+        if (fo.contains(key)) return fo.value(key).toDouble(fallback);
+        if (defaults.contains(key)) return defaults.value(key).toDouble(fallback);
+        return fallback;
+    };
+    auto inheritBool = [&](const char* key, bool fallback) -> bool {
+        if (fo.contains(key)) return fo.value(key).toBool(fallback);
+        if (defaults.contains(key)) return defaults.value(key).toBool(fallback);
+        return fallback;
+    };
+
+    // ---- type / endian / bitOrder / isSigned / factor / offset ----
+    ValueType type;
+    if (!parseValueType(inheritStr("type", "UInt"), type)) {
+        if (err) *err = QString("field '%1' unknown type").arg(name);
+        return false;
+    }
+    Endian endian;
+    if (!parseEndianStr(inheritStr("endian", "LittleEndian"), endian)) {
+        if (err) *err = QString("field '%1' invalid endian").arg(name);
+        return false;
+    }
+    BitOrder bitOrder;
+    if (!parseBitOrderStr(inheritStr("bitOrder", "Physical"), bitOrder)) {
+        if (err) *err = QString("field '%1' invalid bitOrder").arg(name);
+        return false;
+    }
+    const bool isSigned = inheritBool("isSigned", false);
+    const double factor = inheritDouble("factor", 1.0);
+    const double offset = inheritDouble("offset", 0.0);
+
+    // ---- 调用 addField 或 addVariableField（复用其校验与重名检测）----
+    QString addErr;
+    if (!lenField.isEmpty()) {
+        // 变长字段：bitLength/isSigned 由 addVariableField 内部固定，此处忽略
+        addVariableField(name, startByte, startBit, lenField, type, endian, bitOrder,
+                         factor, offset, &addErr);
+    } else {
+        // 固定字段：bitLength 必填且 1~64
+        if (!fo.contains("bitLength")) {
+            if (err) *err = QString("field '%1' missing 'bitLength'").arg(name);
+            return false;
+        }
+        const int bitLength = fo.value("bitLength").toInt(0);
+        addField(name, startByte, startBit, bitLength, type, endian, bitOrder,
+                 isSigned, factor, offset, &addErr);
+    }
+    if (!addErr.isEmpty()) {
+        if (err) *err = addErr;
+        return false;
+    }
+
+    // ---- 取新字段引用继续配置 ----
+    Field& f = m_fields.last();
+
+    // ---- 变长字段 lenField 存在性补检（validateSchema 仅查环，不查存在性）----
+    if (!lenField.isEmpty()) {
+        bool lenExists = false;
+        for (const auto& other : m_fields) {
+            if (other.name == lenField) { lenExists = true; break; }
+        }
+        if (!lenExists) {
+            if (err) *err = QString("field '%1' lenField '%2' not defined").arg(name, lenField);
+            return false;
+        }
+    }
+
+    // ---- enumMap（可选；内联对象 或 命名引用字符串）----
+    if (fo.contains("enumMap")) {
+        const QJsonValue& em = fo.value("enumMap");
+        QJsonObject mapObj;
+        if (em.isObject()) {
+            mapObj = em.toObject();                       // 内联定义
+        } else if (em.isString()) {
+            const QString ref = em.toString();            // 命名引用
+            if (!enumMaps.contains(ref)) {
+                if (err) *err = QString("field '%1' enumMap '%2' not found in enumMaps").arg(name, ref);
+                return false;
+            }
+            if (!enumMaps.value(ref).isObject()) {
+                if (err) *err = QString("enumMaps.%1 must be an object").arg(ref);
+                return false;
+            }
+            mapObj = enumMaps.value(ref).toObject();
+        } else {
+            if (err) *err = QString("field '%1' enumMap must be object or string").arg(name);
+            return false;
+        }
+
+        // 解析为 QHash<quint64,QString>
+        QHash<quint64, QString> parsed;
+        QString mapErr;
+        if (!parseEnumMapObj(mapObj, parsed, &mapErr)) {
+            if (err) *err = QString("field '%1' %2").arg(name, mapErr);
+            return false;
+        }
+
+        // 通过 map() 写入（复用其 Int/UInt 类型校验与互斥副作用；非整数字段会失败）
+        for (auto it = parsed.constBegin(); it != parsed.constEnd(); ++it) {
+            QString mErr;
+            map(it.key(), it.value(), &mErr);
+            if (!mErr.isEmpty()) {
+                if (err) *err = QString("field '%1' enumMap: %2").arg(name, mErr);
+                return false;
+            }
+        }
+    }
+
+    // ---- comment 字段：显式忽略 ----
+
+    // ---- conditions（可选数组，AND 逻辑）----
+    if (fo.contains("conditions")) {
+        if (!fo.value("conditions").isArray()) {
+            if (err) *err = QString("field '%1' conditions must be an array").arg(name);
+            return false;
+        }
+        const QJsonArray conds = fo.value("conditions").toArray();
+        for (const QJsonValue& cv : conds) {
+            if (!cv.isObject()) {
+                if (err) *err = QString("field '%1' condition must be an object").arg(name);
+                return false;
+            }
+            const QJsonObject co = cv.toObject();
+            if (!co.contains("field") || !co.value("field").isString()) {
+                if (err) *err = QString("field '%1' condition missing 'field'").arg(name);
+                return false;
+            }
+            if (!co.contains("value")) {
+                if (err) *err = QString("field '%1' condition missing 'value'").arg(name);
+                return false;
+            }
+            // value 用 toVariant() 保留数字/字符串原样，matchCondition 会规范化比较
+            f.conditions.append({ co.value("field").toString(), co.value("value").toVariant() });
+        }
+    }
+
+    // ---- isDefaultBranch / defaultBranchField ----
+    if (fo.contains("isDefaultBranch"))
+        f.isDefaultBranch = fo.value("isDefaultBranch").toBool(false);
+    if (fo.contains("defaultBranchField") && fo.value("defaultBranchField").isString())
+        f.defaultBranchField = fo.value("defaultBranchField").toString();
+
+    // ---- 默认分支一致性校验：isDefaultBranch=true 时 defaultBranchField 必须非空 ----
+    // 防止 evaluateCondition 默认分支因 defaultBranchField 空而误判"总是生效"
+    if (f.isDefaultBranch && f.defaultBranchField.isEmpty()) {
+        if (err) *err = QString("field '%1' isDefaultBranch=true requires non-empty defaultBranchField").arg(name);
+        return false;
+    }
+
+    return true;
 }
 
 // 获取按绝对比特偏移排序的字段列表
@@ -266,7 +653,8 @@ QStringList ProtocolSchema::checkOverlap(const QJsonObject& runtimeVarData, QStr
 // field:   待评估的字段（含 conditions/defaultBranchField/isDefaultBranch）
 // context: 已解析字段的 JSON 对象，用于查询条件字段值
 // 返回:    条件满足返回 true，否则 false
-// 注意：比较时对数值类型做宽容处理（int vs double 视为相等）
+// 注意：比较时对数值类型做宽容处理（int vs double 视为相等）；
+//       对含枚举映射的条件字段，统一按原始数值比较，保证可靠性
 static bool variantMatch(const QVariant& a, const QVariant& b) {
     if (a == b) return true;
     // 数值类型宽容比较：int/uint/longlong 等与 double 之间的比较
@@ -279,18 +667,73 @@ static bool variantMatch(const QVariant& a, const QVariant& b) {
     return false;
 }
 
+// 按字段名查找字段定义（const 版本）
+const ProtocolSchema::Field* ProtocolSchema::findField(const QString& name) const {
+    for (const auto& f : m_fields) {
+        if (f.name == name) return &f;
+    }
+    return nullptr;
+}
+
+// 将值规范化为原始数值（用于条件比较）
+// 含映射字段: 字符串反查为原始数值；数字原样返回
+// 无映射字段: 原样返回
+bool ProtocolSchema::normalizeToRawValue(const Field& field, const QVariant& val, QVariant& out) const {
+    if (!field.hasMapping) {
+        out = val;
+        return true;
+    }
+    // 含枚举映射：若为字符串则反向查找原始字节值
+    if (val.type() == QVariant::String) {
+        const QString str = val.toString();
+        for (auto it = field.valueMap.constBegin(); it != field.valueMap.constEnd(); ++it) {
+            if (it.value() == str) {
+                out = QVariant(static_cast<qulonglong>(it.key()));
+                return true;
+            }
+        }
+        // 未命中映射表：尝试将字符串解析为数值（兼容数值字符串如 "1"）
+        bool ok = false;
+        qulonglong parsed = str.toULongLong(&ok);
+        if (ok) {
+            out = QVariant(parsed);
+            return true;
+        }
+        return false;   // 无法转换为原始数值
+    }
+    // 数字类型直接使用
+    out = val;
+    return true;
+}
+
+// 比较单个条件是否满足（基于原始数值比较）
+// 对含枚举映射的条件字段，将上下文值与条件值都规范化为原始数值后再比较
+// 保证 when("status", 1) 这类条件即使 status 解析后为字符串 "开机" 也能正确匹配
+bool ProtocolSchema::matchCondition(const QString& fieldName, const QVariant& condValue,
+                                    const QJsonObject& context) const {
+    if (!context.contains(fieldName)) return false;
+    const Field* condField = findField(fieldName);
+    const QVariant ctxVar = context[fieldName].toVariant();
+    if (condField) {
+        QVariant ctxRaw, condRaw;
+        if (normalizeToRawValue(*condField, ctxVar, ctxRaw) &&
+            normalizeToRawValue(*condField, condValue, condRaw)) {
+            return variantMatch(ctxRaw, condRaw);
+        }
+    }
+    // 退化为直接比较
+    return variantMatch(ctxVar, condValue);
+}
+
 bool ProtocolSchema::evaluateCondition(const Field& field, const QJsonObject& context) const {
     // 无条件字段（条件列表为空且非默认分支）始终生效
     if (field.conditions.isEmpty() && !field.isDefaultBranch) {
         return true;
     }
 
-    // 检查所有条件 (AND 逻辑)
+    // 检查所有条件 (AND 逻辑)，使用 matchCondition 保证枚举映射字段按原始数值比较
     for (const auto& cond : field.conditions) {
-        if (!context.contains(cond.first)) {
-            return false;
-        }
-        if (!variantMatch(context[cond.first].toVariant(), cond.second)) {
+        if (!matchCondition(cond.first, cond.second, context)) {
             return false;
         }
     }
@@ -304,8 +747,7 @@ bool ProtocolSchema::evaluateCondition(const Field& field, const QJsonObject& co
             if (other.conditions.first().first == field.defaultBranchField) {
                 bool allMatch = true;
                 for (const auto& cond : other.conditions) {
-                    if (!context.contains(cond.first) ||
-                        !variantMatch(context[cond.first].toVariant(), cond.second)) {
+                    if (!matchCondition(cond.first, cond.second, context)) {
                         allMatch = false;
                         break;
                     }
@@ -339,6 +781,22 @@ bool ProtocolSchema::parseField(const Field& f, const QByteArray& data,
             result.insert(f.name, QJsonValue::Null);
             return false;
         }
+
+        // 枚举映射模式：输出字符串，跳过 factor/offset 线性变换（互斥）
+        // 保证 JSON value 为字符串类型
+        if (f.hasMapping) {
+            auto it = f.valueMap.constFind(raw);
+            if (it != f.valueMap.constEnd()) {
+                result.insert(f.name, it.value());          // 命中映射：输出对应字符串
+            } else {
+                // 未命中映射：输出原始数值的字符串形式，保持 value 为字符串类型
+                // 这样反向打包时也能通过数值字符串正确还原
+                result.insert(f.name, QString::number(raw));
+            }
+            return true;
+        }
+
+        // 普通模式：应用线性变换得到物理值
         double finalVal = applyLinearTransform(raw, f.factor, f.offset, f.isSigned, f.bitLength);
         result.insert(f.name, finalVal);
         return true;
@@ -637,10 +1095,29 @@ bool ProtocolSchema::pack(const QJsonObject& values, QByteArray& out, QString* e
                     if (f.type == Int || f.type == UInt) {
                         quint64 intVal;
                         QString subErr;
-                        if (!valueToInteger(val, f.bitLength, f.isSigned, f.factor, f.offset, intVal, &subErr)) {
-                            errBuf = QString("Convert field %1 value failed: %2").arg(f.name, subErr);
-                            if (errorMsg) *errorMsg = errBuf;
-                            return false;
+                        if (f.hasMapping) {
+                            // 枚举映射模式：从字符串反向查找原始字节值
+                            // 跳过 factor/offset 线性变换（互斥），直接写入原始值
+                            if (!reverseMapLookup(f, val, intVal, &subErr)) {
+                                errBuf = QString("Convert field %1 value failed: %2").arg(f.name, subErr);
+                                if (errorMsg) *errorMsg = errBuf;
+                                return false;
+                            }
+                            // 范围检查：原始值不得超过字段位宽
+                            quint64 maxVal = maskBits(f.bitLength);
+                            if ((intVal & maxVal) != intVal) {
+                                errBuf = QString("Mapped raw value %1 overflow field %2 bit width")
+                                             .arg(intVal).arg(f.name);
+                                if (errorMsg) *errorMsg = errBuf;
+                                return false;
+                            }
+                        } else {
+                            // 普通模式：应用逆线性变换得到原始整数值
+                            if (!valueToInteger(val, f.bitLength, f.isSigned, f.factor, f.offset, intVal, &subErr)) {
+                                errBuf = QString("Convert field %1 value failed: %2").arg(f.name, subErr);
+                                if (errorMsg) *errorMsg = errBuf;
+                                return false;
+                            }
                         }
                         if (!writeBits(out, bitOffset, f.bitLength, intVal, f.endian, f.bitOrder, &subErr)) {
                             errBuf = QString("Write field %1 failed: %2").arg(f.name, subErr);
@@ -1034,6 +1511,54 @@ bool ProtocolSchema::valueToInteger(const QJsonValue& value, int bitLength, bool
     return true;
 }
 
+// ---------- reverseMapLookup ----------
+// 反向映射查找：根据 JSON 值（打包输入）查找原始字节值
+// 用于枚举映射字段打包时将字符串还原为原始字节值写入比特流
+// 查找策略（保证打包可靠性）:
+//   1. 若值为字符串：先在 valueMap 中反向匹配字符串得到原始字节值
+//   2. 若未命中映射表：尝试将字符串解析为数值（兼容用户传入 "3" 这类数值字符串）
+//   3. 若值为数字：直接使用（兼容用户传入数字的情况，不推荐与映射混用）
+// f:    字段定义（含 valueMap）
+// val:  打包输入的 JSON 值
+// out:  输出原始字节值
+// err:  错误信息输出
+// 返回: 成功返回 true
+bool ProtocolSchema::reverseMapLookup(const Field& f, const QJsonValue& val,
+                                      quint64& out, QString* err) const {
+    out = 0;
+    // 字符串输入：优先反向查表
+    if (val.isString()) {
+        const QString str = val.toString();
+        for (auto it = f.valueMap.constBegin(); it != f.valueMap.constEnd(); ++it) {
+            if (it.value() == str) {
+                out = it.key();
+                return true;
+            }
+        }
+        // 未命中映射表：尝试将字符串解析为无符号数值
+        bool ok = false;
+        qulonglong parsed = str.toULongLong(&ok);
+        if (ok) {
+            out = parsed;
+            return true;
+        }
+        if (err) *err = QString("String '%1' not found in map and not a valid number").arg(str);
+        return false;
+    }
+    // 数字输入：直接使用（兼容用户直接传数字的场景）
+    if (val.isDouble()) {
+        double d = val.toDouble();
+        if (d < 0) {
+            if (err) *err = "Negative value cannot map to unsigned raw byte value";
+            return false;
+        }
+        out = static_cast<quint64>(d);
+        return true;
+    }
+    if (err) *err = "Value is neither string nor number for mapped field";
+    return false;
+}
+
 // ---------- applyLinearTransform ----------
 // 将原始整数值（读取后）应用系数和偏移变换为最终物理值
 // 对有符号字段进行符号扩展，注意 64 位字段需特殊处理以避免溢出
@@ -1129,6 +1654,8 @@ ConditionalBuilder& ConditionalBuilder::addField(const QString& name, int startB
     f.factor = factor;
     f.offset = offset;
     f.lenField = "";
+    f.valueMap.clear();         // 默认无枚举映射
+    f.hasMapping = false;
     f.conditions = m_inheritedConditions;
     if (!m_conditionField.isEmpty() && !m_isDefault) {
         f.conditions.append({m_conditionField, m_conditionValue});
@@ -1188,6 +1715,8 @@ ConditionalBuilder& ConditionalBuilder::addVariableField(const QString& name, in
     f.lenField = lenField;
     f.factor = factor;
     f.offset = offset;
+    f.valueMap.clear();         // 默认无枚举映射
+    f.hasMapping = false;
     f.conditions = m_inheritedConditions;
     if (!m_conditionField.isEmpty() && !m_isDefault) {
         f.conditions.append({m_conditionField, m_conditionValue});
@@ -1200,6 +1729,33 @@ ConditionalBuilder& ConditionalBuilder::addVariableField(const QString& name, in
     }
     m_schema->m_fields.append(f);
     m_schema->invalidateSortCache();  // 字段变化，使排序缓存失效
+    return *this;
+}
+
+// 为最近添加的字段追加枚举映射（条件分支内链式调用）
+// 语义同 ProtocolSchema::map，作用于 m_schema 中最近添加的字段
+ConditionalBuilder& ConditionalBuilder::map(quint64 rawValue, const QString& str, QString* err) {
+    QMutexLocker lock(&m_schema->m_mutex);
+
+    if (m_schema->m_fields.isEmpty()) {
+        if (err) *err = "map() called before any addField/addVariableField";
+        return *this;
+    }
+    ProtocolSchema::Field& f = m_schema->m_fields.last();
+
+    // 仅支持整数类型字段（字节值映射语义）
+    if (f.type != Int && f.type != UInt) {
+        if (err) *err = QString("map() only valid for Int/UInt field, field '%1' type mismatch").arg(f.name);
+        return *this;
+    }
+
+    f.valueMap.insert(rawValue, str);
+    if (!f.hasMapping) {
+        f.hasMapping = true;
+        f.factor = 1.0;   // 互斥：禁用线性变换
+        f.offset = 0.0;
+    }
+    m_schema->invalidateSortCache();
     return *this;
 }
 

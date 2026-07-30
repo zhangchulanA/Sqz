@@ -9,6 +9,8 @@
  *   - 支持变长字段（长度由另一个字段决定）
  *   - 支持条件分支（根据字段值决定后续字段解析）
  *   - 支持线性变换：实际值 = 原始值 * factor + offset（系数和偏移）
+ *   - 支持枚举映射 map()：原始字节值 <-> 字符串，解析输出字符串、打包接受字符串反查
+ *   - 枚举映射与线性变换互斥：启用 map() 后自动禁用 factor/offset
  *   - 支持多种数据类型：有/无符号整数、十六进制字符串、Base64、原始字节数组、UTF-8字符串
  *   - 解析结果输出为 QJsonObject，打包输入也为 QJsonObject
  *   - 高效实现：位操作使用掩码和移位
@@ -30,6 +32,15 @@
  *   tx["temperature"] = 25.6;
  *   QByteArray packed = schema.packToArray(tx);
  *
+ *   // 4. 枚举映射示例（map 链式调用，启用后自动禁用线性变换）
+ *   ProtocolSchema s;
+ *   s.addField("status", 0, 0, 8, UInt)
+ *    .map(0, "关机")     // 原始值 0 -> "关机"
+ *    .map(1, "开机")     // 链式追加映射
+ *    .map(2, "待机");    // 启用映射后 factor/offset 自动失效
+ *   // 解析后 {"status": "开机"}，value 必为字符串
+ *   // 打包时 tx["status"] = "待机"; 系统自动反查为 2 写入字节流
+ *
  *   // 4. 条件分支示例
  *   schema.addField("type", 0, 0, 8);
  *   schema.when("type", 1)
@@ -47,6 +58,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QVector>
+#include <QHash>
 #include <QMutex>
 #include <QPair>
 #include <QVariant>
@@ -107,6 +119,17 @@ public:
         double factor;          // 系数（默认1.0）
         double offset;          // 偏移（默认0.0）
 
+        // ===== 枚举映射（字节值 <-> 字符串）=====
+        // valueMap:  原始字节值 -> 字符串 的映射表
+        // hasMapping: 是否启用枚举映射
+        // 互斥规则:  hasMapping 为 true 时，factor/offset 线性变换自动失效（二选一）
+        // 解析行为:  读取原始字节值后查表输出字符串（保证 JSON value 为字符串类型）
+        //            未命中映射时输出原始数值的字符串形式（如 "3"），保持 value 类型一致
+        // 打包行为:  接受字符串反向查表写入原始字节值；也接受数字直接写入
+        // 条件比较:  含映射的条件字段统一按原始数值比较，保证可靠性
+        QHash<quint64, QString> valueMap;   // 枚举映射表（key=原始字节值, value=字符串）
+        bool hasMapping;                    // 是否启用枚举映射
+
         // 条件分支相关
         QList<QPair<QString, QVariant>> conditions; // 所有条件 (AND逻辑, 空列表=无条件)
         bool isDefaultBranch;   // 是否为默认分支
@@ -146,6 +169,21 @@ public:
                                      double factor = 1.0, double offset = 0.0,
                                      QString* err = nullptr);
 
+    // ---------- 枚举映射 map ----------
+    // 为"最近添加的字段"追加一条 原始字节值 -> 字符串 的映射，支持链式调用
+    // rawValue: 原始字节值（解析时从比特流读到的无符号整数）
+    // str:      映射目标字符串（解析后写入 JSON 的 value）
+    // err:      错误信息输出（可选）
+    // 返回 *this 以支持链式：schema.addField(...).map(0,"A").map(1,"B")
+    // 注意事项:
+    //   1. 必须先调用 addField/addVariableField 添加字段，否则报错
+    //   2. 仅对 Int/UInt 类型字段有效，其它类型报错
+    //   3. 一旦添加映射，自动禁用 factor/offset 线性变换（互斥机制，二选一）
+    //   4. 解析后该字段在 JSON 中 value 必为字符串类型
+    //   5. 打包时输入字符串会自动反查为原始值写入；输入数字也可正常处理
+    //   6. 对同一原始值重复 map 会覆盖之前的字符串
+    ProtocolSchema& map(quint64 rawValue, const QString& str, QString* err = nullptr);
+
     // ---------- 条件分支 ----------
     // 开始一个条件分支：当 fieldName 的值等于 value 时，后续字段生效
     // 必须先定义条件字段本身（通过 addField）
@@ -153,6 +191,18 @@ public:
 
     // 默认分支：当条件不匹配任何 when 时生效
     ConditionalBuilder otherwise();
+
+    // ---------- JSON 配置加载 ----------
+    // 从 JSON 对象加载完整协议（先清空再装载），失败回滚到空 schema
+    // root: 协议配置 JSON（含 protocolName/defaults/enumMaps/fields）
+    bool loadJson(const QJsonObject& root, QString* err = nullptr);
+
+    // 从 JSON 文件加载协议定义（读文件 -> 解析 -> loadJson）
+    // path: JSON 文件路径
+    bool loadFile(const QString& path, QString* err = nullptr);
+
+    // 获取协议名（JSON protocolName 字段，未加载则为空）
+    QString protocolName() const;
 
     // ---------- 清空 ----------
     void clear();
@@ -192,6 +242,9 @@ private:
     // 最近一次 when() 使用的条件字段名，供 otherwise() 直接在 ProtocolSchema 上调用时使用
     QString m_lastConditionField;
 
+    // 协议名（来自 JSON protocolName 字段，编程式构建时为空）
+    QString m_protocolName;
+
     // 使排序缓存失效（在字段增删时调用）
     inline void invalidateSortCache() const { m_sortCacheValid = false; }
 
@@ -227,6 +280,33 @@ private:
     static double applyLinearTransform(quint64 rawValue, double factor, double offset,
                                        bool isSigned, int bitLength);
 
+    // ---------- 枚举映射辅助（私有）----------
+    // 按字段名查找字段定义（返回指针，未找到返回 nullptr）
+    // 用于条件求值时获取条件字段的映射配置
+    const Field* findField(const QString& name) const;
+
+    // 反向映射查找：根据 JSON 值查找原始字节值
+    // 查找策略（保证打包可靠性）:
+    //   1. 若值为字符串，先在 valueMap 中反向匹配字符串得到原始值
+    //   2. 若未命中，尝试将字符串解析为数值（兼容用户传入数值字符串）
+    //   3. 若值为数字，直接使用（兼容用户传入数字的情况）
+    // 成功返回 true 并通过 out 输出原始字节值
+    bool reverseMapLookup(const Field& f, const QJsonValue& val, quint64& out, QString* err) const;
+
+    // 将条件值或上下文值规范化为"原始数值"用于可靠条件比较
+    // field: 条件字段定义（用于判断是否含枚举映射）
+    // val:   待规范化的值（可能为字符串或数字）
+    // out:   输出规范化后的 QVariant
+    // 规则: 含映射的字符串值会被反查为原始数值；数字和不带映射字段原样返回
+    bool normalizeToRawValue(const Field& field, const QVariant& val, QVariant& out) const;
+
+    // 比较单个条件是否满足（基于原始数值比较，保证枚举映射字段条件可靠）
+    // fieldName: 条件字段名
+    // condValue: 条件期望值
+    // context:   已解析字段的 JSON 上下文
+    bool matchCondition(const QString& fieldName, const QVariant& condValue,
+                        const QJsonObject& context) const;
+
     // 获取字段的绝对比特偏移
     static inline qint64 absoluteBitOffset(const Field& field) {
         return static_cast<qint64>(field.startByte) * 8 + field.startBit;
@@ -248,6 +328,13 @@ private:
     // 解析变长字段（内部使用）：根据长度字段读取变长数据并按类型转换
     bool parseVariableField(const Field& field, const QByteArray& data, QJsonObject& result,
                             QString* errorMsg) const;
+
+    // 从单个字段 JSON 对象构建并追加字段（含 defaults 继承与 enumMap 解析）
+    // fo:       字段 JSON 对象
+    // defaults: 顶层缺省值对象（字段未指定时继承）
+    // enumMaps: 顶层命名枚举库（字段 enumMap 可为字符串引用其名称）
+    bool loadOneField(const QJsonObject& fo, const QJsonObject& defaults,
+                      const QJsonObject& enumMaps, QString* err);
 };
 
 // ==================== ConditionalBuilder 类 ====================
@@ -274,6 +361,11 @@ public:
                                          Endian endian = LittleEndian, BitOrder bitOrder = MsbFirst,
                                          double factor = 1.0, double offset = 0.0,
                                          QString* err = nullptr);
+
+    // 为"最近添加的字段"追加枚举映射（条件分支内链式调用）
+    // 语义同 ProtocolSchema::map，返回 *this 支持链式
+    // 注意: 启用映射后该字段 factor/offset 自动失效；条件字段仍按原始数值比较
+    ConditionalBuilder& map(quint64 rawValue, const QString& str, QString* err = nullptr);
 
     // ---------- 条件分支嵌套 ----------
     // 在当前分支内部开启新的条件分支
