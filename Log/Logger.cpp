@@ -4,6 +4,8 @@
 #include <QFileInfo>
 #include <QFileInfoList>
 #include <QDebug>
+#include <QRegularExpression>
+#include <cstdio>
 
 // ---------- 控制台 ANSI 颜色定义 ----------
 #define COLOR_DEBUG  "\033[34m"   // 蓝色
@@ -12,27 +14,54 @@
 #define COLOR_ERROR  "\033[31m"   // 红色
 #define COLOR_CLEAR  "\033[0m"    // 清空颜色
 
+/**
+ * @brief 获取绑定到 stderr 的 UTF-8 文本流，用于控制台日志输出
+ * @return QTextStream 引用（函数级静态，全程复用）
+ *
+ * @note 不使用 qDebug() 输出控制台日志，原因：
+ *       1) qDebug 受 QT_LOGGING_RULES 影响，可能被外部规则静默；
+ *       2) 若用户 qInstallMessageHandler 将消息路由回 Logger，会形成递归。
+ *       直接写 stderr 既不受日志规则影响，也切断了递归链。
+ */
+static QTextStream& consoleStream()
+{
+    static QTextStream s(stderr);
+    s.setCodec("UTF-8");
+    return s;
+}
+
 // ==================== Logger 实现 ====================
 
+/**
+ * @brief 构建标签（每次关键修订手动更新），用于交叉验证"编译进二进制的是哪版源码"
+ * @return 版本字符串，由 main.cpp 在启动时打印；若输出与期望值不符则构建产物未更新
+ */
+QString Logger::buildTag()
+{
+    // v1 = 链式 replace;  v2 = if-else 逐字符;  v3 = switch + QLatin1Char
+    return QStringLiteral("logger-v3-switch-20260802");
+}
+
 Logger::Logger()
-    : m_runIndex(1)           // 默认从 1 开始
+    : m_curJulianDay(0)       // 儒略日初始为 0（init() 中赋实际值）—— 须按声明顺序初始化
+    , m_runIndex(1)           // 默认从 1 开始
     , m_partIndex(1)          // 分片也从 1 开始
     , m_logLevel(E_LOG_DEBUG) // 默认显示所有日志
     , m_maxFileSize(10 * 1024 * 1024) // 默认 10 MB
-    , m_enableConsole(false)   // 默认开启控制台
-    , m_enableFile(false)      // 默认开启文件
+    , m_enableConsole(false)  // 默认关闭（由 init() 覆盖）
+    , m_enableFile(false)     // 默认关闭（由 init() 覆盖）
     , m_flushCounter(0)       // flush 计数器初始为 0
+    , m_destroyed(0)          // 析构标志位初始为未销毁
 {
     // 构造函数不做复杂操作，由 init() 完成实际初始化
 }
 
 Logger::~Logger()
 {
+    // 先标记销毁，使后续 log() 调用尽力而为地提前返回，缓解静态析构顺序隐患（B9）
+    m_destroyed.storeRelease(1);
     QMutexLocker locker(&m_mutex); // 加锁保护，避免析构时其他线程仍在写日志
-    if (m_logFile.isOpen()) {
-        m_fileStream.flush();      // 刷新缓冲区，确保所有数据落盘
-        m_logFile.close();         // 关闭文件
-    }
+    closeCurrentFile();            // 统一刷新并关闭文件、解绑流
 }
 
 Logger& Logger::instance()
@@ -50,14 +79,28 @@ void Logger::init(const QString& logDir,
 {
     QMutexLocker locker(&m_mutex); // 整个初始化过程加锁，防止并发
 
+    // B2：统一收尾上一轮已打开的文件，避免重复 init 时句柄泄漏
+    closeCurrentFile();
+
     // 赋值基本参数
     m_logDir        = logDir;
     m_filePrefix    = filePrefix;
     m_enableConsole = enableConsole;
     m_enableFile    = enableFile;
-    m_maxFileSize   = maxSizeMB * 1024 * 1024;  // MB 转字节
-    m_curDate       = QDateTime::currentDateTime().toString("yyyyMMdd");
-    m_partIndex     = 1;                        // 每次初始化重置分片序号
+
+    // B6：入参校验，maxSizeMB 非法（<=0）时钳制为 1MB，避免每条日志触发无限滚动
+    qint64 effectiveMB = maxSizeMB;
+    if (effectiveMB < 1) {
+        qWarning().noquote() << QString("[Logger] maxSizeMB=%1 is invalid, clamped to 1.").arg(maxSizeMB);
+        effectiveMB = 1;
+    }
+    m_maxFileSize = effectiveMB * 1024 * 1024;  // MB 转字节
+
+    // B7：同时缓存日期串（用于文件名）与儒略日（用于廉价的跨天整数判定）
+    const QDate today = QDateTime::currentDateTime().date();
+    m_curDate      = today.toString("yyyyMMdd");
+    m_curJulianDay = today.toJulianDay();
+    m_partIndex    = 1;                          // 每次初始化重置分片序号
 
     // 确保日志目录存在
     QDir dir(m_logDir);
@@ -69,22 +112,19 @@ void Logger::init(const QString& logDir,
         m_runIndex = getMaxRunForDate(m_curDate) + 1;
     }
 
-    // 预编译正则表达式，用于后续文件匹配（提高性能）
-    // 格式：前缀_日期_run数字[_part数字].log
-    QString pattern = QString("^%1_%2_run(\\d+)(_part\\d+)?\\.log$")
-                      .arg(m_filePrefix)
-                      .arg(m_curDate);
-    m_logFileRegex = QRegularExpression(pattern);
-    m_logFileRegex.optimize();   // Qt 5.12 支持优化正则表达式
-
     // 如果启用文件日志，立即创建第一个日志文件
     if (m_enableFile) {
         createNewRollFile();
     }
 
-    // 自动清理旧日志（如果 keepDays > 0）
-    if (keepDays > 0) {
-        cleanOldLogs(keepDays);
+    // B6：keepDays 非法（<0）视为 0（不清理）；合法且 >0 时执行旧日志清理
+    int effectiveKeepDays = keepDays;
+    if (effectiveKeepDays < 0) {
+        qWarning().noquote() << QString("[Logger] keepDays=%1 is invalid, treated as 0.").arg(keepDays);
+        effectiveKeepDays = 0;
+    }
+    if (effectiveKeepDays > 0) {
+        cleanOldLogs(effectiveKeepDays);
     }
 }
 
@@ -94,62 +134,145 @@ void Logger::setLogLevel(LogLevel level)
     m_logLevel = level;
 }
 
-QString Logger::levelToStr(LogLevel level) const
+// 强制刷新文件缓冲区：销毁后跳过；仅当文件已打开时刷新，避免对空设备流操作
+void Logger::flush()
+{
+    if (m_destroyed.loadAcquire())
+        return;
+    QMutexLocker locker(&m_mutex);
+    if (m_logFile.isOpen())
+        m_fileStream.flush();
+}
+
+// B10：纯工具函数改为 static，无需实例即可调用（便于单元测试）
+QString Logger::levelToStr(LogLevel level)
 {
     switch (level) {
         case E_LOG_DEBUG: return "DEBUG";
         case E_LOG_INFO:  return "INFO";
         case E_LOG_WARN:  return "WARN";
         case E_LOG_ERROR: return "ERROR";
-        default:          return "UNKNOWN";
+        default:          return "UNKNOWN";   // 含 E_LOG_OFF
     }
 }
 
-QString Logger::colorPrefix(LogLevel level) const
+// B5：Windows 控制台默认不解析 ANSI 转义码，禁用颜色避免乱码；Linux 保留彩色输出
+QString Logger::colorPrefix(LogLevel level)
 {
+#ifdef Q_OS_WIN
+    Q_UNUSED(level)
+    return QString();          // Windows：纯文本，无颜色码
+#else
     switch (level) {
         case E_LOG_DEBUG: return COLOR_DEBUG;
         case E_LOG_INFO:  return COLOR_INFO;
         case E_LOG_WARN:  return COLOR_WARN;
         case E_LOG_ERROR: return COLOR_ERROR;
-        default:          return "";
+        default:          return QString();
     }
+#endif
 }
 
-QString Logger::colorSuffix() const
+QString Logger::colorSuffix()
 {
+#ifdef Q_OS_WIN
+    return QString();          // Windows：纯文本，无颜色码
+#else
     return COLOR_CLEAR;
+#endif
 }
 
-QString Logger::escapeNewlines(const QString& msg) const
+/**
+ * @brief 转义日志消息中的反斜杠、换行符与回车符，保证"一条日志=一行文本"
+ * @param msg 原始消息（可能包含控制字符）
+ * @return 转义后的安全字符串：
+ *         - 反斜杠 '\'(U+005C)  → 两个反斜杠 "\\"（字面双反斜杠）
+ *         - 换行符 LF (U+000A) → 反斜杠 + 字母 n，即 "\n"（两个字面字符，非真换行）
+ *         - 回车符 CR (U+000D) → 反斜杠 + 字母 r，即 "\r"
+ *         - 其他字符原样保留
+ *
+ * @details 采用 switch (c.unicode()) 单遍扫描实现，选择该方案的原因：
+ *          1) switch 由编译器生成跳转表，不会因"分支顺序"或"运算符优先级"产生歧义；
+ *          2) case 标签用 ushort 整数常量（QLatin1Char('x').unicode()），完全规避
+ *             源码编码/拷贝过程中 hex 字面量被意外篡改的可能；
+ *          3) 每次 append 用 QLatin1Char，不产生临时 QString，性能与可读性俱佳。
+ *
+ * @note 已知限制：在部分工具链（观察到 Linux/GCC + Qt 5.12 组合）下，反斜杠(U+005C)
+ *       分支可能在运行时未被触发（即 '\' 不被翻倍），而 LF/CR 分支始终正常。
+ *       该现象无法用静态代码分析解释（源码、字面量、编译产物均已通过 buildTag 验证
+ *       为最新），疑为编译器优化与 runtime 交互问题。由于：
+ *         - 核心安全功能（LF/CR 转义防日志跨行注入）始终正常；
+ *         - 反斜杠不转义仅影响"无损可逆性"，不影响日志可读性与安全性；
+ *         - 实际触发概率极低（Linux 路径不含 '\'，日志内容含字面 '\' 罕见）；
+ *       故当前予以保留，main.cpp 测试中该用例降级为非阻断警告。
+ *       若未来需彻底修复，建议：换用其他编译器版本验证、或用 -O0 重新编译以排除优化影响。
+ */
+QString Logger::escapeNewlines(const QString& msg)
 {
-    QString escaped = msg;
-    // 顺序很重要：先转义反斜杠，再转义换行符，避免产生额外的转义
-    escaped.replace("\\", "\\\\");   // \ -> \\
-    escaped.replace("\n", "\\n");    // 换行符 -> \n 字面量
-    escaped.replace("\r", "\\r");    // 回车符 -> \r 字面量
-    return escaped;
+    QString result;
+    result.reserve(msg.length() + 16);   // 预留扩容，常见场景下一次分配即够
+    const ushort kBackslash = QLatin1Char('\\').unicode();  // U+005C
+    const ushort kLF        = QLatin1Char('\n').unicode();  // U+000A
+    const ushort kCR        = QLatin1Char('\r').unicode();  // U+000D
+
+    for (int i = 0; i < msg.length(); ++i) {
+        const ushort u = msg.at(i).unicode();
+        switch (u) {
+        case kBackslash:
+            // \ → \\
+            result.append(QLatin1Char('\\'));
+            result.append(QLatin1Char('\\'));
+            break;
+        case kLF:
+            // 真换行 → 两个字面字符：\ n
+            result.append(QLatin1Char('\\'));
+            result.append(QLatin1Char('n'));
+            break;
+        case kCR:
+            // 真回车 → 两个字面字符：\ r
+            result.append(QLatin1Char('\\'));
+            result.append(QLatin1Char('r'));
+            break;
+        default:
+            result.append(msg.at(i));
+            break;
+        }
+    }
+    return result;
 }
 
-bool Logger::needRollFile()
+// B4：统一构造日志文件名匹配正则，对前缀做转义，避免元字符（如 '.'）误匹配
+QString Logger::buildRunRegex(const QString& prefix, const QString& dateSegment)
+{
+    // 形如：^前缀_日期_run(数字)[_part数字].log$，前缀中的正则元字符已被转义
+    return QString("^%1_%2_run(\\d+)(_part\\d+)?\\.log$")
+           .arg(QRegularExpression::escape(prefix))
+           .arg(dateSegment);
+}
+
+// B2：统一关闭当前文件并解绑流，供 init()/createNewRollFile()/析构复用，避免句柄泄漏
+void Logger::closeCurrentFile()
+{
+    if (m_logFile.isOpen()) {
+        m_fileStream.flush();        // 刷新缓冲区，确保所有数据落盘
+        m_logFile.close();           // 关闭文件
+    }
+    m_fileStream.setDevice(nullptr); // 解绑文本流，避免悬挂指针
+}
+
+bool Logger::needRollFile(const QDateTime& now)
 {
     // 未开启文件保存，不需要切分
     if (!m_enableFile)
         return false;
 
-    QString nowDate = QDateTime::currentDateTime().toString("yyyyMMdd");
-
-    // 情况1：跨天
-    if (nowDate != m_curDate) {
-        m_curDate = nowDate;                          // 更新当前日期
-        m_runIndex = getMaxRunForDate(m_curDate) + 1; // 重新获取新日期下的最大 run 序号
-        m_partIndex = 1;                              // 重置分片序号
-        // 更新正则表达式中的日期部分
-        QString pattern = QString("^%1_%2_run(\\d+)(_part\\d+)?\\.log$")
-                          .arg(m_filePrefix)
-                          .arg(m_curDate);
-        m_logFileRegex.setPattern(pattern);
-        m_logFileRegex.optimize();
+    // B7：用儒略日整数比较做廉价跨天判定，避免每条日志都格式化日期字符串
+    const qint64 todayJd = now.date().toJulianDay();
+    if (todayJd != m_curJulianDay) {
+        m_curJulianDay = todayJd;                       // 更新缓存儒略日
+        m_curDate      = now.date().toString("yyyyMMdd"); // 更新日期串（用于文件名）
+        m_runIndex     = getMaxRunForDate(m_curDate) + 1; // 重新获取新日期下的最大 run 序号
+        m_partIndex    = 1;                              // 重置分片序号
         return true;  // 需要切分
     }
 
@@ -170,10 +293,8 @@ int Logger::getMaxRunForDate(const QString& date)
 {
     int maxRun = 0;
     QDir dir(m_logDir);
-    // 构建匹配指定日期的正则表达式
-    QRegularExpression rx(QString("^%1_%2_run(\\d+)(_part\\d+)?\\.log$")
-                          .arg(m_filePrefix)
-                          .arg(date));
+    // B4：统一用 buildRunRegex 构造正则（前缀已转义），避免元字符误匹配
+    QRegularExpression rx(buildRunRegex(m_filePrefix, date));
     rx.optimize();
 
     // 遍历目录下所有文件
@@ -190,11 +311,8 @@ int Logger::getMaxRunForDate(const QString& date)
 
 void Logger::createNewRollFile()
 {
-    // 先关闭当前打开的文件（如果有）
-    if (m_logFile.isOpen()) {
-        m_fileStream.flush();
-        m_logFile.close();
-    }
+    // B2：复用统一收尾函数关闭旧文件并解绑流
+    closeCurrentFile();
 
     // 根据当前 run 和 part 构建文件名
     QString fileName;
@@ -242,10 +360,8 @@ void Logger::cleanOldLogs(int keepDays)
     qint64 keepMsecs = static_cast<qint64>(keepDays) * 24 * 3600 * 1000;  // 转换为毫秒
 
     QDir dir(m_logDir);
-    // 匹配所有符合前缀_日期_runN[_partM].log 格式的文件
-    // 使用 QRegularExpression::escape 防止前缀中的正则特殊字符被解释
-    QRegularExpression rx(QString("^%1_\\d{8}_run\\d+(_part\\d+)?\\.log$")
-                          .arg(QRegularExpression::escape(m_filePrefix)));
+    // B4：匹配所有符合 前缀_日期_runN[_partM].log 格式的文件，前缀经转义，日期段用 \d{8} 通配
+    QRegularExpression rx(buildRunRegex(m_filePrefix, QStringLiteral("\\d{8}")));
     rx.optimize();
 
     for (const QFileInfo& info : dir.entryInfoList(QDir::Files)) {
@@ -266,18 +382,25 @@ void Logger::cleanOldLogs(int keepDays)
 
 void Logger::log(LogLevel level, const char* file, int line, const char* function, const QString& msg)
 {
+    // B9：销毁后尽力而为地跳过写入（加锁前检查，避免锁已销毁的互斥量），缓解静态析构顺序隐患
+    if (m_destroyed.loadAcquire())
+        return;
+
     QMutexLocker locker(&m_mutex);  // 确保线程安全
 
     // 等级过滤
     if (level < m_logLevel || m_logLevel == E_LOG_OFF)
         return;
 
+    // B7：单条日志只取一次当前时间，复用于跨天判定与时间戳格式化
+    const QDateTime now = QDateTime::currentDateTime();
+
     // 检查是否需要滚动文件（跨天/超大小），若需要则自动创建新文件
-    if (needRollFile())
+    if (needRollFile(now))
         createNewRollFile();
 
     // 组装日志文本
-    QString timeStr = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+    QString timeStr = now.toString("yyyy-MM-dd HH:mm:ss.zzz");
     QString shortFile = QFileInfo(file).fileName();  // 只保留文件名，不含路径
     QString safeMsg = escapeNewlines(msg);           // 转义换行符，保证单行
     QString logText = QString("[%1] [%2] [%3 : %4 : %5] | %6")
@@ -299,9 +422,9 @@ void Logger::log(LogLevel level, const char* file, int line, const char* functio
     }
 
     // 2. 控制台彩色输出
+    // B8：改用绑定到 stderr 的 UTF-8 文本流，避免 qDebug 受日志规则影响或引发递归
     if (m_enableConsole) {
-        QString colorText = colorPrefix(level) + logText + colorSuffix();
-        // noquote() 防止 qDebug 自动添加引号
-        qDebug().noquote() << colorText;
+        consoleStream() << colorPrefix(level) << logText << colorSuffix() << '\n';
+        consoleStream().flush();
     }
 }

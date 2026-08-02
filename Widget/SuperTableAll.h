@@ -212,10 +212,18 @@ public:
 private:
     /**
      * @brief 执行数据筛选逻辑
-     * 根据当前设置的筛选列和筛选关键词，从原始数据中筛选出匹配的行到展示数据
+     * 重建 m_showIndex 映射数组，根据筛选条件从原始数据中筛选出匹配的行索引
      * 筛选规则：列值包含关键词（大小写不敏感），无筛选条件则展示所有原始数据
      */
     void doFilter();
+
+    /**
+     * @brief 判断单行数据是否匹配当前筛选条件
+     * @param row 待检查的行数据
+     * @return true 表示匹配（应展示），false 表示不匹配
+     * @note 纯函数，doFilter 和 appendRows 共用，确保筛选逻辑一致性
+     */
+    bool rowMatchesFilter(const TableRowData& row) const;
 
     /**
      * @brief 根据列索引获取列配置
@@ -224,8 +232,11 @@ private:
      */
     TableColumnConfig getColumnBySection(int sec) const;
 
-    QList<TableRowData> m_originData;    // 原始数据（未筛选的完整数据）
-    QList<TableRowData> m_showData;      // 展示数据（筛选后的结果）
+    // ★ 单一存储结构：m_originData 是唯一数据源，m_showIndex 是展示索引映射
+    // 修复：移除 m_showData 副本，消除"双重存储需手动同步"的 bug 温床
+    // data()/setData()/getRow() 等全部通过 m_showIndex 间接访问 m_originData
+    QList<TableRowData> m_originData;    // 原始数据（唯一数据源，single source of truth）
+    QList<int>           m_showIndex;     // 展示索引映射：m_showIndex[displayRow] = m_originData 下标
     QList<TableColumnConfig> m_columns;  // 列配置列表
     QString m_filterCol;                 // 筛选列名
     QString m_filterText;                // 筛选关键词
@@ -411,11 +422,11 @@ public:
     /**
      * @brief getRow 获取某一行数据
      * @param index
-     * @return 
+     * @return
      */
     TableRowData getRow(int index);
-    
-    
+
+
     // ========== 尺寸控制接口 ==========
     /**
      * @brief 设置全局统一行高
@@ -461,7 +472,7 @@ public:
      * 支持通过QSS自定义表格样式（如网格线、选中色、字体等）
      */
     void setTableStyleSheet(const QString &qss);
-    
+
 
 private:
     SuperTableModel* m_model;       // 表格数据模型
@@ -469,68 +480,4 @@ private:
 };
 }
 #endif // SUPERTABLEALL_H
-
-
-#if A
-SuperTableWidget* table = new SuperTableWidget();
-QVBoxLayout* lay = new QVBoxLayout(this);
-lay->setContentsMargins(10,10,10,10);
-lay->addWidget(table);
-
-// 1. 设置表头
-QList<TableColumnConfig> headers = {
-    {"id", "ID", TableCellType::Text, 80},
-    {"name", "任务名称", TableCellType::Text, 220},
-    {"status", "运行状态", TableCellType::StateTag, 130},
-    {"progress", "完成进度", TableCellType::Progress, 160},
-    {"sel", "选择", TableCellType::CheckBox, 90}
-};
-table->setHeaders(headers);
-
-// 2. 尺寸统一设置
-table->setGlobalRowHeight(36);    // 行高36
-table->setHeaderHeight(38);       // 表头高度
-table->setTableMinSize(800,400);  // 最小尺寸
-
-// 3. 全局样式
-QString qss = R"(
-QTableView
-{
-    background-color: #ffffff;
-    border: 1px solid #d0d7e3;
-    gridline-color: #e5e9f2;
-    selection-background-color: #cce5ff;
-}
-QHeaderView::section
-{
-    background-color: #f5f7fa;
-    border:none;
-    border-right:1px solid #e5e9f2;
-    border-bottom:1px solid #d0d7e3;
-    padding-left:8px;
-}
-)";
-table->setTableStyleSheet(qss);
-
-// 4. 测试数据
-QList<TableRowData> datas;
-for(int i=0;i<3000;i++)
-{
-    TableRowData r;
-    r.set("id",i);
-    r.set("name",QString("数据项_%1").arg(i));
-    r.set("status",i%3==0?"正常":i%3==1?"失败":"等待");
-    r.set("progress",rand()%100);
-    r.set("sel",i%2==0);
-    datas.append(r);
-}
-table->addRows(datas);
-
-// 行染色规则
-table->setRowColorRule([](const TableRowData& row)->QColor{
-    if(row.get("status").toString() == "失败")
-        return QColor(255,235,235);
-    return QColor();
-});
-#endif
 

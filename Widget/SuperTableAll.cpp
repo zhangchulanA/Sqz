@@ -2,8 +2,8 @@
 #include <QPainter>
 #include <QHeaderView>
 #include <QStringList>
-#include <QCheckBox>
 #include <QLineEdit>
+#include <QMouseEvent>
 
 // ====================== SuperTableModel ======================
 /**
@@ -40,27 +40,47 @@ QList<TableColumnConfig> SuperTableModel::getColumns() const
 
 /**
  * @brief 清空所有表格数据
- * 触发模型重置前的通知，清空原始数据和展示数据，触发模型重置后的通知，视图同步清空
+ * 触发模型重置前的通知，清空原始数据和展示索引，触发模型重置后的通知，视图同步清空
  */
 void SuperTableModel::clearAllData()
 {
     beginResetModel();
     m_originData.clear();
-    m_showData.clear();
+    m_showIndex.clear();
     endResetModel();
 }
 
 /**
  * @brief 追加行数据到表格
  * @param rows 要追加的行数据列表
- * 空列表直接返回；否则触发行插入前的通知，将数据追加到原始数据，执行筛选，触发行插入后的通知
+ * 修复：原实现在 beginInsertRows/endInsertRows 之间调用 doFilter()，导致声明行数
+ *       与实际行数不一致（有筛选时新行可能不匹配），视图状态错乱甚至崩溃。
+ * 新方案：增量筛选——只追加命中筛选的行到 m_showIndex，保留视图选中/滚动状态。
  */
 void SuperTableModel::appendRows(const QList<TableRowData> &rows)
 {
     if (rows.isEmpty()) return;
-    beginInsertRows(QModelIndex(), m_showData.size(), m_showData.size() + rows.size() - 1);
+
+    // 原始数据总是全量保存
+    int originStart = m_originData.size();
     m_originData.append(rows);
-    doFilter();
+
+    // 增量计算新增行中命中筛选的部分（不重扫全表）
+    QList<int> visibleNewIndices;
+    visibleNewIndices.reserve(rows.size());
+    for (int i = 0; i < rows.size(); ++i)
+    {
+        if (rowMatchesFilter(rows[i]))
+            visibleNewIndices.append(originStart + i);
+    }
+
+    if (visibleNewIndices.isEmpty())
+        return;  // 视图层一行都不用插
+
+    const int first = m_showIndex.size();
+    const int last  = first + visibleNewIndices.size() - 1;
+    beginInsertRows(QModelIndex(), first, last);
+    m_showIndex.append(visibleNewIndices);
     endInsertRows();
 }
 
@@ -68,20 +88,26 @@ void SuperTableModel::appendRows(const QList<TableRowData> &rows)
  * @brief 获取指定行的展示数据
  * @param idx 行索引（展示数据的索引）
  * @return 该行数据，索引越界返回空TableRowData
+ * 修复：通过 m_showIndex 间接访问 m_originData，不再使用 m_showData 副本
  */
 TableRowData SuperTableModel::getRow(int idx) const
 {
-    if (idx < 0 || idx >= m_showData.size()) return {};
-    return m_showData[idx];
+    if (idx < 0 || idx >= m_showIndex.size()) return {};
+    return m_originData[m_showIndex[idx]];
 }
 
 /**
  * @brief 获取所有展示数据行
  * @return 展示数据列表（筛选后的结果）
+ * 修复：通过 m_showIndex 从 m_originData 构建列表
  */
 QList<TableRowData> SuperTableModel::getAllRows() const
 {
-    return m_showData;
+    QList<TableRowData> result;
+    result.reserve(m_showIndex.size());
+    for (int idx : m_showIndex)
+        result.append(m_originData[idx]);
+    return result;
 }
 
 /**
@@ -125,12 +151,12 @@ void SuperTableModel::setRowColorRule(const RowColorFunc &func)
 /**
  * @brief 获取表格行数（展示数据）
  * @param parent 父索引（表格中无效）
- * @return 展示数据的行数，父索引有效则返回0（表格非树形结构）
+ * @return 展示索引的行数，父索引有效则返回0（表格非树形结构）
  */
 int SuperTableModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid()) return 0;
-    return m_showData.size();
+    return m_showIndex.size();
 }
 
 /**
@@ -158,10 +184,11 @@ QVariant SuperTableModel::data(const QModelIndex &index, int role) const
 {
     int r = index.row();
     int c = index.column();
-    if (r < 0 || r >= m_showData.size() || c <0 || c >= m_columns.size())
+    if (r < 0 || r >= m_showIndex.size() || c < 0 || c >= m_columns.size())
         return QVariant();
 
-    const TableRowData& row = m_showData[r];
+    // 修复：通过 m_showIndex 间接访问 m_originData（单一存储）
+    const TableRowData& row = m_originData[m_showIndex[r]];
     const TableColumnConfig& colCfg = m_columns[c];
 
     if (role == Qt::DisplayRole)
@@ -174,8 +201,8 @@ QVariant SuperTableModel::data(const QModelIndex &index, int role) const
     }
     else if (role == Qt::BackgroundRole && m_rowColorFunc)
     {
-        QColor c = m_rowColorFunc(row);
-        if (c.isValid()) return c;
+        QColor bg = m_rowColorFunc(row);
+        if (bg.isValid()) return bg;
     }
     return QVariant();
 }
@@ -204,6 +231,7 @@ QVariant SuperTableModel::headerData(int section, Qt::Orientation orientation, i
  */
 Qt::ItemFlags SuperTableModel::flags(const QModelIndex &index) const
 {
+    Q_UNUSED(index);
     return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsEditable;
 }
 
@@ -226,18 +254,15 @@ bool SuperTableModel::setData(const QModelIndex &index, const QVariant &value, i
 
     int r = index.row();
     int c = index.column();
-    if (r < 0 || r >= m_showData.size() || c < 0 || c >= m_columns.size())
+    if (r < 0 || r >= m_showIndex.size() || c < 0 || c >= m_columns.size())
         return false;
 
     TableColumnConfig col = m_columns[c];
-    // 1. 更新当前展示行
-    m_showData[r].set(col.name, value);
 
-    // 2. 直接同步原始数据同下标（不再根据id匹配，彻底解决匹配失败回弹）
-    if (r < m_originData.size())
-    {
-        m_originData[r].set(col.name, value);
-    }
+    // 修复：通过 m_showIndex 反查原始数据下标，直接修改 m_originData
+    // 单一存储结构天然保证展示数据和原始数据同步，无需手动维护两份副本
+    int originIdx = m_showIndex[r];
+    m_originData[originIdx].set(col.name, value);
 
     emit dataChanged(index, index);
     return true;
@@ -245,25 +270,34 @@ bool SuperTableModel::setData(const QModelIndex &index, const QVariant &value, i
 
 /**
  * @brief 执行数据筛选逻辑
- * 清空展示数据，无筛选条件则直接复制原始数据到展示数据；
- * 有筛选条件则遍历原始数据，将匹配的行添加到展示数据（列值包含关键词，大小写不敏感）
+ * 重建 m_showIndex 映射数组：无筛选条件则映射所有原始行；
+ * 有筛选条件则只映射匹配行（列值包含关键词，大小写不敏感）
+ * 修复：不再拷贝行数据，只重建索引数组，零拷贝、O(n)
  */
 void SuperTableModel::doFilter()
 {
-    m_showData.clear();
+    m_showIndex.clear();
+    m_showIndex.reserve(m_originData.size());
+    for (int i = 0; i < m_originData.size(); ++i)
+    {
+        if (rowMatchesFilter(m_originData[i]))
+            m_showIndex.append(i);
+    }
+}
+
+/**
+ * @brief 判断单行数据是否匹配当前筛选条件
+ * @param row 待检查的行数据
+ * @return true 表示匹配（应展示），false 表示不匹配
+ * 修复：提取为纯函数，doFilter 和 appendRows 共用，确保筛选逻辑一致性
+ */
+bool SuperTableModel::rowMatchesFilter(const TableRowData& row) const
+{
+    // 无筛选条件则全部匹配
     if (m_filterText.isEmpty() || m_filterCol.isEmpty())
-    {
-        m_showData = m_originData;
-        return;
-    }
-    for (const auto& row : m_originData)
-    {
-        QString val = row.get(m_filterCol).toString();
-        if (val.contains(m_filterText, Qt::CaseInsensitive))
-        {
-            m_showData.append(row);
-        }
-    }
+        return true;
+    QString val = row.get(m_filterCol).toString();
+    return val.contains(m_filterText, Qt::CaseInsensitive);
 }
 
 /**
@@ -279,6 +313,20 @@ TableColumnConfig SuperTableModel::getColumnBySection(int sec) const
 }
 
 // ====================== SuperTableDelegate ======================
+
+/**
+ * @brief 统一判断单元格文本是否表示复选框"选中"状态
+ * @param text 单元格文本
+ * @return true 表示选中
+ * 修复：paint 和 editorEvent 共用此函数，确保判断逻辑一致
+ * 支持 "true"(大小写不敏感) 和 "1" 两种表示
+ */
+static bool isCheckboxChecked(const QString& text)
+{
+    return text.compare(QLatin1String("true"), Qt::CaseInsensitive) == 0
+        || text == QLatin1String("1");
+}
+
 /**
  * @brief SuperTableDelegate构造函数
  * @param parent 父对象
@@ -305,20 +353,24 @@ void SuperTableDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);
 
+    // 修复：缓存 index.data() 结果，避免在 paint 中重复虚拟调用
+    QVariant bgVar = index.data(Qt::BackgroundRole);
     if (option.state & QStyle::State_Selected)
         painter->fillRect(option.rect, QColor(220,240,255));
-    else if (index.data(Qt::BackgroundRole).isValid())
-        painter->fillRect(option.rect, index.data(Qt::BackgroundRole).value<QColor>());
+    else if (bgVar.isValid())
+        painter->fillRect(option.rect, bgVar.value<QColor>());
     else
         painter->fillRect(option.rect, Qt::white);
 
+    // 缓存 cellType 和 cellText，减少 data() 调用次数
     TableCellType cellType = static_cast<TableCellType>(index.data(Qt::UserRole).toInt());
     QString cellText = index.data(Qt::DisplayRole).toString();
 
     switch (cellType)
     {
     case TableCellType::CheckBox:
-        drawCheckBox(painter, option, cellText.compare("true", Qt::CaseInsensitive) == 0);
+        // 修复：统一复选框判断逻辑（paint 和 editorEvent 一致）
+        drawCheckBox(painter, option, isCheckboxChecked(cellText));
         break;
     case TableCellType::Progress:
         drawProgress(painter, option, cellText.toInt(), 100);
@@ -341,7 +393,11 @@ void SuperTableDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
  */
 QSize SuperTableDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-    return QSize(option.rect.width(), 32);
+    Q_UNUSED(option);
+    Q_UNUSED(index);
+    // 修复：原版返回 option.rect.width()，初始布局时可能为 0
+    // 返回 -1 让 QTableView 使用默认列宽/sizeHintForColumn 的默认行为
+    return QSize(-1, 32);
 }
 
 /**
@@ -363,7 +419,11 @@ bool SuperTableDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, c
     if(type != TableCellType::CheckBox)
         return QStyledItemDelegate::editorEvent(event, model, option, index);
 
-    QMouseEvent* mouseEv = dynamic_cast<QMouseEvent*>(event);
+    // 修复：用 static_cast 替代 dynamic_cast，先检查事件类型再转换
+    if (event->type() != QEvent::MouseButtonPress && event->type() != QEvent::MouseButtonRelease)
+        return false;
+
+    QMouseEvent* mouseEv = static_cast<QMouseEvent*>(event);
     if(!mouseEv)
         return false;
 
@@ -375,7 +435,8 @@ bool SuperTableDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, c
         if(!boxRect.contains(mouseEv->pos()))
             return false;
 
-        bool isChecked = (index.data(Qt::DisplayRole).toString() == "true" || index.data(Qt::DisplayRole).toString() == "1");
+        // 修复：统一复选框判断逻辑（与 paint 一致）
+        bool isChecked = isCheckboxChecked(index.data(Qt::DisplayRole).toString());
         model->setData(index, isChecked ? "false" : "true", Qt::EditRole);
         // 返回true：消费本次鼠标事件，阻止视图默认刷新回弹
         return true;
@@ -422,7 +483,7 @@ void SuperTableDelegate::setModelData(QWidget *editor, QAbstractItemModel *model
  * @param p 绘制器对象
  * @param opt 单元格样式选项
  * @param text 要绘制的文本
- * 文本区域：左右缩进8像素，上下缩进4像素，左对齐+垂直居中
+ * 文本区域：左右缩进8像素，上下缩进4像素，水平居中+垂直居中
  */
 void SuperTableDelegate::drawText(QPainter *p, const QStyleOptionViewItem &opt, const QString &text) const
 {
@@ -458,13 +519,17 @@ void SuperTableDelegate::drawCheckBox(QPainter *p, const QStyleOptionViewItem &o
  * @param val 当前进度值
  * @param max 进度最大值
  * 进度条区域：上下左右缩进8像素，绘制外框；按比例绘制蓝色填充进度，居中显示百分比文本
+ * 修复：钳制 val 和 max 防止除零、负宽、溢出
  */
 void SuperTableDelegate::drawProgress(QPainter *p, const QStyleOptionViewItem &opt, int val, int max) const
 {
     QRect rc = opt.rect.adjusted(8,8,-8,-8);
     p->drawRect(rc);
-    if (max <=0) return;
-    int w = rc.width() * val / max;
+    // 修复：钳制 max 防止除零，钳制 val 防止负宽和溢出
+    if (max <= 0) max = 1;
+    val = qBound(0, val, max);
+    // 用 qint64 防止大数相乘溢出
+    int w = static_cast<int>(qint64(rc.width()) * val / max);
     QRect fillRc(rc.x(), rc.y(), w, rc.height());
     p->fillRect(fillRc, QColor(60,160,220));
     p->drawText(rc, Qt::AlignCenter, QString("%1%").arg(val));

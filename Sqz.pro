@@ -6,7 +6,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++17
 #关闭编译警告提示 眼不见为净
 CONFIG      += warn_off
-
+CONFIG += automoc
 INCLUDEPATH += /opt/QtFluentWidgets/include/Fluent
 LIBS += -L/opt/QtFluentWidgets/lib -lQtFluentWidgets
 
@@ -70,10 +70,13 @@ SOURCES += \
     SqzQuickTest.cpp \
     SqzTest.cpp \
     main.cpp \
+    second.cpp
 
 HEADERS += \
     SqzQuickTest.h \
-    SqzTest.h
+    SqzTest.h \
+    bus_senders.h \
+    ea_senders.h
 
 FORMS += \
     SqzTest.ui
