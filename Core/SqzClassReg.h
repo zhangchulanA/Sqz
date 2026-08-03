@@ -22,7 +22,8 @@ struct SQZ_FRAMEWORK_API ClassFactory
 {
     std::function<void*()> NoArgCreator = nullptr;
     std::function<void*(const QVariantList&)> ArgCreator = nullptr;
-    bool IsQuick = false; // 编译期直接赋值，不用运行判断
+    bool IsQuick = false;    // 编译期直接赋值，不用运行判断
+    bool IsQObject = false;  // 是否为 QObject 派生，用于带参类的销毁方式判断
 };
 
 inline QHash<QString,ClassFactory>& GlobalClassTable()
@@ -53,6 +54,7 @@ namespace { \
             Sqz::ClassFactory info; \
             info.ArgCreator = [](const QVariantList& args)->void*{ return new Cls(args); }; \
             info.IsQuick = Sqz::IsSqzQuickClass<Cls>(); \
+            info.IsQObject = std::is_base_of_v<QObject, Cls>; \
             table[#Cls] = info; \
         } \
     }; \

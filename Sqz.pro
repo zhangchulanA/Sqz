@@ -65,18 +65,16 @@ include(Utils/Utils.pri)
 include(NetWork/NetWork.pri)
 include(Global/Global.pri)
 include(Net/Net.pri)
+include(Protocol/Protocol.pri)
 
 SOURCES += \
     SqzQuickTest.cpp \
     SqzTest.cpp \
-    main.cpp \
-    second.cpp
+    main.cpp
 
 HEADERS += \
     SqzQuickTest.h \
-    SqzTest.h \
-    bus_senders.h \
-    ea_senders.h
+    SqzTest.h
 
 FORMS += \
     SqzTest.ui

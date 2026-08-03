@@ -7,10 +7,12 @@
 #include <QWidget>
 #include <QStringList>
 #include <QCoreApplication>
+#include <QReadWriteLock>   // GetFactoryLock() 返回 QReadWriteLock&（显式包含，避免依赖间接包含）
+#include <QReadLocker>      // 供本头内联函数及 .cpp 使用，显式可见
+#include <QWriteLocker>     // 同上
 #include <type_traits>
 #include <QQmlApplicationEngine>
 #include <memory>
-#include "SqzProp.h"
 #include "QQmlEngine"
 #include "QtQuick/QQuickView"
 #include "SqzGlobal.h"
@@ -30,9 +32,10 @@ inline QReadWriteLock& GetFactoryLock()
 //类元数据：存储创建/销毁函数及类型信息
 struct SQZ_FRAMEWORK_API ClassMeta
 {
-    std::function<void*()> creator;              // 创建函数
-    std::function<void(void* ptr)> deleter;      // 销毁函数
-    bool isQObject = false;                      // 是否为 QObject 派生类
+    std::function<void*()> creator;                   // 创建函数
+    std::function<void(void* ptr)> deleter;            // 延迟销毁（deleteLater），用于 CloseObjLater
+    std::function<void(void* ptr)> immediateDeleter;  // 立即销毁（delete），用于 CloseObj/CloseAll/~SqzHub
+    bool isQObject = false;                            // 是否为 QObject 派生类
 };
 
 //带参构造函数类型：接收 QVariantList 参数
@@ -81,7 +84,11 @@ public:
                        bool isQObject = false);
 
     //注册带参构造类（接收 QVariantList）
-    void RegisterWithArg(const QString& ClassName, CreatorWithArg Func);
+    //isQObject 标记是否为 QObject 派生（决定销毁方式 deleteLater/delete）
+    //Deleter 自定义销毁函数，为空时按 isQObject 自动选择默认销毁器
+    void RegisterWithArg(const QString& ClassName, CreatorWithArg Func,
+                         bool isQObject = true,
+                         std::function<void(void*)> Deleter = nullptr);
 
     //注册 QML/Quick 类（无参构造）
     void RegisterQuickClass(const QString& ClassName,
@@ -236,12 +243,19 @@ private:
     //获取类的元数据
     ClassMeta getMetaForClass(const QString& fullname);
 
+    // 批量销毁池中所有对象的公共实现（修复 Bug #17：~SqzHub 与 CloseAll 逻辑重复）
+    // immediate=true 用于析构/退出阶段（事件循环可能已停，必须用 immediateDeleter 同步销毁）
+    // 该方法负责：取快照→释放锁→回调 onClose→调用 immediateDeleter，避免持锁回调引发死锁
+    void destroyAllObjects();
+
     std::unique_ptr<QQmlApplicationEngine> m_qmlEngine;  //   QML 引擎
 
     QHash<QString, ClassMeta>      m_noArgCreator;   //   无参构造器表
     QHash<QString, CreatorWithArg> m_argCreator;     //   带参构造器表
+    QHash<QString, ClassMeta>      m_argMeta;         //   带参类元数据表（销毁时查 deleter/isQObject）
     QHash<QString, void*>          m_singlePool;     //   单例对象池
-    QHash<QString, ClassMeta>      m_qmlCreators;    //   Quick 类构造器表
+    QHash<QString, ClassMeta>      m_qmlCreators;     //   Quick 类构造器表
+    QHash<QString, QString>        m_quickQmlPath;   //   Quick 视图 QML 源路径缓存（供 ResetObj 重建使用）
 };
 
 // ---------- 自动注册宏（支持模块前缀） ----------

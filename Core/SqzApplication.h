@@ -14,6 +14,8 @@
 #include "SqzState.h"
 #include "Logger.h"
 
+class QEvent;
+
 //APP_PRO_VERSION
 
 namespace Sqz
@@ -26,6 +28,7 @@ struct SQZ_FRAMEWORK_API AppConfig
     QString Version;
     QString ThreadPrefix;
     int ExitDelayMs = 500;
+    bool StrictVersion = false;   // A7：版本不匹配时是否 fail-fast（true=中止启动，false=仅 warn）
 
     // 后台服务条目
     struct SQZ_FRAMEWORK_API ServiceItem
@@ -33,6 +36,7 @@ struct SQZ_FRAMEWORK_API AppConfig
         QString ClassName;
         bool AutoStart;
         int StartOrder;
+        bool Critical = false;   // D2：关键服务标志，创建失败时中止 Init
         QVariantList Args;
         QVariantMap Props;
     };
@@ -143,6 +147,10 @@ private:
     // 统一创建Widget/Quick所有视图
     void CreateViews();
 
+protected:
+    // 事件过滤器：拦截主窗口 Close 事件触发退出流程（QWidget::close 非信号，无法 connect）
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
 private slots:
     // 主窗口关闭触发退出流程
     void OnMainWindowClose();
@@ -154,6 +162,7 @@ private:
     QObject* m_MainWindow = nullptr;
     bool m_ConfigValid = false;
     bool m_InitComplete = false;
+    bool m_InitFailed = false;   // D1：主窗口创建失败标志，Init 中检查后返回 false 中止启动
 
     static SqzApplication* m_s_instance;
 };

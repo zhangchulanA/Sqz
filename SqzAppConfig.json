@@ -4,7 +4,8 @@
     "DisplayName": "Sqz框架",
     "Version": "1.0.0",
     "ThreadPrefix": "Sqz",
-    "ExitDelayMs": 300
+    "ExitDelayMs": 300,
+    "StrictVersion": false
   },
   "Services": [
   ],
@@ -17,11 +18,11 @@
       "Props": {"WindowTitle": "主界面"}
     },
     {
-          "ViewType": "SqzQuick",
-          "ClassName": "SqzQuickTest",
-          "QmlSource": "qrc:/SqzQuickTest.qml",
-          "AutoStart": true,
-          "Props": {}
+      "ViewType": "SqzQuick",
+      "ClassName": "SqzQuickTest",
+      "QmlSource": "qrc:/SqzQuickTest.qml",
+      "AutoStart": true,
+      "Props": {}
      }
   ]
 }

@@ -2,6 +2,7 @@
 #include "ui_SqzTest.h"
 //#include "SqzHub.h"
 #include "SqzClassReg.h"
+
 using namespace Sqz;
 
 SqzTest::SqzTest(QWidget *parent) :

@@ -19,8 +19,8 @@
 namespace Sqz {
 class SQZ_FRAMEWORK_API SqzQuick : public QObject
 {
-    Q_PROPERTY(QString m_qmlSourcePath READ qmlSourcePath WRITE setQmlSourcePath)
     Q_OBJECT
+    Q_PROPERTY(QString qmlSourcePath READ qmlSourcePath WRITE setQmlSourcePath)
     friend class SqzHub;
 
 public:
@@ -75,11 +75,8 @@ public:
     void ShowThis();      // 显示自身
 
 protected:
-    // 基类实现
-    virtual QString qmlSource() const{
-        logerror << m_qmlSourcePath << "---" <<property("QmlSourcePath").toString();
-        return m_qmlSourcePath;
-    }
+    // 子类可重写以提供动态 QML 源路径（默认返回 m_qmlSourcePath）
+    virtual QString qmlSource() const { return m_qmlSourcePath; }
 protected:
 
     /**

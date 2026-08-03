@@ -8,6 +8,7 @@
 #include <QMutex>
 #include <QTimer>
 #include <QSet>
+#include <QPointer>
 #include <functional>
 #include "SqzGlobal.h"
 
@@ -67,14 +68,22 @@ public:
     void SetAutoCleanup(int intervalMs = 5000, int staleMs = 3000);
 
     // ---------- 值变化监控（Watch 模式） ----------
-    // 监控 key，值变化时执行回调，返回监控 ID
-    int Watch(const QString& key, std::function<void(const QVariant&)> callback);
+    // 监控 key，值变化时执行回调，返回监控 ID（无生命周期绑定，保持向后兼容）
+    // sendCurrent=true：注册时若 key 已有值，立即推送当前值给回调（S4 修复）
+    int Watch(const QString& key, std::function<void(const QVariant&)> callback, bool sendCurrent = false);
+
+    // 监控 key（带生命周期绑定）：receiver 销毁时自动清理该监控，避免悬挂回调
+    // sendCurrent=true：注册时若 key 已有值，立即推送当前值给回调（S4 修复）
+    int Watch(QObject* receiver, const QString& key, std::function<void(const QVariant&)> callback, bool sendCurrent = false);
 
     // 取消监控：移除指定 key 下的某个监控者
     bool Unwatch(const QString& key, int watcherId);
 
     // 取消监控：移除指定 key 下的所有监控者
     void Unwatch(const QString& key);
+
+    // 取消监控：移除某对象的所有监控（receiver 销毁时自动调用）
+    void Unwatch(QObject* receiver);
 
 signals:
     // Qt 信号（与 Watch 回调并存）
@@ -103,9 +112,12 @@ private:
     struct Watcher {
         int Id;
         std::function<void(const QVariant&)> Callback;
+        QPointer<QObject> Receiver;   // 监控者，用于生命周期绑定（销毁时自动清理，空表示不绑定）
+        bool BoundReceiver = false;    // 是否绑定了 receiver（区分"未绑定"与"已失效"）
     };
     QHash<QString, QList<Watcher>> m_watchers;
     int m_nextWatcherId = 0;
+    QSet<QObject*> m_connectedReceivers;  // 已连接 destroyed 信号的 receiver（去重，避免重复连接）
 };
 
 #define SqzStateIns SqzState::Instance()
