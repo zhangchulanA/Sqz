@@ -6,6 +6,7 @@
 #include <QPointer>
 #include <QPoint>
 #include "SqzGlobal.h"
+namespace Sqz{
 class SQZ_FRAMEWORK_API FramelessAttacher : public QObject
 {
     Q_OBJECT
@@ -30,5 +31,5 @@ private:
     QPoint m_offset;
     bool m_dbClickMax = true;
 };
-
+}
 #endif // FRAMELESSATTACHER_H

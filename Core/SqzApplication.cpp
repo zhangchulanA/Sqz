@@ -69,9 +69,9 @@ bool SqzApplication::LoadConfig()
     // 修复 C4：Windows 记事本保存 UTF-8 会加 BOM（EF BB BF），
     // QJsonDocument::fromJson 对带 BOM 的数据解析失败。读取后剥离 BOM。
     if (rawData.size() >= 3 &&
-        (unsigned char)rawData[0] == 0xEF &&
-        (unsigned char)rawData[1] == 0xBB &&
-        (unsigned char)rawData[2] == 0xBF)
+            (unsigned char)rawData[0] == 0xEF &&
+            (unsigned char)rawData[1] == 0xBB &&
+            (unsigned char)rawData[2] == 0xBF)
     {
         rawData = rawData.mid(3);
         loginfo << "[SqzApp] 检测到 UTF-8 BOM，已自动剥离";
@@ -124,7 +124,7 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
     // 修复 A1：类型校验辅助，字段存在但类型不符时 warn（字段缺失走默认值，不 warn）
     // 返回 true 表示"可安全用默认值读取"
     auto checkType = [&](const QString& section, const QString& key,
-                         const QJsonValue& val, QJsonValue::Type expected) -> bool {
+            const QJsonValue& val, QJsonValue::Type expected) -> bool {
         if (val.type() == QJsonValue::Undefined) return true;   // 缺失，由 toXxx(default) 兜底
         if (val.type() == QJsonValue::Null) {
             logwarn << "[SqzApp] " << section << "." << key << " 为 null，使用默认值";
@@ -228,7 +228,8 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         // A1：View 字段类型校验
         checkType("Views", "ViewType", obj["ViewType"], QJsonValue::String);
         checkType("Views", "ClassName", obj["ClassName"], QJsonValue::String);
-        checkType("Views", "QmlSource", obj["QmlSource"], QJsonValue::String);
+        if(obj["ViewType"].toString() == "SqzQuick")
+            checkType("Views", "QmlSource", obj["QmlSource"], QJsonValue::String);
         checkType("Views", "IsMain", obj["IsMain"], QJsonValue::Bool);
         checkType("Views", "AutoStart", obj["AutoStart"], QJsonValue::Bool);
         checkType("Views", "Props", obj["Props"], QJsonValue::Object);
@@ -580,7 +581,7 @@ void SqzApplication::ApplyProps(QObject *obj, const QVariantMap &props)
         // QVariant::canConvert 不完全可靠，但能挡住明显类型不符（字符串→数字等）
         // 对于用户自定义类型，canConvert 永远 true，所以只 warn 明显错误
         if (!value.canConvert(metaProp.type()) &&
-            metaProp.type() != QVariant::UserType)
+                metaProp.type() != QVariant::UserType)
         {
             logwarn << "[SqzApp] 属性类型不兼容:" << propName
                     << " | 期望:" << QVariant::typeToName(metaProp.type())

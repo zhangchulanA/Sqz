@@ -9,7 +9,7 @@
 #include <QPointer>
 #include <QPainterPath>
 #include "SqzGlobal.h"
-namespace Sqz::Widget
+namespace Sqz
 {
     /**
      * RAII守卫，自动保存&恢复绘图上下文，防止画笔状态污染

@@ -1,6 +1,6 @@
 #include "UiBuilder.h"
 
-namespace Sqz::Widget
+namespace Sqz
 {
     //===== LabelBuilder =====
 

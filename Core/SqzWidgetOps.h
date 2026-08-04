@@ -12,7 +12,7 @@
 #define SQZWIDGETOPS_H
 
 #include <QString>
-#include "SqzHub.h"   // 提供 SqzIn 宏与 SqzHub::Instance()
+#include "SqzClassReg.h"   // 提供 SqzIn 宏与 SqzHub::Instance()
 
 namespace Sqz {
 

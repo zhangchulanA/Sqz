@@ -15,7 +15,7 @@
 #include <Qt>
 #include "SqzGlobal.h"
 
-namespace Sqz::Widget
+namespace Sqz
 {
     /**
      * @brief 通用控件 Builder 模板基类（CRTP 模式）

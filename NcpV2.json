@@ -1,0 +1,4308 @@
+{
+  "protocolName": "NetControlProtocol",
+  "defaults": {
+    "endian": "BigEndian",
+    "bitOrder": "Physical",
+    "type": "UInt"
+  },
+  "enumMaps": {
+    "opCode": {
+      "1": "设置",
+      "2": "应答",
+      "3": "查询",
+      "4": "上报"
+    },
+    "radioPort": {
+      "0": "电台网口1下级VHF",
+      "1": "电台网口2上级VHF",
+      "2": "电台网口3协同UHF",
+      "3": "电台网口4预留"
+    },
+    "responseResult": {
+      "0": "失败",
+      "1": "成功"
+    },
+    "linkType": {
+      "0": "HF",
+      "16": "1V",
+      "17": "2V",
+      "32": "1U",
+      "33": "1U1V",
+      "48": "LHF",
+      "255": "未接入"
+    },
+    "accessMode": {
+      "0": "CSMA",
+      "1": "TDMA",
+      "2": "SIVD"
+    },
+    "netMode": {
+      "0": "CNR",
+      "1": "PRN"
+    },
+    "flowCtrl": {
+      "0": "缓冲区正常",
+      "1": "缓冲区已满"
+    },
+    "deviceType": {
+      "0": "CB6型车载台",
+      "1": "CB6A型车载台",
+      "16": "CB6S型车载台超视距",
+      "32": "超短波通信板卡2V",
+      "33": "多频段通信板卡1VU",
+      "34": "宽带自组网板卡L波段"
+    },
+    "waveform": {
+      "0": "窄带低速波形VHF",
+      "1": "窄带高速波形VHF",
+      "16": "宽带高速波形UHF",
+      "17": "宽带接入波形UHF",
+      "18": "宽带协同链波形UHF",
+      "32": "宽带自组网波形L波段"
+    },
+    "powerLevel": {
+      "0": "值守",
+      "1": "小功率",
+      "2": "中功率预留",
+      "3": "大功率"
+    },
+    "workMode": {
+      "0": "定明",
+      "1": "定密",
+      "2": "跳密"
+    },
+    "mainSlave": {
+      "1": "主机",
+      "2": "1号次主机",
+      "3": "2号次主机",
+      "4": "3号次主机",
+      "5": "4号次主机",
+      "16": "属台"
+    },
+    "chainRole": {
+      "1": "链长",
+      "16": "一般成员"
+    },
+    "syncState": {
+      "0": "未同步",
+      "1": "同步"
+    },
+    "rxTxState": {
+      "0": "值守",
+      "1": "发送",
+      "2": "接收"
+    },
+    "configState": {
+      "1": "正常",
+      "2": "丢失"
+    },
+    "netAccessState": {
+      "0": "未入网",
+      "1": "已入网"
+    }
+  },
+  "fields": [
+    {
+      "name": "Cmd",
+      "startByte": 0,
+      "startBit": 0,
+      "bitLength": 8,
+      "comment": "控制字"
+    },
+    {
+      "name": "Op",
+      "startByte": 1,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "opCode",
+      "comment": "操作字"
+    },
+    {
+      "name": "Len",
+      "startByte": 2,
+      "startBit": 0,
+      "bitLength": 16,
+      "comment": "数据区长度(字节)"
+    },
+    {
+      "name": "F0SetIp0",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F0SetIp1",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F0SetIp2",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F0SetIp3",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F0SetMask0",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F0SetMask1",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F0SetMask2",
+      "startByte": 10,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F0SetMask3",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F0AckResult",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F0ReportIp0",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F0ReportIp1",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F0ReportIp2",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F0ReportIp3",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F0ReportMask0",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F0ReportMask1",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F0ReportMask2",
+      "startByte": 10,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F0ReportMask3",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 240 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1SetIp0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1SetIp1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1SetIp2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1SetIp3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1SetMask0",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1SetMask1",
+      "startByte": 10,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1SetMask2",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1SetMask3",
+      "startByte": 12,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F1AckResult",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F1QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F1ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1ReportIp0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1ReportIp1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1ReportIp2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1ReportIp3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1ReportMask0",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1ReportMask1",
+      "startByte": 10,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1ReportMask2",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F1ReportMask3",
+      "startByte": 12,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 241 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F2SetMode",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "固定链路类型接入",
+        "1": "自动链路类型模式"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F2SetLink0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "linkType",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F2SetLink1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "linkType",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F2SetLink2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "linkType",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F2SetLink3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "linkType",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F2AckResult",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F2ReportMode",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "固定链路类型接入",
+        "1": "自动链路类型模式"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F2ReportLink0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "linkType",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F2ReportLink1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "linkType",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F2ReportLink2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "linkType",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F2ReportLink3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "linkType",
+      "conditions": [
+        { "field": "Cmd", "value": 242 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F8SetSwitch",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "网际交换关",
+        "1": "网际交换开"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 248 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F8AckResult",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 248 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F8ReportSwitch",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "网际交换关",
+        "1": "网际交换开"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 248 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "FaQueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 250 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "FaQuerySubchain",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 250 },
+        { "field": "Op", "value": 3 }
+      ],
+      "comment": "子链编号BCD"
+    },
+    {
+      "name": "FaReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 250 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "FaReportSubchain",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 250 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "FaReportNodeCount",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 250 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "FaReportNodeList",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "FaReportNodeCount",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 250 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F65SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F65SetRouteAnnounce",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F65SetAckWait",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F65SetMaxRequests",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F65SetMaxRetrans",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F65AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F65AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F65QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F65ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F65ReportRouteAnnounce",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F65ReportAckWait",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F65ReportMaxRequests",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F65ReportMaxRetrans",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 101 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F67SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 103 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F67SetIp0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 103 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F67SetIp1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 103 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F67SetIp2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 103 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F67SetIp3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 103 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F67SetForceType",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "强制性退网",
+        "1": "可能性退网"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 103 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F67AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 103 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F67AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 103 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F6eSetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 110 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F6eSetAutoAck",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "应答关",
+        "1": "应答开"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 110 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F6eAckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 110 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F6eAckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 110 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F6eQueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 110 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F6eReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 110 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F6eReportAutoAck",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "应答关",
+        "1": "应答开"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 110 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F50SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 80 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F50SetAccess",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "accessMode",
+      "conditions": [
+        { "field": "Cmd", "value": 80 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F50AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 80 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F50AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 80 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F50QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 80 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F50ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 80 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F50ReportAccess",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "accessMode",
+      "conditions": [
+        { "field": "Cmd", "value": 80 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F51SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F51SetTotalSlots",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F51SetMySlotCount",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F51SetSlotList",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "F51SetMySlotCount",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F51AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F51AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F51QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F51ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F51ReportTotalSlots",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F51ReportMySlotCount",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F51ReportSlotList",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "F51ReportMySlotCount",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 81 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F52SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F52SetMask0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F52SetMask1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F52SetMask2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F52SetMask3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F52AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F52AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F52QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F52ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F52ReportMask0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F52ReportMask1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F52ReportMask2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F52ReportMask3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 82 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F53SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F53SetRate",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F53SetReserved",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F53AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F53AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F53QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F53ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F53ReportRate",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F53ReportReserved",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 83 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F54SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 84 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F54SetNetMode",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "netMode",
+      "conditions": [
+        { "field": "Cmd", "value": 84 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F54AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 84 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F54AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 84 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F54QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 84 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F54ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 84 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F54ReportNetMode",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "netMode",
+      "conditions": [
+        { "field": "Cmd", "value": 84 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F55SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F55SetIp0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F55SetIp1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F55SetIp2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F55SetIp3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F55AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F55AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F55QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F55ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F55ReportIp0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F55ReportIp1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F55ReportIp2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F55ReportIp3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 85 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F57QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F57ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F57ReportFlow",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "flowCtrl",
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F62SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F62SetIp0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F62SetIp1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F62SetIp2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F62SetIp3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F62AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F62AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F62QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F62ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F62ReportIp0",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F62ReportIp1",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F62ReportIp2",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F62ReportIp3",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 98 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F15SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 21 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F15SetWaveform",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "waveform",
+      "conditions": [
+        { "field": "Cmd", "value": 21 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F15AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 21 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F15AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 21 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F15ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 21 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F15ReportWaveform",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "waveform",
+      "conditions": [
+        { "field": "Cmd", "value": 21 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fa1SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 161 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fa1SetPower",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "powerLevel",
+      "conditions": [
+        { "field": "Cmd", "value": 161 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fa1AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 161 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fa1AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 161 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fa1QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 161 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "Fa1ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 161 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fa1ReportPower",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "powerLevel",
+      "conditions": [
+        { "field": "Cmd", "value": 161 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fa2SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 162 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fa2SetWorkMode",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "workMode",
+      "conditions": [
+        { "field": "Cmd", "value": 162 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fa2AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 162 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fa2AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 162 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fa2QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 162 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "Fa2ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 162 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fa2ReportWorkMode",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "workMode",
+      "conditions": [
+        { "field": "Cmd", "value": 162 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc0SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 192 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc0SetChannel",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 192 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetChannelBcd",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetHopParamBcd",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetFixedFreq0",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetFixedFreq1",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetFixedFreq2",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetKeyBcd",
+      "startByte": 10,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetFreqTableBcd",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetNetId",
+      "startByte": 12,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetMasterSlave",
+      "startByte": 13,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "属台",
+        "1": "主台"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetBkFreq0",
+      "startByte": 14,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetBkFreq1",
+      "startByte": 15,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetBkFreq2",
+      "startByte": 16,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetNodeId",
+      "startByte": 17,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1SetUpperNetId",
+      "startByte": 18,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fc1AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fc1AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fc1ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportChannelBcd",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportHopParamBcd",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportFixedFreq0",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportFixedFreq1",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportFixedFreq2",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportKeyBcd",
+      "startByte": 10,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportFreqTableBcd",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportNetId",
+      "startByte": 12,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportMasterSlave",
+      "startByte": 13,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "属台",
+        "1": "主台"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportBkFreq0",
+      "startByte": 14,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportBkFreq1",
+      "startByte": 15,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportBkFreq2",
+      "startByte": 16,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportNodeId",
+      "startByte": 17,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fc1ReportUpperNetId",
+      "startByte": 18,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 193 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fd4SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 212 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fd4AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 212 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fd4AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 212 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fe0SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "网口0",
+        "1": "网口1",
+        "2": "网口2",
+        "3": "网口3"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 224 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe0SetMainSlave",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "mainSlave",
+      "conditions": [
+        { "field": "Cmd", "value": 224 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe0AckResult",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 224 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fe0QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "网口0",
+        "1": "网口1",
+        "2": "网口2",
+        "3": "网口3"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 224 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "Fe0ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "网口0",
+        "1": "网口1",
+        "2": "网口2",
+        "3": "网口3"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 224 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe0ReportMainSlave",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "mainSlave",
+      "conditions": [
+        { "field": "Cmd", "value": 224 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe1SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 225 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe1SetChainType",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 225 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe1SetRole",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "chainRole",
+      "conditions": [
+        { "field": "Cmd", "value": 225 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe1AckResult",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 225 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fe1QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 225 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "Fe1ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 225 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe1ReportChainType",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 225 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe1ReportRole",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "chainRole",
+      "conditions": [
+        { "field": "Cmd", "value": 225 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe2SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe2SetChannelBcd",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe2SetKeyBcd",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe2SetHopTableBcd",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe2SetInitNetId",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe2SetBkFreq0",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe2SetBkFreq1",
+      "startByte": 10,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe2SetBkFreq2",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "Fe2AckResult",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "Fe2QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "Fe2ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe2ReportChannelBcd",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe2ReportKeyBcd",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe2ReportHopTableBcd",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe2ReportInitNetId",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe2ReportBkFreq0",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe2ReportBkFreq1",
+      "startByte": 10,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe2ReportBkFreq2",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 226 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe4ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 228 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe4ReportNodeState",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 228 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe5ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 229 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe5ReportMasterState",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "正常",
+        "1": "主机不在线",
+        "2": "多主机冲突"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 229 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe5ReportChainHeadState",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链长在线",
+        "1": "链长不在线",
+        "2": "多链长冲突"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 229 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe6QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 230 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "Fe6ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 230 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe6ReportSyncState",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "syncState",
+      "conditions": [
+        { "field": "Cmd", "value": 230 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe7QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 231 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "Fe7ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 231 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Fe7ReportPayloadSize",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "256byte",
+        "1": "512byte",
+        "2": "1024byte"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 231 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F5eReportRadio1",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "未接入",
+        "1": "正常接入",
+        "2": "接入异常"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 94 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F5eReportRadio2",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "未接入",
+        "1": "正常接入",
+        "2": "接入异常"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 94 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F5eReportRadio3",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "未接入",
+        "1": "正常接入",
+        "2": "接入异常"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 94 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F5eReportRadio4",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "未接入",
+        "1": "正常接入",
+        "2": "接入异常"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 94 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff5ReportSwFpga",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 56,
+      "type": "String",
+      "conditions": [
+        { "field": "Cmd", "value": 245 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff5ReportEfs1Arm",
+      "startByte": 11,
+      "startBit": 0,
+      "bitLength": 56,
+      "type": "String",
+      "conditions": [
+        { "field": "Cmd", "value": 245 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff5ReportBbuFpga",
+      "startByte": 18,
+      "startBit": 0,
+      "bitLength": 56,
+      "type": "String",
+      "conditions": [
+        { "field": "Cmd", "value": 245 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff5ReportNetApp",
+      "startByte": 25,
+      "startBit": 0,
+      "bitLength": 56,
+      "type": "String",
+      "conditions": [
+        { "field": "Cmd", "value": 245 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff5ReportNsw",
+      "startByte": 32,
+      "startBit": 0,
+      "bitLength": 48,
+      "type": "String",
+      "conditions": [
+        { "field": "Cmd", "value": 245 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff6QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 246 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "Ff6ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 246 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff6ReportSignalStrength",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 246 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff6ReportSyncStatus",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "syncState",
+      "conditions": [
+        { "field": "Cmd", "value": 246 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff6ReportRxTxStatus",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "rxTxState",
+      "conditions": [
+        { "field": "Cmd", "value": 246 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff6ReportConfigStatus",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "configState",
+      "conditions": [
+        { "field": "Cmd", "value": 246 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "Ff6ReportNetAccess",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "netAccessState",
+      "conditions": [
+        { "field": "Cmd", "value": 246 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F66SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 102 },
+        { "field": "Op", "value": 1 }
+      ],
+      "comment": "主动退网：电台网口编号"
+    },
+    {
+      "name": "F66AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 102 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F66AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 102 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F70SetPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 112 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "F70SetMode",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "1": "手动分配",
+        "2": "轮询分配",
+        "3": "自动分配"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 112 },
+        { "field": "Op", "value": 1 }
+      ],
+      "comment": "时隙配置模式"
+    },
+    {
+      "name": "F70AckPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 112 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F70AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 112 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "F70QueryPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 112 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "F70ReportPort",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "radioPort",
+      "conditions": [
+        { "field": "Cmd", "value": 112 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "F70ReportMode",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "1": "手动分配",
+        "2": "轮询分配",
+        "3": "自动分配"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 112 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+         "name": "Fe3SetPort",
+         "startByte": 4,
+         "startBit": 0,
+         "bitLength": 8,
+         "enumMap": "radioPort",
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 1 }
+         ]
+       },
+       {
+         "name": "Fe3SetChannelBcd",
+         "startByte": 5,
+         "startBit": 0,
+         "bitLength": 8,
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 1 }
+         ],
+         "comment": "信道号(BCD)"
+       },
+       {
+         "name": "Fe3SetFreqLen",
+         "startByte": 6,
+         "startBit": 0,
+         "bitLength": 16,
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 1 }
+         ],
+         "comment": "频率表长度(固定88)"
+       },
+       {
+         "name": "Fe3SetFreqTable",
+         "startByte": 8,
+         "startBit": 0,
+         "bitLength": 0,
+         "lenField": "Fe3SetFreqLen",
+         "type": "RawBytes",
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 1 }
+         ],
+         "comment": "22条链路频率，每条4字节BCD，共88字节"
+       },
+       {
+         "name": "Fe3AckResult",
+         "startByte": 4,
+         "startBit": 0,
+         "bitLength": 8,
+         "enumMap": "responseResult",
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 2 }
+         ]
+       },
+       {
+         "name": "Fe3QueryPort",
+         "startByte": 4,
+         "startBit": 0,
+         "bitLength": 8,
+         "enumMap": "radioPort",
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 3 }
+         ]
+       },
+       {
+         "name": "Fe3ReportPort",
+         "startByte": 4,
+         "startBit": 0,
+         "bitLength": 8,
+         "enumMap": "radioPort",
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 4 }
+         ]
+       },
+       {
+         "name": "Fe3ReportChannelBcd",
+         "startByte": 5,
+         "startBit": 0,
+         "bitLength": 8,
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 4 }
+         ]
+       },
+       {
+         "name": "Fe3ReportFreqLen",
+         "startByte": 6,
+         "startBit": 0,
+         "bitLength": 16,
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 4 }
+         ],
+         "comment": "频率表长度(固定88)"
+       },
+       {
+         "name": "Fe3ReportFreqTable",
+         "startByte": 8,
+         "startBit": 0,
+         "bitLength": 0,
+         "lenField": "Fe3ReportFreqLen",
+         "type": "RawBytes",
+         "conditions": [
+           { "field": "Cmd", "value": 227 },
+           { "field": "Op", "value": 4 }
+         ],
+         "comment": "22条链路频率，每条4字节BCD，共88字节"
+       },
+    {
+      "name": "H05SetType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H05SetLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H05SetAction",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "1": "开始",
+        "2": "结束"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H05SetTotalLenH",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 1 }
+      ],
+      "comment": "写入数据总字节数高字节"
+    },
+    {
+      "name": "H05SetTotalLenL",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 1 }
+      ],
+      "comment": "写入数据总字节数低字节"
+    },
+    {
+      "name": "H05AckType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "H05AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "H05QueryType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "H05QueryLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "H05ReportType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H05ReportLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H05ReportAction",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "1": "开始",
+        "2": "结束"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H05ReportTotalLenH",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H05ReportTotalLenL",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 5 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H11QueryType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 17 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "H11ReportType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 17 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H11ReportPacketH",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 17 },
+        { "field": "Op", "value": 4 }
+      ],
+      "comment": "包号高字节"
+    },
+    {
+      "name": "H11ReportPacketL",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 17 },
+        { "field": "Op", "value": 4 }
+      ],
+      "comment": "包号低字节"
+    },
+    {
+      "name": "H11ReportLogData",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "Len",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 17 },
+        { "field": "Op", "value": 4 }
+      ],
+      "comment": "日志数据块，每条12字节(年2+月+日+时+分+秒+故障信息3)，用Len控制总长度"
+    },
+    {
+      "name": "H12SetType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H12SetLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H12SetInterval",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 1 }
+      ],
+      "comment": "上报间隔(秒)，0=不上报，1~10=1~10秒"
+    },
+    {
+      "name": "H12AckType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "H12AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "H12QueryType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "H12QueryLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "H12ReportType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H12ReportLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H12ReportInterval",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 18 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H13SetType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H13SetLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H13SetStrategy",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "关闭复位",
+        "1": "全局复位",
+        "2": "局部复位"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H13AckType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "H13AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "H13QueryType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "H13QueryLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "H13ReportType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H13ReportLink",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "链路1",
+        "1": "链路2"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H13ReportStrategy",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "关闭复位",
+        "1": "全局复位",
+        "2": "局部复位"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 19 },
+        { "field": "Op", "value": 4 }
+      ]
+    },
+    {
+      "name": "H16SetType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H16SetSlot",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 1 }
+      ],
+      "comment": "待设置槽位码(0~15)"
+    },
+    {
+      "name": "H16SetIp0",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H16SetIp1",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H16SetIp2",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H16SetIp3",
+      "startByte": 9,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 1 }
+      ]
+    },
+    {
+      "name": "H16AckType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "H16AckResult",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": "responseResult",
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 2 }
+      ]
+    },
+    {
+      "name": "H16QueryType",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "enumMap": {
+        "0": "上下级网",
+        "2": "UHF"
+      },
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 3 }
+      ]
+    },
+    {
+      "name": "H16ReportSlotTable",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "Len",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 22 },
+        { "field": "Op", "value": 4 }
+      ],
+      "comment": "槽位IP表，每组5字节(槽位码1+IP4+掩码4?) 实际文档为: 槽位码1+IP4+掩码4 = 9字节/组"
+    },
+    {
+      "name": "F56SendDst0",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ],
+      "comment": "目的节点IP第1字节"
+    },
+    {
+      "name": "F56SendDst1",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F56SendDst2",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F56SendDst3",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F56SendData",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "Len",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ],
+      "comment": "VHF数据负载，长度由Len-4决定"
+    },
+    {
+      "name": "F56RecvSrc0",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 },
+        { "field": "F56SendDst0", "value": null }
+      ],
+      "comment": "接收:源节点IP第1字节(通过条件区分发送/接收)"
+    },
+    {
+      "name": "F56RecvSrc1",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F56RecvSrc2",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F56RecvSrc3",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F56RecvData",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "Len",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 86 },
+        { "field": "Op", "value": 0 }
+      ],
+      "comment": "VHF接收数据"
+    },
+    {
+      "name": "F57SendDst0",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ],
+      "comment": "广播目标(255.255.255.x)"
+    },
+    {
+      "name": "F57SendDst1",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F57SendDst2",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F57SendDst3",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ],
+      "comment": "子链号(1~21)或0xFF表示所有在线任务链"
+    },
+    {
+      "name": "F57SendData",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "Len",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F57RecvSrc0",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ],
+      "comment": "接收:源节点IP"
+    },
+    {
+      "name": "F57RecvSrc1",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F57RecvSrc2",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F57RecvSrc3",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F57RecvData",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "Len",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 87 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F59SendDst0",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ],
+      "comment": "目的节点IP(如192.168.1.10)"
+    },
+    {
+      "name": "F59SendDst1",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F59SendDst2",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F59SendDst3",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F59SendData",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "Len",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F59RecvSrc0",
+      "startByte": 4,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ],
+      "comment": "接收:源节点IP"
+    },
+    {
+      "name": "F59RecvSrc1",
+      "startByte": 5,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F59RecvSrc2",
+      "startByte": 6,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F59RecvSrc3",
+      "startByte": 7,
+      "startBit": 0,
+      "bitLength": 8,
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ]
+    },
+    {
+      "name": "F59RecvData",
+      "startByte": 8,
+      "startBit": 0,
+      "bitLength": 0,
+      "lenField": "Len",
+      "type": "RawBytes",
+      "conditions": [
+        { "field": "Cmd", "value": 89 },
+        { "field": "Op", "value": 0 }
+      ]
+    }
+  ]
+}

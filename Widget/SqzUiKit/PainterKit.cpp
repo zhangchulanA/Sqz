@@ -1,6 +1,6 @@
 #include "PainterKit.h"
 
-namespace Sqz::Widget
+namespace Sqz
 {
     // 构造：保存绘图上下文
     PainterGuard::PainterGuard(QPainter* painter)

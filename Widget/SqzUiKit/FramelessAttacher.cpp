@@ -1,7 +1,7 @@
 #include "FramelessAttacher.h"
 #include <QEvent>
 #include <QMouseEvent>
-
+namespace Sqz{
 FramelessAttacher::FramelessAttacher(QWidget* win)
     : QObject(win), m_win(win)
 {
@@ -67,4 +67,5 @@ bool FramelessAttacher::eventFilter(QObject* obj, QEvent* event)
     }
 
     return false;
+}
 }
