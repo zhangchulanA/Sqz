@@ -5,10 +5,6 @@
 #include <functional>
 #include <QVariantList>
 #include <QWidget>
-#include <QStringList>
-#include <QCoreApplication>
-#include <QReadWriteLock>   // GetFactoryLock() 返回 QReadWriteLock&（显式包含，避免依赖间接包含）
-#include <QReadLocker>      // 供本头内联函数及 .cpp 使用，显式可见
 #include <QWriteLocker>     // 同上
 #include <type_traits>
 #include <QQmlApplicationEngine>
@@ -18,9 +14,6 @@
 #include "SqzGlobal.h"
 
 namespace Sqz {
-// 辅助宏：拼接模块前缀和类名
-//#define MAKE_FULL_NAME(Cls) \
-//    (QString(SQZ_Prefix).isEmpty() ? QString(#Cls) : QString(SQZ_Prefix) + "::" + #Cls)
 
 //全局读写锁（线程安全，避免静态初始化顺序问题
 inline QReadWriteLock& GetFactoryLock()
@@ -35,7 +28,7 @@ struct SQZ_FRAMEWORK_API ClassMeta
     std::function<void*()> creator;                   // 创建函数
     std::function<void(void* ptr)> deleter;            // 延迟销毁（deleteLater），用于 CloseObjLater
     std::function<void(void* ptr)> immediateDeleter;  // 立即销毁（delete），用于 CloseObj/CloseAll/~SqzHub
-    bool isQObject = false;                            // 是否为 QObject 派生类
+    bool isQObject = true;                            // 是否为 QObject 派生类
 };
 
 //带参构造函数类型：接收 QVariantList 参数
@@ -75,8 +68,7 @@ public:
         return factoryInstance;
     }
 
-    // ========== 注册接口 ==========
-
+// =============================== 注册接口 =====================================
     //注册无参构造类
     void RegisterNoArg(const QString& ClassName,
                        std::function<void*()> Creator,
@@ -95,27 +87,24 @@ public:
                             std::function<void*()> Creator,
                             std::function<void(void*)> Deleter = nullptr);
 
-    // ========== 核心创建 ==========
+// =============================== 核心创建 ===================================
 
     //创建/获取 QWidget 单例（主线程）
-    QWidget* CreateWidget(const QString& ClassName);
+    QWidget* CreateWidget(const QString& ClassName,const QVariantMap& props = {});
 
     //创建/获取 QObject 单例
-    QObject* CreateObject(const QString& ClassName);
-
-    //创建/获取普通 C++ 对象单例（非 QObject）
-    void* CreateRawObj(const QString& ClassName);
+    QObject* CreateObject(const QString& ClassName,const QVariantMap& props = {});
 
     //创建/获取 QML Quick 窗口单例（主线程）
-    QObject* CreateQuick(const QString& ClassName,const QString& qmlpath = "");
+    QObject* CreateQuick(const QString& ClassName,const QString& qmlpath = "",const QVariantMap& props = {});
 
     //带参创建/获取 QWidget 单例
-    QWidget* CreateWidgetWithArg(const QString& ClassName, const QVariantList& args);
+    QWidget* CreateWidgetWithArg(const QString& ClassName, const QVariantList& args,const QVariantMap& props = {});
 
     //带参创建/获取 QObject 单例
-    QObject* CreateObjectWithArg(const QString& ClassName, const QVariantList& args);
+    QObject* CreateObjectWithArg(const QString& ClassName, const QVariantList& args,const QVariantMap& props = {});
 
-    // ========== 生命周期管理 ==========
+// ================================= 生命周期管理 =================================
 
     //判断单例是否已存在
     bool IsExist(const QString& ClassName);
@@ -138,7 +127,7 @@ public:
     //安全释放裸指针（静态）
     static void SafeDelete(void* Ptr, bool isQObject = false, bool immediate = false);
 
-    // ========== Widget 窗口操作 ==========
+// ============================= Widget 窗口操作 ====================================
 
     //隐藏 Widget 窗口
     void HideWidget(const QString& ClassName);
@@ -167,7 +156,7 @@ public:
     //隐藏所有 Widget 窗口
     void HideAllWidget();
 
-    // ========== Quick 窗口操作 ==========
+// ============================= Quick 窗口操作 =============================
 
     //隐藏 Quick 窗口
     void HideQuick(const QString& ClassName);
@@ -193,7 +182,7 @@ public:
     //获取 Quick 窗口的 QQuickWindow 指针
     QQuickWindow* GetQuickPtr(const QString& ClassName);
 
-    // ========== 工具 ==========
+// ============================== 工具 =================================
 
     //检查类是否已注册
     bool IsClassReg(const QString& ClassName);
@@ -213,19 +202,20 @@ public:
     //打印所有已注册类名（调试）
     void PrintRegClass();
 
-    // ========== 批量操作 ==========
+// ========================= 批量操作 =========================
 
     //销毁所有单例
     void CloseAll();
-
-    //清空注册表（慎用）
-    void ClearReg();
 
     //创建带参临时 QObject
     QObject* CreateObjectByArg(const QString& ClassName, const QVariantList& Args);
 
     //获取 QML 引擎指针
     QQmlApplicationEngine* qmlEngine();
+
+protected:
+    //清空注册表（慎用）
+    void ClearReg();
 
 private:
     explicit SqzHub(QObject *parent = nullptr);
@@ -235,7 +225,10 @@ private:
     //内部创建核心函数
     void* createInternal(const QString& ClassName,
                          std::function<bool(void*)> validator,
-                         bool isWidget);
+                         bool isWidget,const QVariantMap& props = {});
+
+    //辅助函数 给对象应用属性
+    static void ApplyPropsToObject(QObject* obj,const QVariantMap& props);
 
     //获取 Quick 对象指针（内部）
     QObject* GetQuickObject(const QString& ClassName);
@@ -243,9 +236,6 @@ private:
     //获取类的元数据
     ClassMeta getMetaForClass(const QString& fullname);
 
-    // 批量销毁池中所有对象的公共实现（修复 Bug #17：~SqzHub 与 CloseAll 逻辑重复）
-    // immediate=true 用于析构/退出阶段（事件循环可能已停，必须用 immediateDeleter 同步销毁）
-    // 该方法负责：取快照→释放锁→回调 onClose→调用 immediateDeleter，避免持锁回调引发死锁
     void destroyAllObjects();
 
     std::unique_ptr<QQmlApplicationEngine> m_qmlEngine;  //   QML 引擎
@@ -258,6 +248,7 @@ private:
     QHash<QString, QString>        m_quickQmlPath;   //   Quick 视图 QML 源路径缓存（供 ResetObj 重建使用）
 };
 
+#if A
 // ---------- 自动注册宏（支持模块前缀） ----------
 #ifdef _MSC_VER
 #define FORCE_LINK_THIS(x) __pragma(comment(linker, "/include:" #x))
@@ -266,39 +257,39 @@ private:
 #endif
 
 //注册无参 Widget 类
-//#define SQZOBJECT_NOARG(Cls) \
-//    static void _auto_reg_##Cls() \
-//{ \
-//    constexpr bool isQObj = std::is_base_of<QObject, Cls>::value; \
-//    SqzHub::Instance().RegisterNoArg(MAKE_FULL_NAME(Cls), \
-//    []()->void*{ return new Cls(); }, \
-//    [](void* ptr){ delete static_cast<Cls*>(ptr); }, \
-//    isQObj \
-//    ); \
-//    } \
-//    FORCE_LINK_THIS(_reg_flag_##Cls) static bool _reg_flag_##Cls = (_auto_reg_##Cls(), true);
+#define SQZOBJECT_NOARG(Cls) \
+    static void _auto_reg_##Cls() \
+{ \
+    constexpr bool isQObj = std::is_base_of<QObject, Cls>::value; \
+    SqzHub::Instance().RegisterNoArg(MAKE_FULL_NAME(Cls), \
+    []()->void*{ return new Cls(); }, \
+    [](void* ptr){ delete static_cast<Cls*>(ptr); }, \
+    isQObj \
+    ); \
+    } \
+    FORCE_LINK_THIS(_reg_flag_##Cls) static bool _reg_flag_##Cls = (_auto_reg_##Cls(), true);
 
-////注册无参 Quick 类
-//#define SQZQUICK_NOARG(Class) \
-//    static void _auto_reg_qml_##Class() { \
-//    SqzHub::Instance().RegisterQuickClass(MAKE_FULL_NAME(Class), \
-//    []()->void*{ return new Class(); }, \
-//    [](void* ptr){ delete static_cast<Class*>(ptr); } \
-//    ); \
-//    } \
-//    FORCE_LINK_THIS(_reg_qml_flag_##Class) \
-//    static bool _reg_qml_flag_##Class = (_auto_reg_qml_##Class(), true);
+ //注册无参 Quick 类
+#define SQZQUICK_NOARG(Class) \
+    static void _auto_reg_qml_##Class() { \
+    SqzHub::Instance().RegisterQuickClass(MAKE_FULL_NAME(Class), \
+    []()->void*{ return new Class(); }, \
+    [](void* ptr){ delete static_cast<Class*>(ptr); } \
+    ); \
+    } \
+    FORCE_LINK_THIS(_reg_qml_flag_##Class) \
+    static bool _reg_qml_flag_##Class = (_auto_reg_qml_##Class(), true);
 
-////注册带参类（接收 QVariantList）
-//#define SQZOBJECT_ARG(Cls) \
-//    static void _auto_reg_arg_##Cls() \
-//{ \
-//    SqzHub::Instance().RegisterWithArg(MAKE_FULL_NAME(Cls), [](const QVariantList& Args)->void*{ \
-//    return new Cls(Args); \
-//    }); \
-//    } \
-//    FORCE_LINK_THIS(_reg_flag_arg_##Cls) static bool _reg_flag_arg_##Cls = (_auto_reg_arg_##Cls(), true);
-
+ //注册带参类（接收 QVariantList）
+#define SQZOBJECT_ARG(Cls) \
+    static void _auto_reg_arg_##Cls() \
+{ \
+    SqzHub::Instance().RegisterWithArg(MAKE_FULL_NAME(Cls), [](const QVariantList& Args)->void*{ \
+    return new Cls(Args); \
+    }); \
+    } \
+    FORCE_LINK_THIS(_reg_flag_arg_##Cls) static bool _reg_flag_arg_##Cls = (_auto_reg_arg_##Cls(), true);
+#endif
 
 }
 #endif // SqzHub_H

@@ -23,7 +23,7 @@ CONFIG(debug,debug|release){
     #release 专属配置
     DEFINES += RELEASE_MODE
     TEMPLATE = lib
-    CONFIG += staticlib
+    CONFIG += shared
     TARGET = Sqz
     DESTDIR = $$PWD/SqzLib
     message("Release模式：生成库文件,在当前目录SqzLib文件夹下")
@@ -68,11 +68,13 @@ include(Net/Net.pri)
 include(Protocol/Protocol.pri)
 
 SOURCES += \
+    DataReceivedService.cpp \
     SqzQuickTest.cpp \
     SqzTest.cpp \
     main.cpp
 
 HEADERS += \
+    DataReceivedService.h \
     SqzQuickTest.h \
     SqzTest.h
 

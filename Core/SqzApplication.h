@@ -28,7 +28,7 @@ struct SQZ_FRAMEWORK_API AppConfig
     QString Version;
     QString ThreadPrefix;
     int ExitDelayMs = 500;
-    bool StrictVersion = false;   // A7：版本不匹配时是否 fail-fast（true=中止启动，false=仅 warn）
+    bool StrictVersion = false;   //版本不匹配时是否 fail-fast（true=中止启动，false=仅 warn）
 
     // 后台服务条目
     struct SQZ_FRAMEWORK_API ServiceItem
@@ -36,7 +36,7 @@ struct SQZ_FRAMEWORK_API AppConfig
         QString ClassName;
         bool AutoStart;
         int StartOrder;
-        bool Critical = false;   // D2：关键服务标志，创建失败时中止 Init
+        bool Critical = false;   //关键服务标志，创建失败时中止 Init
         QVariantList Args;
         QVariantMap Props;
     };
@@ -50,6 +50,7 @@ struct SQZ_FRAMEWORK_API AppConfig
         QString QmlSource;
         bool IsMain;
         bool AutoStart;
+        QVariantList Args;
         QVariantMap Props;
     };
     QList<ViewItem> ViewList;
@@ -138,7 +139,7 @@ private:
     // 批量把全局注册类灌入SqzHub工厂
     void BatchRegisterClass();
 
-    // 给QObject批量反射赋值属性
+    // 给QObject批量反射赋值属性 //暂时无用
     void ApplyProps(QObject *obj, const QVariantMap &props);
 
     // 创建全部后台服务
@@ -163,6 +164,8 @@ private:
     bool m_ConfigValid = false;
     bool m_InitComplete = false;
     bool m_InitFailed = false;   // D1：主窗口创建失败标志，Init 中检查后返回 false 中止启动
+
+    QHash<QString,QVariantMap> m_PropsCache;
 
     static SqzApplication* m_s_instance;
 };

@@ -13,7 +13,7 @@
 
 #include <QString>
 #include "SqzClassReg.h"   // 提供 SqzIn 宏与 SqzHub::Instance()
-
+#include "SqzApplication.h"
 namespace Sqz {
 
 /**
@@ -28,58 +28,59 @@ struct SqzWidgetOps
 {
     // ---------- 通用单例操作 ----------
 
-    /// 打开视图（不存在则创建，存在则激活）
-    static void OpenView(const QString& className)        { SqzIn.CreateWidget(className); }
+    // 打开视图（不存在则创建，存在则激活）
+    static void OpenView(const QString& className)        { SqzApp->OpenView(className); }
 
-    /// 关闭视图（立即销毁）
-    static void CloseView(const QString& className)        { SqzIn.CloseObj(className); }
+    // 关闭视图（立即销毁）
+    static void CloseView(const QString& className)        { SqzApp->CloseView(className); }
 
-    /// 延迟关闭视图（下一事件循环安全销毁）
-    static void CloseViewLater(const QString& className)  { SqzIn.CloseObjLater(className); }
+    // 延迟关闭视图（下一事件循环安全销毁）
+    static void CloseViewLater(const QString& className)  { SqzApp->CloseViewLater(className); }
 
-    /// 重启视图（关闭后重新打开）
-    static void RestartView(const QString& className)     { SqzIn.ResetObj(className); }
+    // 重启视图（关闭后重新打开）
+    static void RestartView(const QString& className)     { SqzApp->RestartView(className); }
 
-    /// 检查视图是否存在
-    static bool HasView(const QString& className)         { return SqzIn.IsExist(className); }
+    // 检查视图是否存在
+    static bool HasView(const QString& className)         { return SqzApp->HasView(className); }
 
     // ---------- 视图显隐/位置操作 ----------
 
-    /// 隐藏视图（不销毁）
-    static void HideView(const QString& className)         { SqzIn.HideWidget(className); }
+    // 隐藏视图（不销毁）
+    static void HideView(const QString& className)         { SqzApp->HideView(className); }
 
-    /// 显示视图（并提升到最前）
-    static void ShowView(const QString& className)         { SqzIn.ShowWidget(className); }
+    // 显示视图（并提升到最前）
+    static void ShowView(const QString& className)         { SqzApp->ShowView(className); }
 
-    /// 切换视图显隐状态
-    static void ToggleView(const QString& className)       { SqzIn.ToggleWidget(className); }
+    // 切换视图显隐状态
+    static void ToggleView(const QString& className)       { SqzApp->ToggleView(className); }
 
-    /// 视图是否可见
-    static bool IsViewVisible(const QString& className)   { return SqzIn.IsWidgetVisible(className); }
+    // 视图是否可见
+    static bool IsViewVisible(const QString& className)   { return SqzApp->IsViewVisible(className); }
 
-    /// 设置视图置顶
-    static void SetViewTopMost(const QString& className, bool topMost) { SqzIn.SetWidgetTop(className, topMost); }
+    // 设置视图置顶
+    static void SetViewTopMost(const QString& className, bool topMost) { SqzApp->SetViewTopMost(className, topMost); }
 
-    /// 调整视图大小
-    static void ResizeView(const QString& className, int w, int h)   { SqzIn.SetWidgetSize(className, w, h); }
+    // 调整视图大小
+    static void ResizeView(const QString& className, int w, int h)   { SqzApp->ResizeView(className, w, h); }
 
-    /// 移动视图位置
-    static void MoveView(const QString& className, int x, int y)     { SqzIn.SetWidgetPos(className, x, y); }
+    // 移动视图位置
+    static void MoveView(const QString& className, int x, int y)     { SqzApp->MoveView(className, x, y); }
 
     // ---------- 自身快捷操作 ----------
     // callerName 由派生类的 className() 纯虚函数提供
 
-    /// 打开自身
+    // 打开自身
     static void OpenThis(const QString& callerName)   { OpenView(callerName); }
 
-    /// 关闭自身
+    // 关闭自身
     static void CloseThis(const QString& callerName) { CloseView(callerName); }
 
-    /// 隐藏自身
+    // 隐藏自身
     static void HideThis(const QString& callerName)  { HideView(callerName); }
 
-    /// 显示自身
+    // 显示自身
     static void ShowThis(const QString& callerName)  { ShowView(callerName); }
+
 };
 
 } // namespace Sqz

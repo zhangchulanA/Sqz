@@ -11,8 +11,7 @@
  */
 #include <QObject>
 #include <QMetaObject>
-#include "SqzHub.h"
-#include "SqzGlobal.h"
+#include "SqzClassReg.h"
 
 namespace Sqz {
 class SQZ_FRAMEWORK_API SqzService : public QObject

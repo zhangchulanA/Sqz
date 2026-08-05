@@ -1,11 +1,11 @@
 #include "SqzHub.h"
-#include <QReadLocker>    // 显式包含（修复：原依赖间接包含，跨平台/版本不健壮）
 #include <QWriteLocker>   // 显式包含
 #include <QThread>
+#include <QCoreApplication>
 #include <QTimer>
-#include "SqzWidget.h"
 #include "SqzService.h"
 #include "SqzQuick.h"
+#include "SqzWidget.h"
 #include "SqzMainWindow.h"
 namespace Sqz {
 thread_local QString SqzHub::t_prefix;
@@ -19,7 +19,6 @@ SqzHub::SqzHub(QObject *parent) : QObject(parent)
 SqzHub::~SqzHub()
 {
     // 析构阶段事件循环已停止，统一调用 destroyAllObjects() 立即同步销毁所有单例
-    // （修复 Bug #17：原与 CloseAll 逻辑重复，现共用同一销毁路径）
     destroyAllObjects();
 }
 
@@ -34,17 +33,6 @@ ClassMeta SqzHub::getMetaForClass(const QString &fullname)
     return ClassMeta{};
 }
 
-/**
- * @brief 批量销毁池中所有对象的公共实现。
- *
- * 修复 Bug #17：原 ~SqzHub 与 CloseAll 包含完全相同的「取快照→回调 onClose→销毁」逻辑，
- * 维护时极易遗漏一处导致行为不一致。提取为公共方法后，两处入口共享同一销毁路径。
- *
- * 实现要点（亦顺带消除潜在死锁）：
- *   1. 持写锁仅做「快照指针+元数据 并清空池」，随后立即释放锁；
- *   2. onClose() 回调与 immediateDeleter 均在锁外执行——回调可能再次进入 SqzHub
- *      （如服务析构触发 CloseObj），持锁回调会与默认非递归的 QReadWriteLock 形成死锁。
- */
 void SqzHub::destroyAllObjects()
 {
     QList<void*> deleteList;
@@ -76,7 +64,7 @@ void SqzHub::destroyAllObjects()
     }
 }
 
-void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void *)> validator, bool isWidget)
+void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void *)> validator, bool isWidget, const QVariantMap &props)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
 
@@ -94,7 +82,9 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
             if (isWidget) {
                 QWidget* w = static_cast<QWidget*>(existing);
                 w->show(); w->raise(); w->activateWindow();
+                ApplyPropsToObject(w,props);
             }
+
             return existing;
         }
     }
@@ -136,6 +126,7 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
             if (isWidget) {
                 QWidget* w = static_cast<QWidget*>(existing);
                 w->show(); w->raise(); w->activateWindow();
+                ApplyPropsToObject(w,props);
             }
             return existing;
         }
@@ -143,7 +134,7 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
         m_singlePool[fullname] = raw;
     }
 
-
+    ApplyPropsToObject(static_cast<QWidget*>(raw),props);
     if (meta.isQObject) {
         // 7. 对于 QObject，连接 destroyed 信号自动从池移除
         QObject* obj = static_cast<QObject*>(raw);
@@ -154,13 +145,13 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
                 m_singlePool.remove(fullname);
         });
 
-        // 9.新增：调用 onInit
+        // 8.新增：调用 onInit
         if (auto* view = qobject_cast<SqzWidget*>(obj))
             view->onInit();
         else if (auto* svc = qobject_cast<SqzService*>(obj))
             svc->onInit();
-        else if (auto* mainWin = qobject_cast<SqzMainWindow*>(obj))
-            mainWin->onInit();
+        //        else if (auto* mainWin = qobject_cast<SqzMainWindow*>(obj))
+        //            mainWin->onInit();
 
     }
     // 9. 若是窗口，显示并置前
@@ -172,6 +163,25 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
     return raw;
 }
 
+void SqzHub::ApplyPropsToObject(QObject *obj, const QVariantMap &props)
+{
+    if(!obj || props.isEmpty()) return;
+    const QMetaObject* meta = obj->metaObject();
+    for(auto it = props.begin();it != props.end();it++){
+        const QString& propName = it.key();
+        const QVariant& value = it.value();
+        logdebug << propName.toUtf8().constData() <<value;
+        // 修复 B1：检查属性是否存在（typo 时 setProperty 返回 false 但不报错，难排查）
+        int propIdx = meta->indexOfProperty(propName.toUtf8().constData());
+        if (propIdx < 0)
+        {
+            logwarn << "[SqzApp] 属性不存在,作为动态属性设置" << propName
+                    << " | 对象类:" << meta->className();
+        obj->setProperty(propName.toUtf8().constData(), value);
+            continue;
+        }
+    }
+}
 
 void SqzHub::SetThreadPrefix(const QString &prefix)
 {
@@ -186,9 +196,9 @@ QString SqzHub::ThreadPrefix()
 QString SqzHub::maybeAddThreadPrefix(const QString &className)
 {
     QString prefix = SqzHub::ThreadPrefix();
-        if (prefix.isEmpty() || className.contains("::"))
-            return className;
-        return prefix + "::" + className;
+    if (prefix.isEmpty() || className.contains("::"))
+        return className;
+    return prefix + "::" + className;
 }
 
 // 注册无参类
@@ -277,30 +287,23 @@ void SqzHub::RegisterQuickClass(const QString &ClassName, std::function<void *()
 }
 
 // 创建窗口单例（主线程专用）
-QWidget* SqzHub::CreateWidget(const QString& ClassName)
+QWidget* SqzHub::CreateWidget(const QString& ClassName, const QVariantMap &props)
 {
     return static_cast<QWidget*>(createInternal(ClassName,
-                                                [](void* p) { return qobject_cast<QWidget*>(static_cast<QObject*>(p)) != nullptr; },
-    true));
+                                                [](void* p) { return qobject_cast<QWidget*>(static_cast<QObject*>(p)) != nullptr;},
+    true,props));
 }
 
 // 创建QObject单例
-QObject* SqzHub::CreateObject(const QString& ClassName)
+QObject* SqzHub::CreateObject(const QString& ClassName, const QVariantMap &props)
 {
     return static_cast<QObject*>(createInternal(ClassName,
                                                 [](void* p) { return qobject_cast<QObject*>(static_cast<QObject*>(p)) != nullptr; },
-    false));
+    false,props));
 }
 
-// 创建普通类单例
-void* SqzHub::CreateRawObj(const QString& ClassName)
-{
-    return createInternal(ClassName,
-                          [](void* p) { return true; }, // 任何指针都接受
-    false);
-}
 
-QObject *SqzHub::CreateQuick(const QString &ClassName,const QString& qmlpath)
+QObject *SqzHub::CreateQuick(const QString &ClassName, const QString& qmlpath, const QVariantMap &props)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
     if (QThread::currentThread() != QCoreApplication::instance()->thread()) {
@@ -352,6 +355,7 @@ QObject *SqzHub::CreateQuick(const QString &ClassName,const QString& qmlpath)
         logwarn << "[SqzHub] 类型转换失败（需要 SqzQuick）：" << fullname;
         return nullptr;
     }
+    ApplyPropsToObject(view,props);
     view->initializeView(actualQmlPath);
 
     // 存入池
@@ -375,8 +379,6 @@ QObject *SqzHub::CreateQuick(const QString &ClassName,const QString& qmlpath)
         if (m_singlePool.value(fullname) == raw)
             m_singlePool.remove(fullname);
     });
-
-
     // 显示窗口
     if (view->window()) {
         view->window()->show();
@@ -397,7 +399,7 @@ QObject *SqzHub::GetQuickObject(const QString &ClassName)
     return nullptr;
 }
 
-QWidget *SqzHub::CreateWidgetWithArg(const QString &ClassName, const QVariantList &args)
+QWidget *SqzHub::CreateWidgetWithArg(const QString &ClassName, const QVariantList &args, const QVariantMap &props)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
     if (QThread::currentThread() != QCoreApplication::instance()->thread()) {
@@ -450,11 +452,12 @@ QWidget *SqzHub::CreateWidgetWithArg(const QString &ClassName, const QVariantLis
             widget->deleteLater(); // 丢弃新对象
             QWidget* existing = static_cast<QWidget*>(m_singlePool[fullname]);
             existing->show(); existing->raise(); existing->activateWindow();
+            ApplyPropsToObject(existing,props);
             return existing;
         }
         m_singlePool[fullname] = widget;
     }
-
+    ApplyPropsToObject(widget,props);
     // 连接销毁信号
     connect(widget, &QWidget::destroyed, this, [this, fullname, widget]() {
         QWriteLocker locker(&GetFactoryLock());
@@ -473,7 +476,7 @@ QWidget *SqzHub::CreateWidgetWithArg(const QString &ClassName, const QVariantLis
     return widget;
 }
 
-QObject *SqzHub::CreateObjectWithArg(const QString &ClassName, const QVariantList &args)
+QObject *SqzHub::CreateObjectWithArg(const QString &ClassName, const QVariantList &args, const QVariantMap &props)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
     // 检查是否已存在
@@ -511,11 +514,13 @@ QObject *SqzHub::CreateObjectWithArg(const QString &ClassName, const QVariantLis
         QWriteLocker locker(&GetFactoryLock());
         if (m_singlePool.contains(fullname)) {
             obj->deleteLater();
-            return static_cast<QObject*>(m_singlePool[fullname]);
+            QObject* existing = static_cast<QWidget*>(m_singlePool[fullname]);
+            ApplyPropsToObject(existing,props);
+            return existing;
         }
         m_singlePool[fullname] = obj;
     }
-
+    ApplyPropsToObject(obj,props);
     connect(obj, &QObject::destroyed, this, [this, fullname, obj]() {
         QWriteLocker locker(&GetFactoryLock());
         // 仅当池中仍是同一对象时移除（防止 ResetObj 后旧对象销毁误删新对象）
@@ -619,7 +624,6 @@ void SqzHub::ResetObj(const QString& ClassName)
     if (isWidget) CreateWidget(fullname);
     else if (isQml) CreateQuick(fullname);  // 新增
     else if (isQObj) CreateObject(fullname);
-    else CreateRawObj(fullname);
 }
 
 // 创建临时对象（不入池）
@@ -627,9 +631,7 @@ void* SqzHub::CreateTemp(const QString& ClassName)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
 
-    // 修复 Bug #20：原实现持读锁调用 creator()，若回调再次进入 SqzHub
-    // （如构造期间触发 Register/CreateObject），与默认非递归 QReadWriteLock 形成死锁。
-    // 改为锁内仅拷贝 functor，锁外执行 creator()。
+    //锁内仅拷贝 functor，锁外执行 creator()。
     ClassMeta meta;
     {
         QReadLocker locker(&GetFactoryLock());
@@ -984,9 +986,7 @@ QObject* SqzHub::CreateObjectByArg(const QString& ClassName, const QVariantList&
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
 
-    // 修复 Bug #20：原实现持读锁调用 m_argCreator[fullname](Args)，
-    // 若回调再次进入 SqzHub 会与默认非递归 QReadWriteLock 死锁。
-    // 改为锁内仅拷贝 functor + 元数据，锁外执行创建。
+    //锁内仅拷贝 functor + 元数据，锁外执行创建。
     CreatorWithArg creator;
     ClassMeta meta;
     {
@@ -1017,6 +1017,7 @@ QQmlApplicationEngine *SqzHub::qmlEngine()
         // 仅在首次创建时连接一次，避免每次调用累积重复连接
         connect(m_qmlEngine.get(), &QQmlApplicationEngine::objectCreated,
                 this, [](QObject* obj, const QUrl& url) {
+          Q_UNUSED(obj) Q_UNUSED(url)
             // 全局 QML 加载错误处理（可扩展）
         });
     }

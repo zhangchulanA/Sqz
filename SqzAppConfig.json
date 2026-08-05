@@ -8,6 +8,14 @@
     "StrictVersion": false
   },
   "Services": [
+  {
+  "ClassName": "DataReceivedService",
+  "AutoStart": true,
+  "StartOrder": 1,
+  "Critical" : false,
+  "Args" : [],
+  "Props": {"sss1": 123}
+    }
   ],
   "Views": [
     {
@@ -15,7 +23,8 @@
       "ClassName": "SqzTest",
       "IsMain": true,
       "AutoStart": false,
-      "Props": {"WindowTitle": "主界面"}
+      "Args" : [],
+      "Props": {"sss2": 234,"sss3":"ppp","sss4":",.,.,]["}
     },
     {
       "ViewType": "SqzQuick",
@@ -23,7 +32,8 @@
       "IsMain": false,
       "QmlSource": "qrc:/SqzQuickTest.qml",
       "AutoStart": true,
-      "Props": {}
+      "Args" : [],
+      "Props": {"sss3": 345}
      }
   ]
 }

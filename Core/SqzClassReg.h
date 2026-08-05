@@ -8,6 +8,7 @@
 #include <type_traits>
 #include "SqzGlobal.h"
 #include "SqzHub.h"
+#include "Logger.h"
 namespace Sqz
 {
 class SqzQuick;
@@ -60,6 +61,7 @@ namespace { \
     }; \
     static AutoReg_##Cls Reg_##Cls; \
 }
+//该宏仅供内部使用
 #define SqzIn  SqzHub::Instance()
 }
 #endif
