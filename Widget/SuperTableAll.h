@@ -10,6 +10,7 @@
 #include <QString>
 #include <QColor>
 #include <functional>
+#include <QJsonValue>
 #include "SqzGlobal.h"
 /**
  * @brief 超级表格组件总头文件
@@ -61,6 +62,17 @@ struct SQZ_FRAMEWORK_API TableRowData
      * @param val 要设置的单元格值
      */
     void set(const QString& key, const QVariant& val) { cells[key] = val; }
+//    void set(const QString& key, const QJsonValue& val) {
+//        if(val.isString())
+//            cells[key] = val.toString();
+//        else if(val.isDouble())
+//            cells[key] = QString::number(val.toDouble());
+//        else if(val.isBool())
+//            cells[key] = val.toBool();
+//        else
+//            cells[key] = val.toVariant();
+
+//    }
 };
 
 /**

@@ -10,7 +10,7 @@
   "Services": [
   {
   "ClassName": "DataReceivedService",
-  "AutoStart": true,
+  "AutoStart": false,
   "StartOrder": 1,
   "Critical" : false,
   "Args" : [],
@@ -22,7 +22,7 @@
       "ViewType": "SqzWidget",
       "ClassName": "SqzTest",
       "IsMain": true,
-      "AutoStart": false,
+      "AutoStart": true,
       "Args" : [],
       "Props": {"sss2": 234,"sss3":"ppp","sss4":",.,.,]["}
     },

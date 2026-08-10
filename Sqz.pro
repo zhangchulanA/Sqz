@@ -61,20 +61,18 @@ include(Database/Database.pri)
 include(DataManager/DataManager.pri)
 include(Log/Log.pri)
 include(Style/Style.pri)
-include(Utils/Utils.pri)
+#include(Utils/Utils.pri)
 include(NetWork/NetWork.pri)
 include(Global/Global.pri)
-include(Net/Net.pri)
+#include(Net/Net.pri)
 include(Protocol/Protocol.pri)
 
 SOURCES += \
-    DataReceivedService.cpp \
     SqzQuickTest.cpp \
     SqzTest.cpp \
     main.cpp
 
 HEADERS += \
-    DataReceivedService.h \
     SqzQuickTest.h \
     SqzTest.h
 

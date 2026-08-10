@@ -14,10 +14,8 @@
 #include <type_traits>
 #include "SqzGlobal.h"
 
-#define llog (qDebug()<<"["<<__LINE__<<__FUNCTION__<<"]")
-
 namespace Sqz {
-
+#define llog (qDebug()<<"["<<__LINE__<<__FUNCTION__<<"]")
 
 inline QString LogData(const QByteArray& data){
     QString text;
@@ -31,7 +29,7 @@ inline QString LogData(const QByteArray& data){
 
 // 用法: VIEW_MODE(类型, 名称, 默认值)
 // 示例: VIEW_MODE(int, age, 0)
-#define VIEW_MODE(type, name, defaultValue)                         \
+#define VIEW_MODE(type, name)                         \
     Q_PROPERTY(type name READ name WRITE set##name NOTIFY name##Changed) \
 public:                                                            \
     type name() const { return m_##name; }                         \
@@ -44,7 +42,7 @@ public:                                                            \
     Q_SIGNALS:                                                     \
     void name##Changed(type val);                                  \
 private:                                                           \
-    type m_##name = defaultValue;                                  \
+    type m_##name;                                  \
 public:
 
 // ==================== 获取当前类的全部属性 ====================
@@ -93,7 +91,7 @@ do { \
     }, Qt::QueuedConnection); \
 } while(false)
 // ==================== 枚举字符串互转 ====================
-#define DECLARE_ENUM_STR(EnumType, EnumName) \
+#define ENUM_STR_CLASS(EnumType, EnumName) \
     static QString EnumName##ToString(EnumType value) { \
         const QMetaObject* mo = &staticMetaObject; \
         int idx = mo->indexOfEnumerator(#EnumName); \
@@ -112,6 +110,15 @@ do { \
         } \
         if (ok) *ok = false; \
         return static_cast<EnumType>(0); \
+    }
+
+#define ENUM_STR_GLOBAL(EnumType, EnumName) \
+    inline QString EnumName##ToString(EnumType value) { \
+        return QMetaEnum::fromType<EnumType>().valueToKey(static_cast<int>(value)); \
+    } \
+    inline EnumType EnumName##FromString(const QString& str, bool* ok = nullptr) { \
+        int v = QMetaEnum::fromType<EnumType>().keyToValue(str.toLatin1().constData(), ok); \
+        return static_cast<EnumType>(v); \
     }
 
 // ==================== 样式表快捷 ====================
@@ -137,5 +144,6 @@ do { \
 } while(false)
 
 }
+
 
 #endif // RF_H

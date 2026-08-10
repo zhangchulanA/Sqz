@@ -2,13 +2,15 @@
 #include "ui_SqzTest.h"
 //#include "SqzHub.h"
 #include "SqzClassReg.h"
-
+#include "SqzBus.h"
 
 SqzTest::SqzTest(QWidget *parent) :
     SqzWidget(parent),
     ui(new Ui::SqzTest)
 {
     ui->setupUi(this);
+
+
 
 }
 
@@ -25,3 +27,8 @@ void SqzTest::onInit()
 }
 
 SQZ_REG_NOARG(SqzTest);
+
+void SqzTest::on_pushButton_clicked()
+{
+        SqzBus::Send("123",333);
+}

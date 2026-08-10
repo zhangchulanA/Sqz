@@ -82,7 +82,7 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
             if (isWidget) {
                 QWidget* w = static_cast<QWidget*>(existing);
                 w->show(); w->raise(); w->activateWindow();
-                ApplyPropsToObject(w,props);
+                //                ApplyPropsToObject(w,props);
             }
 
             return existing;
@@ -126,7 +126,7 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
             if (isWidget) {
                 QWidget* w = static_cast<QWidget*>(existing);
                 w->show(); w->raise(); w->activateWindow();
-                ApplyPropsToObject(w,props);
+                //                ApplyPropsToObject(w,props);
             }
             return existing;
         }
@@ -166,20 +166,21 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
 void SqzHub::ApplyPropsToObject(QObject *obj, const QVariantMap &props)
 {
     if(!obj || props.isEmpty()) return;
-    const QMetaObject* meta = obj->metaObject();
+//    const QMetaObject* meta = obj->metaObject();
     for(auto it = props.begin();it != props.end();it++){
         const QString& propName = it.key();
         const QVariant& value = it.value();
-        logdebug << propName.toUtf8().constData() <<value;
-        // 修复 B1：检查属性是否存在（typo 时 setProperty 返回 false 但不报错，难排查）
-        int propIdx = meta->indexOfProperty(propName.toUtf8().constData());
-        if (propIdx < 0)
-        {
-            logwarn << "[SqzApp] 属性不存在,作为动态属性设置" << propName
-                    << " | 对象类:" << meta->className();
+
         obj->setProperty(propName.toUtf8().constData(), value);
-            continue;
-        }
+
+//        int propIdx = meta->indexOfProperty(propName.toUtf8().constData());
+//        if (propIdx < 0)
+//        {
+//            logwarn << "[SqzApp] 属性不存在,作为动态属性设置" << propName
+//                    << " | 对象类:" << meta->className();
+//            obj->setProperty(propName.toUtf8().constData(), value);
+//            continue;
+//        }
     }
 }
 
@@ -452,7 +453,7 @@ QWidget *SqzHub::CreateWidgetWithArg(const QString &ClassName, const QVariantLis
             widget->deleteLater(); // 丢弃新对象
             QWidget* existing = static_cast<QWidget*>(m_singlePool[fullname]);
             existing->show(); existing->raise(); existing->activateWindow();
-            ApplyPropsToObject(existing,props);
+            //            ApplyPropsToObject(existing,props);
             return existing;
         }
         m_singlePool[fullname] = widget;
@@ -515,7 +516,7 @@ QObject *SqzHub::CreateObjectWithArg(const QString &ClassName, const QVariantLis
         if (m_singlePool.contains(fullname)) {
             obj->deleteLater();
             QObject* existing = static_cast<QWidget*>(m_singlePool[fullname]);
-            ApplyPropsToObject(existing,props);
+            //            ApplyPropsToObject(existing,props);
             return existing;
         }
         m_singlePool[fullname] = obj;
@@ -1017,8 +1018,8 @@ QQmlApplicationEngine *SqzHub::qmlEngine()
         // 仅在首次创建时连接一次，避免每次调用累积重复连接
         connect(m_qmlEngine.get(), &QQmlApplicationEngine::objectCreated,
                 this, [](QObject* obj, const QUrl& url) {
-          Q_UNUSED(obj) Q_UNUSED(url)
-            // 全局 QML 加载错误处理（可扩展）
+            Q_UNUSED(obj) Q_UNUSED(url)
+                    // 全局 QML 加载错误处理（可扩展）
         });
     }
     return m_qmlEngine.get();

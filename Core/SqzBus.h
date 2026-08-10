@@ -71,27 +71,27 @@ private:
     // ==============================
 public:
     // ---------- 发送消息 ----------
-    /// 发送无参数消息
+    // 发送无参数消息
     static void Send(const QString &msgName);
-    /// 发送 QVariant 参数消息
+    // 发送 QVariant 参数消息
     static void Send(const QString &msgName, const QVariant &args);
-    /// 发送 QString 参数消息
+    // 发送 QString 参数消息
     static void Send(const QString &msgName, const QString &str);
-    /// 发送 int 参数消息
+    // 发送 int 参数消息
     static void Send(const QString &msgName, const int &value);
-    /// 发送 double 参数消息
+    // 发送 double 参数消息
     static void Send(const QString &msgName, const double &value);
-    /// 发送 bool 参数消息
+    // 发送 bool 参数消息
     static void Send(const QString &msgName, const bool &value);
-    /// 发送 QByteArray 参数消息
+    // 发送 QByteArray 参数消息
     static void Send(const QString &msgName, const QByteArray &value);
-    /// 发送 qint64 参数消息
+    // 发送 qint64 参数消息
     static void Send(const QString &msgName, const qint64 &value);
-    /// 发送 QVariantList 参数消息
+    // 发送 QVariantList 参数消息
     static void Send(const QString &msgName, const QVariantList &list);
-    /// 发送 QVariantMap 参数消息
+    // 发送 QVariantMap 参数消息
     static void Send(const QString &msgName, const QVariantMap &map);
-    /// 发送 QJsonObject 参数消息
+    // 发送 QJsonObject 参数消息
     static void Send(const QString &msgName, const QJsonObject &map);
 
     // ---------- 注册监听 ----------

@@ -34,7 +34,7 @@ public:
     void SendMessage(const char* data,int len,QString ip,quint16 port);
     void SendMessage(const QString& data,QString ip,quint16 port);
     void SendMessage(const QByteArray& data);
-    void SendMessage(const QHostAddress& address,const quint16& port,const QByteArray& data);
+    qint64 SendMessage(const QHostAddress& address,const quint16& port,const QByteArray& data);
 
 //******************************************************组播
     //组播设置224.0.2.0

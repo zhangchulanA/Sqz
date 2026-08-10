@@ -537,7 +537,7 @@ void SqzApplication::CreateViews()
         else if (v.ViewType == "SqzQuick")
         {
             if (v.AutoStart){
-                viewObj = hub.CreateQuick(v.ClassName,v.QmlSource);
+                viewObj = hub.CreateQuick(v.ClassName,v.QmlSource,v.Props);
 
                 SqzQuick* quick = qobject_cast<SqzQuick*>(viewObj);
                 if (!quick)
@@ -573,9 +573,8 @@ void SqzApplication::ApplyProps(QObject *obj, const QVariantMap &props)
         int propIdx = meta->indexOfProperty(propName.toUtf8().constData());
         if (propIdx < 0)
         {
-            logwarn << "[SqzApp] 属性不存在,作为动态属性设置" << propName
-                    << " | 对象类:" << meta->className();
-
+//            logwarn << "[SqzApp] 属性不存在,作为动态属性设置" << propName
+//                    << " | 对象类:" << meta->className();
             continue;
         }
         const QMetaProperty metaProp = meta->property(propIdx);

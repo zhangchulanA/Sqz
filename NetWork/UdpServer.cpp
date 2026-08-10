@@ -126,10 +126,10 @@ void UdpServer::SendMessage(const QByteArray &data)
     m_Socket->writeDatagram(data,_ip,_port);
 }
 
-void UdpServer::SendMessage(const QHostAddress &address, const quint16 &port, const QByteArray &data)
+qint64 UdpServer::SendMessage(const QHostAddress &address, const quint16 &port, const QByteArray &data)
 {
 
-    m_Socket->writeDatagram(data,address,port);
+    return  m_Socket->writeDatagram(data,address,port);
 }
 
 void UdpServer::ReceiveData()
