@@ -142,6 +142,11 @@ do { \
         safeW->setter(val); \
     }, Qt::QueuedConnection); \
 } while(false)
+//侵入式转换宏
+#define ENABLE_QVARIANT_CONVERSION(Type) \
+    Q_DECLARE_METATYPE(Type) \
+    QVariant toVariant() const { return QVariant::fromValue(*static_cast<const Type*>(this)); } \
+    static Type fromVariant(const QVariant &v) { return v.value<Type>(); }
 
 }
 

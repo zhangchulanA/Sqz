@@ -62,6 +62,6 @@ namespace { \
     static AutoReg_##Cls Reg_##Cls; \
 }
 //该宏仅供内部使用
-#define SqzIn  SqzHub::Instance()
+//#define SqzIn  SqzHub::Instance()
 }
 #endif

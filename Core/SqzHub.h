@@ -42,8 +42,10 @@ using CreatorWithArg = std::function<void*(const QVariantList& args)>;
 class SQZ_FRAMEWORK_API SqzHub : public QObject
 {
     Q_OBJECT
+public:
     friend class SqzQuick;
-
+    explicit SqzHub(QObject *parent = nullptr);
+    ~SqzHub();
 public:
     // RAII 临时切换线程前缀
     class PrefixScope {
@@ -63,10 +65,10 @@ private:
 
 public:
     // 单例入口
-    static SqzHub& Instance() {
-        static SqzHub factoryInstance;
-        return factoryInstance;
-    }
+//    static SqzHub& Instance() {
+//        static SqzHub factoryInstance;
+//        return factoryInstance;
+//    }
 
 // =============================== 注册接口 =====================================
     //注册无参构造类
@@ -107,7 +109,7 @@ public:
 // ================================= 生命周期管理 =================================
 
     //判断单例是否已存在
-    bool IsExist(const QString& ClassName);
+    bool IsExist(const QString& ClassName) const;
 
     //立即销毁单例
     void CloseObj(const QString& ClassName);
@@ -139,7 +141,7 @@ public:
     void ToggleWidget(const QString& ClassName);
 
     //检查 Widget 窗口是否可见
-    bool IsWidgetVisible(const QString& ClassName);
+    bool IsWidgetVisible(const QString& ClassName) const;
 
     //设置 Widget 窗口置顶
     void SetWidgetTop(const QString& ClassName, bool TopMost);
@@ -151,7 +153,7 @@ public:
     void SetWidgetPos(const QString& ClassName, int X, int Y);
 
     //获取 Widget 窗口原生指针
-    QWidget* GetWidgetPtr(const QString& ClassName);
+    QWidget* GetWidgetPtr(const QString& ClassName) const;
 
     //隐藏所有 Widget 窗口
     void HideAllWidget();
@@ -168,7 +170,7 @@ public:
     void ToggleQuick(const QString& ClassName);
 
     //检查 Quick 窗口是否可见
-    bool IsQuickVisible(const QString& ClassName);
+    bool IsQuickVisible(const QString& ClassName) const;
 
     //设置 Quick 窗口置顶
     void SetQuickTop(const QString& ClassName, bool TopMost);
@@ -218,9 +220,8 @@ protected:
     void ClearReg();
 
 private:
-    explicit SqzHub(QObject *parent = nullptr);
-    ~SqzHub() override;
-    Q_DISABLE_COPY(SqzHub)
+
+//    Q_DISABLE_COPY(SqzHub)
 
     //内部创建核心函数
     void* createInternal(const QString& ClassName,
@@ -231,7 +232,7 @@ private:
     static void ApplyPropsToObject(QObject* obj,const QVariantMap& props);
 
     //获取 Quick 对象指针（内部）
-    QObject* GetQuickObject(const QString& ClassName);
+    QObject* GetQuickObject(const QString& ClassName) const;
 
     //获取类的元数据
     ClassMeta getMetaForClass(const QString& fullname);

@@ -9,8 +9,9 @@ HEADERS += \
     $$PWD/SqzQuick.h \
     $$PWD/SqzService.h \
     $$PWD/SqzState.h \
-    $$PWD/SqzWidget.h \
-    $$PWD/SqzWidgetOps.h
+    $$PWD/SqzViewOps.h \
+    $$PWD/SqzWidget.h
+#    $$PWD/SqzWidgetOps.h
 
 SOURCES += \
     $$PWD/SqzApplication.cpp \
@@ -20,6 +21,7 @@ SOURCES += \
     $$PWD/SqzQuick.cpp \
     $$PWD/SqzService.cpp \
     $$PWD/SqzState.cpp \
+    $$PWD/SqzViewOps.cpp \
     $$PWD/SqzWidget.cpp
 
 

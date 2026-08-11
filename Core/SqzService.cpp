@@ -25,7 +25,7 @@ void SqzService::RestartService(const QString& className) {
 }
 
 bool SqzService::HasService(const QString& className) const {
-    SqzApp->HasService(className);
+    return  SqzApp->HasService(className);
 }
 
 // ---------- 快捷操作 ----------

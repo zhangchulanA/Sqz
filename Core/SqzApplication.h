@@ -73,7 +73,10 @@ public:
 
     //打印全部已注册类
     void LogRegClass();
-
+    // 辅助函数：获取视图类型
+    QString getViewType(const QString& className) const;
+    // 提供访问 Hub 的接口
+    SqzHub& hub() { return m_hub; }
 public:
     //打开视图（不存在则创建，存在则激活）
     void OpenView(const QString& className);
@@ -160,7 +163,7 @@ private:
     void ReleaseAllResources();
 private:
     AppConfig m_Cfg;
-    QObject* m_MainWindow = nullptr;
+    QPointer<QObject> m_MainObject;
     bool m_ConfigValid = false;
     bool m_InitComplete = false;
     bool m_InitFailed = false;   // D1：主窗口创建失败标志，Init 中检查后返回 false 中止启动
@@ -168,6 +171,9 @@ private:
     QHash<QString,QVariantMap> m_PropsCache;
 
     static SqzApplication* m_s_instance;
+
+private:
+    SqzHub m_hub;
 };
 #define SqzApp SqzApplication::instance()
 

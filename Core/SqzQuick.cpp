@@ -3,6 +3,7 @@
 
 #include <QQmlComponent>
 #include <QQmlContext>
+#include "SqzViewOps.h"
 namespace Sqz {
 SqzQuick::SqzQuick(QObject* parent) : QObject(parent) {}
 // 析构：释放 QQuickWindow（initializeView 中设为 CppOwnership，引擎不会自动回收）
@@ -15,70 +16,75 @@ SqzQuick::~SqzQuick() {
 
 // ---------- 通用单例操作 ----------
 void SqzQuick::OpenView(const QString& className) {
-    SqzHub::Instance().CreateQuick(className);
+    SqzViewOps::OpenView(className);
 }
 void SqzQuick::CloseView(const QString& className) {
-    SqzHub::Instance().CloseObj(className);
+    SqzViewOps::CloseView(className);
 }
 void SqzQuick::CloseViewLater(const QString& className) {
-    SqzHub::Instance().CloseObjLater(className);
+    SqzViewOps::CloseViewLater(className);
 }
 void SqzQuick::RestartView(const QString& className) {
-    SqzHub::Instance().ResetObj(className);
+    SqzViewOps::RestartView(className);
 }
 bool SqzQuick::HasView(const QString& className) const {
-    return SqzHub::Instance().IsExist(className);
+    return SqzViewOps::HasView(className);
 }
 
 // ---------- 窗口专属操作 ----------
 void SqzQuick::HideView(const QString& className) {
-    SqzHub::Instance().HideQuick(className);
+    SqzViewOps::HideView(className);
 }
 
 void SqzQuick::ShowView(const QString& className) {
-    SqzHub::Instance().ShowQuick(className);
+    SqzViewOps::ShowView(className);
 }
 
 void SqzQuick::ToggleView(const QString& className) {
-    SqzHub::Instance().ToggleQuick(className);
+    SqzViewOps::ToggleView(className);
 }
 
 bool SqzQuick::IsViewVisible(const QString& className) const {
-    return SqzHub::Instance().IsQuickVisible(className);
+    return SqzViewOps::IsViewVisible(className);
 }
 
 void SqzQuick::SetViewTopMost(const QString& className, bool topMost) {
-    SqzHub::Instance().SetQuickTop(className, topMost);
+    SqzViewOps::SetViewTopMost(className, topMost);
 }
 
 void SqzQuick::ResizeView(const QString& className, int w, int h) {
-    SqzHub::Instance().SetQuickSize(className, w, h);
+    SqzViewOps::ResizeView(className, w, h);
 }
 
 void SqzQuick::MoveView(const QString& className, int x, int y) {
-    SqzHub::Instance().SetQuickPos(className, x, y);
+    SqzViewOps::MoveView(className, x, y);
 }
 
 // ---------- 快捷操作 ----------
-void SqzQuick::OpenThis() { OpenView(className()); }
-void SqzQuick::CloseThis() { CloseView(className()); }
-void SqzQuick::HideThis() { HideView(className()); }
-void SqzQuick::ShowThis()  { ShowView(className()); }
+void SqzQuick::OpenThis() {  SqzViewOps::OpenThis(className());}
+void SqzQuick::CloseThis() {  SqzViewOps::CloseThis(className()); }
+void SqzQuick::HideThis() { SqzViewOps::HideThis(className()); }
+void SqzQuick::ShowThis()  {   SqzViewOps::ShowThis(className()); }
 
-void SqzQuick::initializeView(const QString& qmisource)
+void SqzQuick::setQmlSource(const QString &qmlSource)
 {
-    if (m_initialized) return;
+    m_qmlSourcePath = qmlSource;
+}
 
-    QQmlEngine* engine = SqzHub::Instance().qmlEngine();
+bool SqzQuick::init()
+{
+    if (m_initialized) return true;
+
+    QQmlEngine* engine = SqzApp->hub().qmlEngine();
     if (!engine) {
         logwarn << "QML engine not available!";
-        return;
+        return false;
     }
 
-    QQmlComponent component(engine, QUrl(qmisource));
+    QQmlComponent component(engine, QUrl(m_qmlSourcePath));
     if (component.isError()) {
         logwarn << "Failed to load QML:" << component.errors();
-        return;
+        return false;
     }
 
     // 创建独立子上下文隔离 "This"（修复 Bug #7：多视图共享 rootContext 导致 "This" 互相覆盖）
@@ -89,7 +95,7 @@ void SqzQuick::initializeView(const QString& qmisource)
     if (!obj) {
         logwarn << "Failed to create QML object!";
         delete subCtx;
-        return;
+        return false;
     }
 
     m_window = qobject_cast<QQuickWindow*>(obj);
@@ -97,7 +103,7 @@ void SqzQuick::initializeView(const QString& qmisource)
         logwarn << "QML root is not a QQuickWindow!";
         delete obj;
         delete subCtx;
-        return;
+        return false;
     }
 
     // 设置 C++ 所有权，防止 QML 引擎自动销毁
@@ -109,5 +115,7 @@ void SqzQuick::initializeView(const QString& qmisource)
     m_initialized = true;
 
     onInit();
+
+    return true;
 }
 }

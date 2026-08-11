@@ -22,6 +22,7 @@ class SQZ_FRAMEWORK_API SqzQuick : public QObject
     Q_OBJECT
     Q_PROPERTY(QString qmlSourcePath READ qmlSourcePath WRITE setQmlSourcePath)
     friend class SqzHub;
+    friend class SqzApplication;
 
 public:
     explicit SqzQuick(QObject* parent = nullptr);
@@ -77,6 +78,8 @@ public:
 protected:
     // 子类可重写以提供动态 QML 源路径（默认返回 m_qmlSourcePath）
     virtual QString qmlSource() const { return m_qmlSourcePath; }
+
+    void setQmlSource(const QString& qmlSource);
 protected:
 
     /**
@@ -93,12 +96,12 @@ protected:
     // 获取子类名称（必须实现）
     virtual QString className() const = 0;
 
+    // 基类提供的方法，用于初始化内部的 m_view
+    bool init();
+
 private:
 
-    /// 基类提供的方法，用于初始化内部的 m_view
-    void initializeView(const QString &qmisource = "");
-
-    /// 提供对 m_view 的只读访问（如果子类需要查询状态）
+    // 提供对 m_view 的只读访问（如果子类需要查询状态）
     QQuickWindow* window() const { return m_window; }
 
     QQuickWindow* m_window = nullptr;

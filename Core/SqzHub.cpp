@@ -166,21 +166,21 @@ void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void 
 void SqzHub::ApplyPropsToObject(QObject *obj, const QVariantMap &props)
 {
     if(!obj || props.isEmpty()) return;
-//    const QMetaObject* meta = obj->metaObject();
+    //    const QMetaObject* meta = obj->metaObject();
     for(auto it = props.begin();it != props.end();it++){
         const QString& propName = it.key();
         const QVariant& value = it.value();
 
         obj->setProperty(propName.toUtf8().constData(), value);
 
-//        int propIdx = meta->indexOfProperty(propName.toUtf8().constData());
-//        if (propIdx < 0)
-//        {
-//            logwarn << "[SqzApp] 属性不存在,作为动态属性设置" << propName
-//                    << " | 对象类:" << meta->className();
-//            obj->setProperty(propName.toUtf8().constData(), value);
-//            continue;
-//        }
+        //        int propIdx = meta->indexOfProperty(propName.toUtf8().constData());
+        //        if (propIdx < 0)
+        //        {
+        //            logwarn << "[SqzApp] 属性不存在,作为动态属性设置" << propName
+        //                    << " | 对象类:" << meta->className();
+        //            obj->setProperty(propName.toUtf8().constData(), value);
+        //            continue;
+        //        }
     }
 }
 
@@ -307,90 +307,91 @@ QObject* SqzHub::CreateObject(const QString& ClassName, const QVariantMap &props
 QObject *SqzHub::CreateQuick(const QString &ClassName, const QString& qmlpath, const QVariantMap &props)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
-    if (QThread::currentThread() != QCoreApplication::instance()->thread()) {
-        logwarn << "[SqzHub] 禁止子线程操作QML UI：" << fullname;
-        return nullptr;
-    }
-    // 第一次检查：池中是否已有对象
-    {
-        QReadLocker locker(&GetFactoryLock());;
-        if (m_singlePool.contains(fullname)) {
-            QObject* obj = static_cast<QObject*>(m_singlePool[fullname]);
-            // 激活窗口
-            QMetaObject::invokeMethod(obj, "show");
-            QMetaObject::invokeMethod(obj, "raise");
-            QMetaObject::invokeMethod(obj, "requestActivate");
-            return obj;
-        }
-    }
+       if (QThread::currentThread() != QCoreApplication::instance()->thread()) {
+           logwarn << "[SqzHub] 禁止子线程操作QML UI：" << fullname;
+           return nullptr;
+       }
+       // 第一次检查：池中是否已有对象
+       {
+           QReadLocker locker(&GetFactoryLock());;
+           if (m_singlePool.contains(fullname)) {
+               QObject* obj = static_cast<QObject*>(m_singlePool[fullname]);
+               // 激活窗口
+               QMetaObject::invokeMethod(obj, "show");
+               QMetaObject::invokeMethod(obj, "raise");
+               QMetaObject::invokeMethod(obj, "requestActivate");
+               return obj;
+           }
+       }
 
-    // 获取 QML 类的元数据
-    ClassMeta meta;
-    QString actualQmlPath = qmlpath;
-    {
-        QWriteLocker locker(&GetFactoryLock());
-        if (!m_qmlCreators.contains(fullname)) {
-            logwarn << "[SqzHub] 未注册 QML 类：" << fullname;
-            return nullptr;
-        }
-        meta = m_qmlCreators[fullname];
-        // 存储或读取 qmlpath（供 ResetObj 重建使用，修复 Bug #18：ResetObj 用空 qmlpath 重建失败）
-        if (!actualQmlPath.isEmpty())
-            m_quickQmlPath[fullname] = actualQmlPath;
-        else
-            actualQmlPath = m_quickQmlPath.value(fullname);
-    }
+       // 获取 QML 类的元数据
+       ClassMeta meta;
+       QString actualQmlPath = qmlpath;
+       {
+           QWriteLocker locker(&GetFactoryLock());
+           if (!m_qmlCreators.contains(fullname)) {
+               logwarn << "[SqzHub] 未注册 QML 类：" << fullname;
+               return nullptr;
+           }
+           meta = m_qmlCreators[fullname];
+           // 存储或读取 qmlpath（供 ResetObj 重建使用，修复 Bug #18：ResetObj 用空 qmlpath 重建失败）
+           if (!actualQmlPath.isEmpty())
+               m_quickQmlPath[fullname] = actualQmlPath;
+           else
+               actualQmlPath = m_quickQmlPath.value(fullname);
+       }
 
-    // 创建 QML 逻辑对象（子类实例）
-    void* raw = meta.creator();
-    if (!raw) {
-        logwarn << "[SqzHub] 创建 QML 对象失败：" << fullname;
-        return nullptr;
-    }
+       // 创建 QML 逻辑对象（子类实例）
+       void* raw = meta.creator();
+       if (!raw) {
+           logwarn << "[SqzHub] 创建 QML 对象失败：" << fullname;
+           return nullptr;
+       }
 
-    // 类型转换
-    QObject* qmlObj = static_cast<QObject*>(raw);
-    SqzQuick* view = qobject_cast<SqzQuick*>(qmlObj);
-    if (!view) {
-        meta.immediateDeleter(raw);
-        logwarn << "[SqzHub] 类型转换失败（需要 SqzQuick）：" << fullname;
-        return nullptr;
-    }
-    ApplyPropsToObject(view,props);
-    view->initializeView(actualQmlPath);
+       // 类型转换
+       QObject* qmlObj = static_cast<QObject*>(raw);
+       SqzQuick* view = qobject_cast<SqzQuick*>(qmlObj);
+       if (!view) {
+           meta.immediateDeleter(raw);
+           logwarn << "[SqzHub] 类型转换失败（需要 SqzQuick）：" << fullname;
+           return nullptr;
+       }
+       ApplyPropsToObject(view,props);
+       view->setQmlSource(actualQmlPath);
+       view->init();
 
-    // 存入池
-    QWriteLocker locker(&GetFactoryLock());
-    if (m_singlePool.contains(fullname)) {
-        // 其他线程已创建，丢弃本对象
-        meta.immediateDeleter(raw);
-        if (view->window()) {
-            view->window()->show();
-            view->window()->raise();
-            view->window()->requestActivate();
-        }
-        return qmlObj;
-    }
-    m_singlePool[fullname] = raw;
+       // 存入池
+       QWriteLocker locker(&GetFactoryLock());
+       if (m_singlePool.contains(fullname)) {
+           // 其他线程已创建，丢弃本对象
+           meta.immediateDeleter(raw);
+           if (view->window()) {
+               view->window()->show();
+               view->window()->raise();
+               view->window()->requestActivate();
+           }
+           return qmlObj;
+       }
+       m_singlePool[fullname] = raw;
 
-    // 连接销毁信号
-    connect(qmlObj, &QObject::destroyed, this, [this, fullname, raw]() {
-        QWriteLocker locker(&GetFactoryLock());
-        // 仅当池中仍是同一对象时移除（防止 ResetObj 后旧对象销毁误删新对象）
-        if (m_singlePool.value(fullname) == raw)
-            m_singlePool.remove(fullname);
-    });
-    // 显示窗口
-    if (view->window()) {
-        view->window()->show();
-        view->window()->raise();
-        view->window()->requestActivate();
-    }
+       // 连接销毁信号
+       connect(qmlObj, &QObject::destroyed, this, [this, fullname, raw]() {
+           QWriteLocker locker(&GetFactoryLock());
+           // 仅当池中仍是同一对象时移除（防止 ResetObj 后旧对象销毁误删新对象）
+           if (m_singlePool.value(fullname) == raw)
+               m_singlePool.remove(fullname);
+       });
+       // 显示窗口
+       if (view->window()) {
+           view->window()->show();
+           view->window()->raise();
+           view->window()->requestActivate();
+       }
 
-    return qmlObj;
+       return qmlObj;
 }
 
-QObject *SqzHub::GetQuickObject(const QString &ClassName)
+QObject *SqzHub::GetQuickObject(const QString &ClassName)const
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
     QReadLocker locker(&GetFactoryLock());
@@ -539,7 +540,7 @@ QObject *SqzHub::CreateObjectWithArg(const QString &ClassName, const QVariantLis
 }
 
 // 判断对象是否存在
-bool SqzHub::IsExist(const QString& ClassName)
+bool SqzHub::IsExist(const QString& ClassName) const
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
     QReadLocker locker(&GetFactoryLock());
@@ -693,7 +694,7 @@ void SqzHub::ToggleWidget(const QString& ClassName)
 }
 
 // 判断窗口是否可见
-bool SqzHub::IsWidgetVisible(const QString& ClassName)
+bool SqzHub::IsWidgetVisible(const QString& ClassName) const
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
 
@@ -735,7 +736,7 @@ void SqzHub::SetWidgetPos(const QString& ClassName, int X, int Y)
 }
 
 // 获取窗口指针
-QWidget* SqzHub::GetWidgetPtr(const QString& ClassName)
+QWidget* SqzHub::GetWidgetPtr(const QString& ClassName)const
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
 
@@ -826,7 +827,7 @@ void SqzHub::ToggleQuick(const QString& ClassName)
 }
 
 /// @brief 判断 Quick 窗口是否当前可见
-bool SqzHub::IsQuickVisible(const QString& ClassName)
+bool SqzHub::IsQuickVisible(const QString& ClassName)const
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
 
