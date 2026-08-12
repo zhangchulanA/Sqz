@@ -357,7 +357,7 @@ QObject *SqzHub::CreateQuick(const QString &ClassName, const QString& qmlpath, c
            return nullptr;
        }
        ApplyPropsToObject(view,props);
-       view->setQmlSource(actualQmlPath);
+       view->setQmlSourcePath(actualQmlPath);
        view->init();
 
        // 存入池

@@ -66,10 +66,6 @@ void SqzQuick::CloseThis() {  SqzViewOps::CloseThis(className()); }
 void SqzQuick::HideThis() { SqzViewOps::HideThis(className()); }
 void SqzQuick::ShowThis()  {   SqzViewOps::ShowThis(className()); }
 
-void SqzQuick::setQmlSource(const QString &qmlSource)
-{
-    m_qmlSourcePath = qmlSource;
-}
 
 bool SqzQuick::init()
 {

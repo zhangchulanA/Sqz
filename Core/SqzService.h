@@ -23,7 +23,6 @@ public:
     virtual ~SqzService();
 
     // ========== 通用单例操作（与 SqzView 同名但后缀为 Service） ==========
-
     //打开服务（不存在则创建，存在则激活）
     void OpenService(const QString& className);
 
@@ -40,11 +39,10 @@ public:
     bool HasService(const QString& className) const;
 
     // ========== 快捷操作（操作自身） ==========
-
-    //呼叫自身服务
+    //启动自身服务
     void OpenThis();
 
-    //杀掉自身服务
+    //关闭自身服务
     void CloseThis();
 protected:
     /**

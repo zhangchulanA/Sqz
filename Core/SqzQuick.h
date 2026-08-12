@@ -79,7 +79,9 @@ protected:
     // 子类可重写以提供动态 QML 源路径（默认返回 m_qmlSourcePath）
     virtual QString qmlSource() const { return m_qmlSourcePath; }
 
-    void setQmlSource(const QString& qmlSource);
+    QString qmlSourcePath() const { return m_qmlSourcePath; }
+    void setQmlSourcePath(const QString& path) { m_qmlSourcePath = path; }
+
 protected:
 
     /**
@@ -109,8 +111,7 @@ private:
     bool m_initialized = false;
 
     QString m_qmlSourcePath;
-    QString qmlSourcePath() const { return m_qmlSourcePath; }
-    void setQmlSourcePath(const QString& path) { m_qmlSourcePath = path; }
+
 };
 }
 #endif // SqzQuick_H
