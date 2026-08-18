@@ -54,7 +54,7 @@ public slots:
     void groupRecvData();
 signals:
     void DataReceived(const QByteArray& data);
-    void DataReceivedAndIP(const QHostAddress address ,const int port,QByteArray& data);
+    void DataReceivedAndIP(const QHostAddress address ,const quint16 port,const QByteArray& data);
     void GroupDataReceived(const QByteArray& data);
 
 

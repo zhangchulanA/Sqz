@@ -312,6 +312,7 @@ bool SqzApplication::Init()
     const QString configVer = m_Cfg.Version;
     if (compileVer != configVer)
     {
+        // A7：StrictVersion=true 时 fail-fast（版本跨度大字段增删会导致后续空指针，中止比半崩更安全）
         if (m_Cfg.StrictVersion)
         {
             logerror << "[SqzApp] 版本不匹配且 StrictVersion=true，中止启动"

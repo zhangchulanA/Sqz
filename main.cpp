@@ -12,8 +12,14 @@ int main(int argc, char *argv[]) {
 
     Logger::instance().init(".","log");
     SqzApplication sq;
-    sq.Init();
+//    sq.Init();
     sq.LogRegClass();
+
+    loginfo << QString::number(1).rightJustified(3,'0').left(3);
+    loginfo << QString::number(19).rightJustified(3,'0').left(3);
+    loginfo << QString::number(194).rightJustified(3,'0').left(3);
+    loginfo << QString::number(7465).rightJustified(3,'0').left(3);
+    loginfo << QString::number(99999).rightJustified(3,'0').left(3);
 
     return app.exec();
 }
