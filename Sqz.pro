@@ -68,11 +68,13 @@ include(Global/Global.pri)
 include(Protocol/Protocol.pri)
 
 SOURCES += \
+    MainWindow.cpp \
     SqzQuickTest.cpp \
     SqzTest.cpp \
     main.cpp
 
 HEADERS += \
+    MainWindow.h \
     SqzQuickTest.h \
     SqzTest.h
 

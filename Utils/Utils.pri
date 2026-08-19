@@ -20,6 +20,7 @@ HEADERS += \
     $$PWD/other/Singleton.h \
     $$PWD/other/ThreadPool.h \
     $$PWD/other/TimeoutKeeper.h \
+    $$PWD/other/Toolbox.h \
     $$PWD/translator/Translator.h \
     $$PWD/translator/TranslatorMask.h \
     $$PWD/utils/FileUtils.h \

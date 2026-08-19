@@ -4,8 +4,11 @@
 #include <QJsonDocument>
 #include "ProtocolSchema.h"
 #include "SqzApplication.h"
-
+#include "MenuBar.h"
+#include "MainWindow.h"
 using namespace Sqz;
+
+
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
@@ -15,11 +18,8 @@ int main(int argc, char *argv[]) {
 //    sq.Init();
     sq.LogRegClass();
 
-    loginfo << QString::number(1).rightJustified(3,'0').left(3);
-    loginfo << QString::number(19).rightJustified(3,'0').left(3);
-    loginfo << QString::number(194).rightJustified(3,'0').left(3);
-    loginfo << QString::number(7465).rightJustified(3,'0').left(3);
-    loginfo << QString::number(99999).rightJustified(3,'0').left(3);
+    MainWindow win;
+    win.show();
 
     return app.exec();
 }
