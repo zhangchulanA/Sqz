@@ -110,62 +110,62 @@ private:
 
         // ---------- 一级：作战指挥 (order=0, 常亮) ----------
         auto* command = new MenuNode(
-            "⚔️ 作战",
-            BtnState::On,
-            nullptr,
-            {
-                // 二级：车内指挥 (order=0, 常亮)
-                new MenuNode("🚗 车内指挥", BtnState::On, nullptr,
-                    {
-                        // 三级：具体操作 (order 跳跃排列，演示占位)
-                        new MenuNode("📡 启动电台", BtnState::Blink, radioStart, {}, true, 1),
-                        new MenuNode("📡 关闭电台", BtnState::Blink, radioStop, {}, true, 3),
-                        new MenuNode("📻 频率设置", BtnState::Off, radioSetFreq, {}, true, 0),   // 排最前面
-                        new MenuNode("🔐 加密启用", BtnState::Blink, cryptoEnable, {}, true, 2),
-                        new MenuNode("🔓 加密禁用", BtnState::Blink, cryptoDisable, {}, true, 4),
-                    }
-                ),
-                // 二级：战场报告 (order=1, 普通)
-                new MenuNode("📄 战场报告", BtnState::Off, reportShow, {}, false, 1),
-                // 二级：GPS定位 (order=2, 普通)
-                new MenuNode("🛰️ GPS定位", BtnState::Off, gpsStatus, {}, true, 2),
-            },
-            true,
-            0
-        );
+                    "⚔️ 作战",
+                    BtnState::On,
+                    nullptr,
+        {
+                        // 二级：车内指挥 (order=0, 常亮)
+                        new MenuNode("🚗 车内指挥", BtnState::On, nullptr,
+                        {
+                            // 三级：具体操作 (order 跳跃排列，演示占位)
+                            new MenuNode("📡 启动电台", BtnState::Blink, radioStart, {}, true, 1),
+                            new MenuNode("📡 关闭电台", BtnState::Blink, radioStop, {}, true, 3),
+                            new MenuNode("📻 频率设置", BtnState::Off, radioSetFreq, {}, true, 0),   // 排最前面
+                            new MenuNode("🔐 加密启用", BtnState::Blink, cryptoEnable, {}, true, 2),
+                            new MenuNode("🔓 加密禁用", BtnState::Blink, cryptoDisable, {}, true, 4),
+                        }
+                        ),
+                        // 二级：战场报告 (order=1, 普通)
+                        new MenuNode("📄 战场报告", BtnState::Off, reportShow, {}, false, 1),
+                        // 二级：GPS定位 (order=2, 普通)
+                        new MenuNode("🛰️ GPS定位", BtnState::Off, gpsStatus, {}, true, 2),
+                    },
+                    true,
+                    0
+                    );
 
         // ---------- 一级：系统管理 (order=1, 普通) ----------
         auto* system = new MenuNode(
-            "⚙️ 系统",
-            BtnState::Off,
-            nullptr,
-            {
-                new MenuNode("🌐 网络设置", BtnState::Off, networkConfig, {}, true, 0),
-                new MenuNode("📋 系统日志", BtnState::Off, logShow, {}, true, 2),
-                new MenuNode("💻 系统信息", BtnState::Blink, systemInfo, {}, true, 1),
-                new MenuNode("⚡ 省电模式", BtnState::Off, powerSave, {}, true, 3),
-                new MenuNode("🚀 高性能", BtnState::Off, highPerformance, {}, true, 4),
-            },
-            true,
-            1
-        );
+                    "⚙️ 系统",
+                    BtnState::Off,
+                    nullptr,
+        {
+                        new MenuNode("🌐 网络设置", BtnState::Off, networkConfig, {}, true, 0),
+                        new MenuNode("📋 系统日志", BtnState::Off, logShow, {}, true, 2),
+                        new MenuNode("💻 系统信息", BtnState::Blink, systemInfo, {}, true, 1),
+                        new MenuNode("⚡ 省电模式", BtnState::Off, powerSave, {}, true, 3),
+                        new MenuNode("🚀 高性能", BtnState::Off, highPerformance, {}, true, 4),
+                    },
+                    true,
+                    1
+                    );
 
         // ---------- 一级：更多功能 (order=2, 普通) ----------
         auto* more = new MenuNode(
-            "📦 更多",
-            BtnState::Off,
-            nullptr,
-            {
-                new MenuNode("🔧 工具A", BtnState::Off, [](){ qDebug() << "🔧 工具A执行"; }),
-                new MenuNode("🔧 工具B", BtnState::Off, [](){ qDebug() << "🔧 工具B执行"; }),
-                new MenuNode("🔧 工具C", BtnState::Off, [](){ qDebug() << "🔧 工具C执行"; }),
-                new MenuNode("🔧 工具D", BtnState::Off, [](){ qDebug() << "🔧 工具D执行"; }),
-                new MenuNode("🔧 工具E", BtnState::Off, [](){ qDebug() << "🔧 工具E执行"; }),
-                new MenuNode("🔧 工具F", BtnState::Off, [](){ qDebug() << "🔧 工具F执行"; }),
-            },
-            true,
-            2
-        );
+                    "📦 更多",
+                    BtnState::Off,
+                    nullptr,
+        {
+                        new MenuNode("🔧 工具A", BtnState::Off, [](){ qDebug() << "🔧 工具A执行"; }),
+                        new MenuNode("🔧 工具B", BtnState::Off, [](){ qDebug() << "🔧 工具B执行"; }),
+                        new MenuNode("🔧 工具C", BtnState::Off, [](){ qDebug() << "🔧 工具C执行"; }),
+                        new MenuNode("🔧 工具D", BtnState::Off, [](){ qDebug() << "🔧 工具D执行"; }),
+                        new MenuNode("🔧 工具E", BtnState::Off, [](){ qDebug() << "🔧 工具E执行"; }),
+                        new MenuNode("🔧 工具F", BtnState::Off, [](){ qDebug() << "🔧 工具F执行"; }),
+                    },
+                    true,
+                    2
+                    );
 
         m_root->children = {command, system, more};
     }
@@ -270,26 +270,26 @@ private:
         // ---- 连接配置信号 ----
         connect(spinWidth, QOverload<int>::of(&QSpinBox::valueChanged),
                 this, [this](int val) {
-                    m_bar->setButtonFixedWidth(val);
-                    appendLog("⚙️ 按钮宽度设为 " + QString::number(val) + "px");
-                });
+            m_bar->setButtonFixedWidth(val);
+            appendLog("⚙️ 按钮宽度设为 " + QString::number(val) + "px");
+        });
 
         connect(spinSpacing, QOverload<int>::of(&QSpinBox::valueChanged),
                 this, [this](int val) {
-                    m_bar->setSpacing(val);
-                    appendLog("⚙️ 间距设为 " + QString::number(val) + "px");
-                });
+            m_bar->setSpacing(val);
+            appendLog("⚙️ 间距设为 " + QString::number(val) + "px");
+        });
 
         connect(spinMargin, QOverload<int>::of(&QSpinBox::valueChanged),
                 this, [this](int val) {
-                    m_bar->setMargins(val, 3, val, 3);
-                    appendLog("⚙️ 边距设为 " + QString::number(val) + "px");
-                });
+            m_bar->setMargins(val, 3, val, 3);
+            appendLog("⚙️ 边距设为 " + QString::number(val) + "px");
+        });
 
         connect(chkShowPath, &QCheckBox::toggled,
                 this, [this](bool checked) {
-                    if (!checked) statusBar()->clearMessage();
-                });
+            if (!checked) statusBar()->clearMessage();
+        });
 
         // ---- 连接控制按钮 ----
         connect(btnGetNodes, &QPushButton::clicked, this, &MainWindow::onGetNodes);
@@ -315,142 +315,146 @@ private:
     void setupConnections() {
         connect(m_engine, &MenuEngine::pathChanged,
                 this, [this](const QList<MenuNode*>& path) {
-                    if (!m_chkShowPath->isChecked()) return;
+            if (!m_chkShowPath->isChecked()) return;
 
-                    QStringList names;
-                    for (int i = 1; i < path.size(); ++i) {
-                        // 去除表情符号，保留纯文本
-                        QString text = path[i]->text;
-                        // 简单清理：移除常见表情符号前缀
-                        text.remove(QRegExp("^[\\x{1F300}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{2700}-\\x{27BF}]"));
-                        text = text.trimmed();
-                        if (!text.isEmpty()) names << text;
-                    }
-                    QString pathStr = names.join(" → ");
-                    if (pathStr.isEmpty()) pathStr = "根菜单";
-                    statusBar()->showMessage("📍 " + pathStr);
-                    appendLog("📂 切换到: " + pathStr);
-                });
+            QStringList names;
+            for (int i = 1; i < path.size(); ++i) {
+                // 去除表情符号，保留纯文本
+                QString text = path[i]->text;
+                // 简单清理：移除常见表情符号前缀
+                text.remove(QRegExp("^[\\x{1F300}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{2700}-\\x{27BF}]"));
+                text = text.trimmed();
+                if (!text.isEmpty()) names << text;
+            }
+            QString pathStr = names.join(" → ");
+            if (pathStr.isEmpty()) pathStr = "根菜单";
+            statusBar()->showMessage("📍 " + pathStr);
+            appendLog("📂 切换到: " + pathStr);
+        });
     }
 
     // ===== 样式 =====
     void applyStyle() {
         setStyleSheet(R"(
-            QMainWindow {
-                background-color: #1a1a2e;
-            }
-            QGroupBox {
-                color: #e0e0e0;
-                border: 1px solid #4a4a6a;
-                border-radius: 6px;
-                margin-top: 10px;
-                padding-top: 10px;
-                font-weight: bold;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-                color: #8a8aaa;
-            }
-            QPushButton {
-                padding: 4px 10px;
-                background-color: #2a2a4a;
-                color: #d0d0e0;
-                border: 1px solid #4a4a6a;
-                border-radius: 4px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #3a3a5a;
-                border-color: #6a6a8a;
-            }
-            QPushButton:pressed {
-                background-color: #1a1a3a;
-            }
-            QLabel {
-                color: #b0b0c0;
-                font-size: 12px;
-            }
-            QSpinBox {
-                background-color: #2a2a4a;
-                color: #d0d0e0;
-                border: 1px solid #4a4a6a;
-                border-radius: 4px;
-                padding: 2px 4px;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                background-color: #3a3a5a;
-                border: none;
-            }
-            QCheckBox {
-                color: #b0b0c0;
-                font-size: 12px;
-            }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-            }
-            QTextEdit {
-                background-color: #0d0d1a;
-                color: #a0d0a0;
-                border: 1px solid #3a3a5a;
-                border-radius: 4px;
-                font-family: Consolas;
-                font-size: 11px;
-            }
+                      QMainWindow {
+                      background-color: #1a1a2e;
+                      }
+                      QGroupBox {
+                      color: #e0e0e0;
+                      border: 1px solid #4a4a6a;
+                      border-radius: 6px;
+                      margin-top: 10px;
+                      padding-top: 10px;
+                      font-weight: bold;
+                      }
+                      QGroupBox::title {
+                      subcontrol-origin: margin;
+                      left: 10px;
+                      padding: 0 5px 0 5px;
+                      color: #8a8aaa;
+                      }
+                      QPushButton {
+                      padding: 4px 10px;
+                      background-color: #2a2a4a;
+                      color: #d0d0e0;
+                      border: 1px solid #4a4a6a;
+                      border-radius: 4px;
+                      font-size: 12px;
+                      }
+                      QPushButton:hover {
+                      background-color: #3a3a5a;
+                      border-color: #6a6a8a;
+                      }
+                      QPushButton:pressed {
+                      background-color: #1a1a3a;
+                      }
+                      QLabel {
+                      color: #b0b0c0;
+                      font-size: 12px;
+                      }
+                      QSpinBox {
+                      background-color: #2a2a4a;
+                      color: #d0d0e0;
+                      border: 1px solid #4a4a6a;
+                      border-radius: 4px;
+                      padding: 2px 4px;
+                      }
+                      QSpinBox::up-button, QSpinBox::down-button {
+                      background-color: #3a3a5a;
+                      border: none;
+                      }
+                      QCheckBox {
+                      color: #b0b0c0;
+                      font-size: 12px;
+                      }
+                      QCheckBox::indicator {
+                      width: 16px;
+                      height: 16px;
+                      }
+                      QTextEdit {
+                      background-color: #0d0d1a;
+                      color: #a0d0a0;
+                      border: 1px solid #3a3a5a;
+                      border-radius: 4px;
+                      font-family: Consolas;
+                      font-size: 11px;
+                      }
 
-            /* ===== 菜单栏按钮样式 (纯视觉，不影响间距) ===== */
-            MenuButton {
-                margin: 0px;
-                padding: 0px;
-                border-radius: 3px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-            MenuButton[state="off"] {
-                background-color: #3a3a5a;
-                color: #a0a0b0;
-                border: 1px solid #4a4a6a;
-            }
-            MenuButton[state="off"]:hover {
-                background-color: #4a4a6a;
-                border-color: #6a6a8a;
-            }
-            MenuButton[state="on"] {
-                background-color: #4CAF50;
-                color: white;
-                border: 1px solid #66bb6a;
-                font-weight: bold;
-            }
-            MenuButton[state="blink"] {
-                background-color: #FF9800;
-                color: white;
-                border: 1px solid #ffa726;
-                font-weight: bold;
-            }
-            MenuButton[state="blink"]:hover {
-                background-color: #ffb74d;
-            }
-            MenuButton[flashing="true"] {
-                background-color: #FFC107 !important;
-                color: black !important;
-                border: 1px solid #ffca28 !important;
-                font-weight: bold;
-            }
-            QPushButton[type="more"] {
-                background-color: #4a4a6a;
-                color: #b0b0c0;
-                border: 1px solid #5a5a7a;
-                border-radius: 3px;
-                font-size: 13px;
-                margin: 0px;
-                padding: 0px;
-            }
-            QPushButton[type="more"]:hover {
-                background-color: #5a5a7a;
-            }
-        )");
+                      /* ===== 菜单栏按钮样式 (纯视觉，不影响间距) ===== */
+                      MenuButton {
+                      border-radius: 0px;
+                      font-size: 13px;
+                      font-weight: 500;
+                      }
+                      MenuButton[state="off"] {
+                      background-color: red;
+                      color: #a0a0b0;
+                      border: 1px solid white;
+                      }
+                      MenuButton[state="off"]:hover:pressed {
+                      background-color: gray;
+                      color: white;
+                      border: 1px solid white;
+                      }
+                      MenuButton[state="on"] {
+                      background-color: blue;
+                      color: white;
+                      border: 1px solid white;
+                      }
+                      MenuButton[state="on"]:hover:pressed {
+                      background-color: gray;
+                      color: white;
+                      border: 1px solid white;
+                      }
+                      MenuButton[state="blink"] {
+                      background-color: red;
+                      color: white;
+                      border: 1px solid #ffa726;
+                      }
+                      MenuButton[state="blink"]:hover:pressed {
+                      background-color: blue;
+                      color: white;
+                      border: 1px solid #ffa726;
+                      }
+                      MenuButton[flashing="true"] {
+                      background-color: #FFC107 !important;
+                      color: black !important;
+                      border: 1px solid #ffca28 !important;
+                      font-weight: bold;
+                      }
+                      QPushButton[type="more"] {
+                      background-color: #4a4a6a;
+                      color: #b0b0c0;
+                      border: 1px solid #5a5a7a;
+                      border-radius: 3px;
+                      font-size: 13px;
+                      margin: 0px;
+                      padding: 0px;
+                      }
+                      QPushButton[type="more"]:hover {
+                      background-color: #5a5a7a;
+                      }
+                      )");
     }
 
     // ===== 日志辅助 =====

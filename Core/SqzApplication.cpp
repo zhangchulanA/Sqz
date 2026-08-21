@@ -38,6 +38,8 @@ bool SqzApplication::LoadConfig()
     const QStringList candidates = {
         QCoreApplication::applicationDirPath() + "/SqzAppConfig.json",
         QDir::currentPath() + "/SqzAppConfig.json",
+        QCoreApplication::applicationDirPath() + "/config/SqzAppConfig.json",
+        QDir::currentPath() + "/config/SqzAppConfig.json",
         QStringLiteral(":/SqzAppConfig.json")  // qrc 内置资源
     };
 

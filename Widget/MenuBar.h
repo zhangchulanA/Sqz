@@ -357,20 +357,18 @@ private:
         int availWidth = totalWidth - left - right;
         int availHeight = totalHeight - top - bottom;
 
-        // 计算每个控件的宽度（固定宽度，但最后一个可能自适应？这里统一固定）
+        // 计算每个控件的宽度（固定宽度）
         int btnWidth = m_buttonFixedWidth;
         int spacing = m_spacing;
         int count = m_widgets.size();
 
-        // 如果所有控件总宽度超过可用宽度，需要按比例缩小？这里简单截断或保持固定，用户需要保证宽度足够
-        // 也可以不做限制，超出则部分不可见（但可通过scroll解决，暂不考虑）
-        // 这里我们让控件宽度固定，如果超出就超出（用户需调整窗口或按钮宽度）
+
+        // 让控件宽度固定，如果超出就超出（用户需调整窗口或按钮宽度）
 
         int x = left;
-        int y = top + (availHeight - btnWidth) / 2; // 垂直居中（假设按钮高度等于宽度？实际高度应固定）
+        int y = top + (availHeight - btnWidth) / 2; // 垂直居中（）
         int btnHeight = availHeight; // 填满可用高度
 
-        // 但为了美观，高度可以设为可用高度，宽度固定
         // 遍历所有控件
         for (auto* w : m_widgets) {
             if (!w) continue;
