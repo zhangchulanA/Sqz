@@ -96,7 +96,7 @@ win32 {
 unix {
     QMAKE_CXXFLAGS += -Wall -Wextra
     QMAKE_LFLAGS += -rdynamic
-    LIBS += -lX11 -lXext -lxcb -lX11-xcb
+    LIBS += -lX11 -lXext -lxcb
 
     QMAKE_POST_LINK += $$PWD/MakeRun.sh $$VERSION $$PWD
     # 可选：强制UTF-8

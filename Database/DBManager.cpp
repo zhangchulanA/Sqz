@@ -1,29 +1,31 @@
-#include "SqzDbMgr.h"
+#include "DBManager.h"
 #include <QSqlError>
 #include <QDebug>
 #include <QThread>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
-namespace Sqz{
+
+namespace Sqz {
+
 // ==================== 静态成员初始化 ====================
-QMap<QString, SqzDbMgr*> SqzDbMgr::s_instances;
-QMutex SqzDbMgr::s_instanceMutex;
+QMap<QString, DBManager*> DBManager::s_instances;
+QMutex DBManager::s_instanceMutex;
 
 // ==================== 实例管理 ====================
-SqzDbMgr& SqzDbMgr::instance() {
+DBManager& DBManager::instance() {
     return instance("default");
 }
 
-SqzDbMgr& SqzDbMgr::instance(const QString& name) {
+DBManager& DBManager::instance(const QString& name) {
     QMutexLocker locker(&s_instanceMutex);
     if (!s_instances.contains(name)) {
-        s_instances[name] = new SqzDbMgr(name);
+        s_instances[name] = new DBManager(name);
     }
     return *s_instances[name];
 }
 
-void SqzDbMgr::destroyInstance(const QString& name) {
+void DBManager::destroyInstance(const QString& name) {
     QMutexLocker locker(&s_instanceMutex);
     if (s_instances.contains(name)) {
         s_instances[name]->cleanup();
@@ -32,7 +34,7 @@ void SqzDbMgr::destroyInstance(const QString& name) {
     }
 }
 
-void SqzDbMgr::destroyAll() {
+void DBManager::destroyAll() {
     QMutexLocker locker(&s_instanceMutex);
     for (auto it = s_instances.begin(); it != s_instances.end(); ++it) {
         it.value()->cleanup();
@@ -42,17 +44,17 @@ void SqzDbMgr::destroyAll() {
 }
 
 // ==================== 构造函数 ====================
-SqzDbMgr::SqzDbMgr(const QString& name)
+DBManager::DBManager(const QString& name)
     : QObject(nullptr), m_instanceName(name), m_baseConnectionName("db_" + name)
 {
 }
 
-SqzDbMgr::~SqzDbMgr() {
+DBManager::~DBManager() {
     cleanup();
 }
 
 // ==================== 配置 ====================
-void SqzDbMgr::configure(const DatabaseConfig& config) {
+void DBManager::configure(const Configuration& config) {
     QMutexLocker locker(&m_mutex);
     if (m_configured) {
         cleanup();
@@ -72,6 +74,7 @@ void SqzDbMgr::configure(const DatabaseConfig& config) {
         return;
     }
 
+    // 预创建连接池
     for (int i = 0; i < MAX_POOL_SIZE; ++i) {
         QString connName = QString("%1_pool_%2").arg(m_baseConnectionName).arg(i);
         if (QSqlDatabase::contains(connName)) {
@@ -86,7 +89,7 @@ void SqzDbMgr::configure(const DatabaseConfig& config) {
 }
 
 // ==================== 连接池 ====================
-QSqlDatabase SqzDbMgr::getConnection() {
+QSqlDatabase DBManager::getConnection() {
     QMutexLocker locker(&m_mutex);
     if (!m_configured) {
         m_lastError = "Database not configured. Call configure() first.";
@@ -99,7 +102,6 @@ QSqlDatabase SqzDbMgr::getConnection() {
     QString connName = m_connectionPool.dequeue();
     QSqlDatabase db = QSqlDatabase::database(connName);
     if (!db.isOpen()) {
-        // 自动重连逻辑
         if (m_autoReconnect) {
             db.open();
             if (!db.isOpen()) {
@@ -114,13 +116,13 @@ QSqlDatabase SqzDbMgr::getConnection() {
     return db;
 }
 
-void SqzDbMgr::releaseConnection(const QSqlDatabase& db) {
+void DBManager::releaseConnection(const QSqlDatabase& db) {
     if (!db.isValid() || !m_configured) return;
     QMutexLocker locker(&m_mutex);
     m_connectionPool.enqueue(db.connectionName());
 }
 
-QSqlDatabase SqzDbMgr::createConnection(const QString& connectionName) {
+QSqlDatabase DBManager::createConnection(const QString& connectionName) {
     if (QSqlDatabase::contains(connectionName)) {
         QSqlDatabase::removeDatabase(connectionName);
     }
@@ -140,7 +142,7 @@ QSqlDatabase SqzDbMgr::createConnection(const QString& connectionName) {
     return db;
 }
 
-void SqzDbMgr::cleanup() {
+void DBManager::cleanup() {
     QMutexLocker locker(&m_mutex);
     while (!m_connectionPool.isEmpty()) {
         QString connName = m_connectionPool.dequeue();
@@ -153,21 +155,20 @@ void SqzDbMgr::cleanup() {
     m_configured = false;
 }
 
-QString SqzDbMgr::lastError() const {
+QString DBManager::lastError() const {
     return m_lastError;
 }
 
 // ==================== 健康检查 ====================
-bool SqzDbMgr::ping() {
+bool DBManager::ping() {
     QMutexLocker locker(&m_mutex);
     if (!m_configured) {
         m_lastError = "Not configured";
         return false;
     }
 
-    // 遍历池中所有连接，执行 SELECT 1
     QStringList failed;
-    QVector<QString> tempList = m_connectionPool.toVector(); // 拷贝一份（修正）
+    QVector<QString> tempList = m_connectionPool.toVector();
     for (const QString& connName : tempList) {
         QSqlDatabase db = QSqlDatabase::database(connName);
         if (!db.isOpen()) {
@@ -180,7 +181,6 @@ bool SqzDbMgr::ping() {
         }
     }
 
-    // 对失败的连接尝试重连
     for (const QString& connName : failed) {
         QSqlDatabase db = QSqlDatabase::database(connName);
         if (db.isOpen()) db.close();
@@ -192,16 +192,16 @@ bool SqzDbMgr::ping() {
     return true;
 }
 
-void SqzDbMgr::setAutoReconnect(bool enabled) {
+void DBManager::setAutoReconnect(bool enabled) {
     m_autoReconnect = enabled;
 }
 
-bool SqzDbMgr::autoReconnect() const {
+bool DBManager::autoReconnect() const {
     return m_autoReconnect;
 }
 
 // ==================== 底层 SQL ====================
-bool SqzDbMgr::bindValuesToQuery(QSqlQuery& query, const QMap<QString, QVariant>& bindings) {
+bool DBManager::bindValuesToQuery(QSqlQuery& query, const QMap<QString, QVariant>& bindings) {
     for (auto it = bindings.begin(); it != bindings.end(); ++it) {
         if (it.key().startsWith(':')) {
             query.bindValue(it.key(), it.value());
@@ -214,12 +214,12 @@ bool SqzDbMgr::bindValuesToQuery(QSqlQuery& query, const QMap<QString, QVariant>
     return true;
 }
 
-QVector<QVariantMap> SqzDbMgr::executeQuery(const QString& sql,
-                                                    const QMap<QString, QVariant>& bindings) {
-    ScopedConnection conn(*this);
+QVector<QVariantMap> DBManager::executeQuery(const QString& sql,
+                                             const QMap<QString, QVariant>& bindings) {
+    ConnectionGuard conn(*this);
     if (!conn.isValid()) return {};
 
-    QSqlQuery query(conn.db());
+    QSqlQuery query(conn.database());
     if (!query.prepare(sql)) {
         m_lastError = "Prepare failed: " + query.lastError().text();
         return {};
@@ -242,12 +242,12 @@ QVector<QVariantMap> SqzDbMgr::executeQuery(const QString& sql,
     return results;
 }
 
-int SqzDbMgr::executeNonQuery(const QString& sql,
-                                     const QMap<QString, QVariant>& bindings) {
-    ScopedConnection conn(*this);
+int DBManager::executeNonQuery(const QString& sql,
+                               const QMap<QString, QVariant>& bindings) {
+    ConnectionGuard conn(*this);
     if (!conn.isValid()) return -1;
 
-    QSqlQuery query(conn.db());
+    QSqlQuery query(conn.database());
     if (!query.prepare(sql)) {
         m_lastError = "Prepare failed: " + query.lastError().text();
         return -1;
@@ -260,12 +260,12 @@ int SqzDbMgr::executeNonQuery(const QString& sql,
     return query.numRowsAffected();
 }
 
-QVariant SqzDbMgr::executeInsert(const QString& sql,
-                                         const QMap<QString, QVariant>& bindings) {
-    ScopedConnection conn(*this);
+QVariant DBManager::executeInsert(const QString& sql,
+                                  const QMap<QString, QVariant>& bindings) {
+    ConnectionGuard conn(*this);
     if (!conn.isValid()) return {};
 
-    QSqlQuery query(conn.db());
+    QSqlQuery query(conn.database());
     if (!query.prepare(sql)) {
         m_lastError = "Prepare failed: " + query.lastError().text();
         return {};
@@ -279,14 +279,14 @@ QVariant SqzDbMgr::executeInsert(const QString& sql,
 }
 
 // ==================== 事务 ====================
-bool SqzDbMgr::transaction(std::function<bool(QSqlDatabase& db)> func) {
-    ScopedConnection conn(*this);
+bool DBManager::executeTransaction(std::function<bool(QSqlDatabase& db)> func) {
+    ConnectionGuard conn(*this);
     if (!conn.isValid()) {
         m_lastError = "transaction: no connection";
         return false;
     }
 
-    QSqlDatabase& db = conn.db();
+    QSqlDatabase& db = conn.database();
     if (!db.transaction()) {
         m_lastError = "transaction: begin failed: " + db.lastError().text();
         return false;
@@ -319,8 +319,8 @@ bool SqzDbMgr::transaction(std::function<bool(QSqlDatabase& db)> func) {
     }
 }
 
-// ==================== 简便接口 ====================
-bool SqzDbMgr::insert(const QString& table, const QVariantMap& values) {
+// ==================== CRUD - QVariantMap 版本 ====================
+bool DBManager::insertRecord(const QString& table, const QVariantMap& values) {
     if (values.isEmpty()) {
         m_lastError = "insert: values empty";
         return false;
@@ -338,21 +338,103 @@ bool SqzDbMgr::insert(const QString& table, const QVariantMap& values) {
     return executeNonQuery(sql, bindings) > 0;
 }
 
-QVector<QVariantMap> SqzDbMgr::select(const QString& table,
+QVector<QVariantMap> DBManager::selectRecords(const QString& table,
                                               const QStringList& fields,
                                               const QVariantMap& where) {
-    // 保持向后兼容：内部调用灵活条件版本
-    QVector<WhereCondition> conds;
+    QVector<Condition> conds;
     for (auto it = where.begin(); it != where.end(); ++it) {
-        conds << WhereCondition(it.key(), it.value(), WhereCondition::Equal);
+        conds << Condition(it.key(), it.value(), Condition::Equal);
     }
-    return select(table, fields, conds);
+    return selectRecords(table, fields, conds);
 }
 
-// 灵活条件重载
-QVector<QVariantMap> SqzDbMgr::select(const QString& table,
+bool DBManager::updateRecords(const QString& table,
+                              const QVariantMap& values,
+                              const QVariantMap& where) {
+    QVector<Condition> conds;
+    for (auto it = where.begin(); it != where.end(); ++it) {
+        conds << Condition(it.key(), it.value(), Condition::Equal);
+    }
+    return updateRecords(table, values, conds);
+}
+
+bool DBManager::deleteRecords(const QString& table, const QVariantMap& where) {
+    QVector<Condition> conds;
+    for (auto it = where.begin(); it != where.end(); ++it) {
+        conds << Condition(it.key(), it.value());
+    }
+    return deleteRecords(table, conds);
+}
+
+int DBManager::countRecords(const QString& table, const QVariantMap& where) {
+    QVector<Condition> conds;
+    for (auto it = where.begin(); it != where.end(); ++it) {
+        conds << Condition(it.key(), it.value());
+    }
+    return countRecords(table, conds);
+}
+
+bool DBManager::recordExists(const QString& table, const QVariantMap& where) {
+    QVector<Condition> conds;
+    for (auto it = where.begin(); it != where.end(); ++it) {
+        conds << Condition(it.key(), it.value());
+    }
+    return recordExists(table, conds);
+}
+
+bool DBManager::createTable(const QString& table, const QMap<QString, QString>& columns) {
+    if (columns.isEmpty()) {
+        m_lastError = "createTable: columns empty";
+        return false;
+    }
+    QStringList colDefs;
+    for (auto it = columns.begin(); it != columns.end(); ++it) {
+        colDefs << QString("%1 %2").arg(it.key(), it.value());
+    }
+    QString sql = QString("CREATE TABLE IF NOT EXISTS %1 (%2)").arg(table, colDefs.join(", "));
+    return executeNonQuery(sql) >= 0;
+}
+
+bool DBManager::dropTable(const QString& table) {
+    QString sql = QString("DROP TABLE IF EXISTS %1").arg(table);
+    return executeNonQuery(sql) >= 0;
+}
+
+// ==================== CRUD - CondList 版本（初始化列表） ====================
+QVector<QVariantMap> DBManager::selectRecords(const QString& table,
                                               const QStringList& fields,
-                                              const QVector<WhereCondition>& where,
+                                              CondList conditions,
+                                              const QString& orderBy) {
+    QVector<Condition> conds = QVector<Condition>::fromList(QList<Condition>(conditions));
+    return selectRecords(table, fields, conds, orderBy);
+}
+
+bool DBManager::updateRecords(const QString& table,
+                              const QVariantMap& values,
+                              CondList conditions) {
+    QVector<Condition> conds = QVector<Condition>::fromList(QList<Condition>(conditions));
+    return updateRecords(table, values, conds);
+}
+
+bool DBManager::deleteRecords(const QString& table, CondList conditions) {
+    QVector<Condition> conds = QVector<Condition>::fromList(QList<Condition>(conditions));
+    return deleteRecords(table, conds);
+}
+
+int DBManager::countRecords(const QString& table, CondList conditions) {
+    QVector<Condition> conds = QVector<Condition>::fromList(QList<Condition>(conditions));
+    return countRecords(table, conds);
+}
+
+bool DBManager::recordExists(const QString& table, CondList conditions) {
+    QVector<Condition> conds = QVector<Condition>::fromList(QList<Condition>(conditions));
+    return recordExists(table, conds);
+}
+
+// ==================== CRUD - QVector<Condition> 版本 ====================
+QVector<QVariantMap> DBManager::selectRecords(const QString& table,
+                                              const QStringList& fields,
+                                              const QVector<Condition>& where,
                                               const QString& orderBy) {
     QString f = fields.isEmpty() ? "*" : fields.join(", ");
     QString sql = QString("SELECT %1 FROM %2").arg(f, table);
@@ -366,19 +448,9 @@ QVector<QVariantMap> SqzDbMgr::select(const QString& table,
     return executeQuery(sql, bindings);
 }
 
-bool SqzDbMgr::update(const QString& table,
-                             const QVariantMap& values,
-                             const QVariantMap& where) {
-    QVector<WhereCondition> conds;
-    for (auto it = where.begin(); it != where.end(); ++it) {
-        conds << WhereCondition(it.key(), it.value(), WhereCondition::Equal);
-    }
-    return update(table, values, conds);
-}
-
-bool SqzDbMgr::update(const QString& table,
-                             const QVariantMap& values,
-                             const QVector<WhereCondition>& where) {
+bool DBManager::updateRecords(const QString& table,
+                              const QVariantMap& values,
+                              const QVector<Condition>& where) {
     if (values.isEmpty() || where.isEmpty()) {
         m_lastError = "update: values and where cannot be empty";
         return false;
@@ -395,17 +467,9 @@ bool SqzDbMgr::update(const QString& table,
     return executeNonQuery(sql, bindings) >= 0;
 }
 
-bool SqzDbMgr::deleteRow(const QString& table, const QVariantMap& where) {
-    QVector<WhereCondition> conds;
-    for (auto it = where.begin(); it != where.end(); ++it) {
-        conds << WhereCondition(it.key(), it.value());
-    }
-    return deleteRow(table, conds);
-}
-
-bool SqzDbMgr::deleteRow(const QString& table, const QVector<WhereCondition>& where) {
+bool DBManager::deleteRecords(const QString& table, const QVector<Condition>& where) {
     if (where.isEmpty()) {
-        m_lastError = "deleteRow: where cannot be empty";
+        m_lastError = "delete: where cannot be empty";
         return false;
     }
     QMap<QString, QVariant> bindings;
@@ -414,15 +478,7 @@ bool SqzDbMgr::deleteRow(const QString& table, const QVector<WhereCondition>& wh
     return executeNonQuery(sql, bindings) >= 0;
 }
 
-int SqzDbMgr::count(const QString& table, const QVariantMap& where) {
-    QVector<WhereCondition> conds;
-    for (auto it = where.begin(); it != where.end(); ++it) {
-        conds << WhereCondition(it.key(), it.value());
-    }
-    return count(table, conds);
-}
-
-int SqzDbMgr::count(const QString& table, const QVector<WhereCondition>& where) {
+int DBManager::countRecords(const QString& table, const QVector<Condition>& where) {
     QString sql = QString("SELECT COUNT(*) AS cnt FROM %1").arg(table);
     QMap<QString, QVariant> bindings;
     if (!where.isEmpty()) {
@@ -432,30 +488,12 @@ int SqzDbMgr::count(const QString& table, const QVector<WhereCondition>& where) 
     return results.isEmpty() ? -1 : results.first()["cnt"].toInt();
 }
 
-bool SqzDbMgr::exists(const QString& table, const QVariantMap& where) {
-    return count(table, where) > 0;
+bool DBManager::recordExists(const QString& table, const QVector<Condition>& where) {
+    return countRecords(table, where) > 0;
 }
 
-bool SqzDbMgr::createTable(const QString& table, const QMap<QString, QString>& columns) {
-    if (columns.isEmpty()) {
-        m_lastError = "createTable: columns empty";
-        return false;
-    }
-    QStringList colDefs;
-    for (auto it = columns.begin(); it != columns.end(); ++it) {
-        colDefs << QString("%1 %2").arg(it.key(), it.value());
-    }
-    QString sql = QString("CREATE TABLE IF NOT EXISTS %1 (%2)").arg(table, colDefs.join(", "));
-    return executeNonQuery(sql) >= 0;
-}
-
-bool SqzDbMgr::dropTable(const QString& table) {
-    QString sql = QString("DROP TABLE IF EXISTS %1").arg(table);
-    return executeNonQuery(sql) >= 0;
-}
-
-// ==================== 新增功能 1：JSON 互转 ====================
-QJsonArray SqzDbMgr::toJson(const QVector<QVariantMap>& rows) const {
+// ==================== JSON 互转 ====================
+QJsonArray DBManager::toJson(const QVector<QVariantMap>& rows) const {
     QJsonArray arr;
     for (const auto& row : rows) {
         QJsonObject obj;
@@ -467,15 +505,15 @@ QJsonArray SqzDbMgr::toJson(const QVector<QVariantMap>& rows) const {
     return arr;
 }
 
-bool SqzDbMgr::insertFromJson(const QString& table, const QJsonObject& jsonObj) {
+bool DBManager::insertRecordFromJson(const QString& table, const QJsonObject& jsonObject) {
     QVariantMap data;
-    for (auto it = jsonObj.begin(); it != jsonObj.end(); ++it) {
+    for (auto it = jsonObject.begin(); it != jsonObject.end(); ++it) {
         data[it.key()] = it.value().toVariant();
     }
-    return insert(table, data);
+    return insertRecord(table, data);
 }
 
-int SqzDbMgr::insertBatchFromJson(const QString& table, const QJsonArray& jsonArray) {
+int DBManager::insertBatchFromJson(const QString& table, const QJsonArray& jsonArray) {
     QVector<QVariantMap> list;
     for (const auto& val : jsonArray) {
         QVariantMap map;
@@ -488,19 +526,19 @@ int SqzDbMgr::insertBatchFromJson(const QString& table, const QJsonArray& jsonAr
     return insertBatch(table, list);
 }
 
-// ==================== 新增功能 2：分页查询 ====================
-QVariantMap SqzDbMgr::selectPage(const QString& table,
-                                        int page,
-                                        int pageSize,
-                                        const QStringList& fields,
-                                        const QVector<WhereCondition>& where,
-                                        const QString& orderBy) {
+// ==================== 分页查询 ====================
+QVariantMap DBManager::selectPage(const QString& table,
+                                  int page,
+                                  int pageSize,
+                                  const QStringList& fields,
+                                  const QVector<Condition>& where,
+                                  const QString& orderBy) {
     QVariantMap result;
-    int total = count(table, where);
+    int total = countRecords(table, where);
     result["total"] = total;
 
     if (total < 1 || page < 1 || pageSize < 1) {
-        result["rows"] = QVariant::fromValue(QVector<QVariantMap>());  // 修正
+        result["rows"] = QVariant::fromValue(QVector<QVariantMap>());
         return result;
     }
 
@@ -521,14 +559,14 @@ QVariantMap SqzDbMgr::selectPage(const QString& table,
     return result;
 }
 
-// ==================== 新增功能 3：批量插入 ====================
-int SqzDbMgr::insertBatch(const QString& table, const QVector<QVariantMap>& valuesList) {
+// ==================== 批量插入 ====================
+int DBManager::insertBatch(const QString& table, const QVector<QVariantMap>& valuesList) {
     if (valuesList.isEmpty()) {
         m_lastError = "insertBatch: empty list";
         return 0;
     }
 
-    bool ok = transaction([&](QSqlDatabase& db) {
+    bool ok = executeTransaction([&](QSqlDatabase& db) {
         for (const auto& vals : valuesList) {
             QStringList cols, holders;
             QMap<QString, QVariant> bindings;
@@ -561,8 +599,8 @@ int SqzDbMgr::insertBatch(const QString& table, const QVector<QVariantMap>& valu
 }
 
 // ==================== 内部辅助函数 ====================
-QString SqzDbMgr::buildWhereClause(const QVariantMap& where,
-                                          QMap<QString, QVariant>& outBindings) {
+QString DBManager::buildWhereClause(const QVariantMap& where,
+                                    QMap<QString, QVariant>& outBindings) {
     QStringList conditions;
     for (auto it = where.begin(); it != where.end(); ++it) {
         QString paramName = ":where_" + it.key();
@@ -572,26 +610,26 @@ QString SqzDbMgr::buildWhereClause(const QVariantMap& where,
     return conditions.join(" AND ");
 }
 
-QString SqzDbMgr::buildWhereClause(const QVector<WhereCondition>& where,
-                                          QMap<QString, QVariant>& outBindings) {
+QString DBManager::buildWhereClause(const QVector<Condition>& where,
+                                    QMap<QString, QVariant>& outBindings) {
     QStringList conditions;
     int idx = 0;
     for (const auto& cond : where) {
         QString paramName = QString(":w_%1").arg(idx++);
         QString opStr;
 
-        if (!cond.customOp.isEmpty()) {
-            opStr = cond.customOp;
+        if (!cond.customOperator.isEmpty()) {
+            opStr = cond.customOperator;
         } else {
             switch (cond.op) {
-            case WhereCondition::Equal:          opStr = "="; break;
-            case WhereCondition::NotEqual:       opStr = "!="; break;
-            case WhereCondition::Greater:        opStr = ">"; break;
-            case WhereCondition::Less:           opStr = "<"; break;
-            case WhereCondition::GreaterOrEqual: opStr = ">="; break;
-            case WhereCondition::LessOrEqual:    opStr = "<="; break;
-            case WhereCondition::Like:           opStr = "LIKE"; break;
-            case WhereCondition::In: {
+            case Condition::Equal:          opStr = "="; break;
+            case Condition::NotEqual:       opStr = "!="; break;
+            case Condition::Greater:        opStr = ">"; break;
+            case Condition::Less:           opStr = "<"; break;
+            case Condition::GreaterOrEqual: opStr = ">="; break;
+            case Condition::LessOrEqual:    opStr = "<="; break;
+            case Condition::Like:           opStr = "LIKE"; break;
+            case Condition::In: {
                 QVariantList list = cond.value.toList();
                 if (list.isEmpty()) {
                     conditions << "1=0";
@@ -614,4 +652,5 @@ QString SqzDbMgr::buildWhereClause(const QVector<WhereCondition>& where,
     }
     return conditions.join(" AND ");
 }
-}
+
+} // namespace Sqz

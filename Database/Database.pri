@@ -1,11 +1,11 @@
 QT       +=  sql
 
 HEADERS += \
-    $$PWD/SqlBuilder.h \
-    $$PWD/SqzDbMgr.h
+    $$PWD/DBManager.h \
+    $$PWD/SqlBuilder.h
 
 
 SOURCES += \
-    $$PWD/SqlBuilder.cpp \
-    $$PWD/SqzDbMgr.cpp
+    $$PWD/DBManager.cpp \
+    $$PWD/SqlBuilder.cpp
 
