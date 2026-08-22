@@ -118,7 +118,7 @@ private:
                         new MenuNode("🚗 车内指挥", BtnState::On, nullptr,
                         {
                             // 三级：具体操作 (order 跳跃排列，演示占位)
-                            new MenuNode("📡 启动电台", BtnState::Blink, radioStart, {}, true, 1),
+                            new MenuNode("📡 启动电台", BtnState::Off, radioStart, {}, true, 1),
                             new MenuNode("📡 关闭电台", BtnState::Blink, radioStop, {}, true, 3),
                             new MenuNode("📻 频率设置", BtnState::Off, radioSetFreq, {}, true, 0),   // 排最前面
                             new MenuNode("🔐 加密启用", BtnState::Blink, cryptoEnable, {}, true, 2),
@@ -158,7 +158,7 @@ private:
         {
                         new MenuNode("🔧 工具A", BtnState::Off, [](){ qDebug() << "🔧 工具A执行"; }),
                         new MenuNode("🔧 工具B", BtnState::Off, [](){ qDebug() << "🔧 工具B执行"; }),
-                        new MenuNode("🔧 工具C", BtnState::Off, [](){ qDebug() << "🔧 工具C执行"; }),
+                        new MenuNode("🔧 工具C", BtnState::Blink, [](){ qDebug() << "🔧 工具C执行"; }),
                         new MenuNode("🔧 工具D", BtnState::Off, [](){ qDebug() << "🔧 工具D执行"; }),
                         new MenuNode("🔧 工具E", BtnState::Off, [](){ qDebug() << "🔧 工具E执行"; }),
                         new MenuNode("🔧 工具F", BtnState::Off, [](){ qDebug() << "🔧 工具F执行"; }),
@@ -502,7 +502,8 @@ private:
     void onTriggerRadio() {
         MenuNode* target = findNodeRecursive(m_root, "📡 启动电台");
         if (target) {
-            m_engine->triggerNode(target);
+//            m_engine->triggerNode(target);
+            m_bar->trigger(target);
             appendLog("🎯 已触发 '启动电台' 回调");
         } else {
             appendLog("❌ 未找到 '启动电台' 节点");

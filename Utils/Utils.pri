@@ -65,3 +65,5 @@ SOURCES += \
 INCLUDEPATH +=  $$PWD/translator\
                 $$PWD/utils \
                 $$PWD/other
+
+include(QHotkey/QHotkey.pri)

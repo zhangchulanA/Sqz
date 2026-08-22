@@ -1,5 +1,5 @@
 
-QT       += core gui
+QT       += core gui x11extras
 #QT       += core gui network sql xml concurrent qml quick quickwidgets svg
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -41,6 +41,7 @@ INCLUDEPATH +=  $$PWD/Log \
                 $$PWD/Utils/translator \
                 $$PWD/Utils/utils \
                 $$PWD/Utils/other \
+                $$PWD/Utils/QHotkey \
                 $$PWD/Widget \
                 $$PWD/Config \
                 $$PWD/NetWork \
@@ -95,7 +96,7 @@ win32 {
 unix {
     QMAKE_CXXFLAGS += -Wall -Wextra
     QMAKE_LFLAGS += -rdynamic
-
+    LIBS += -lX11 -lXext -lxcb -lX11-xcb
 
     QMAKE_POST_LINK += $$PWD/MakeRun.sh $$VERSION $$PWD
     # 可选：强制UTF-8
