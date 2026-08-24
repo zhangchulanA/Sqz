@@ -85,7 +85,7 @@ public:
         // ===== 3. 创建菜单栏并配置 =====
         m_bar = new MenuBar(this);
         m_bar->setEngine(m_engine);
-        m_bar->setMaxCount(8);                    // 每级最多8个按钮
+        m_bar->setMaxCount(9);                    // 每级最多8个按钮
         m_bar->setBarHeight(55);                  // 高度55px
         m_bar->setButtonFixedWidth(100);          // 固定宽度100px
         m_bar->setSpacing(0);                     // 间距0px
@@ -108,66 +108,148 @@ private:
     void buildMenuTree() {
         m_root = new MenuNode("");
 
-        // ---------- 一级：作战指挥 (order=0, 常亮) ----------
-        auto* command = new MenuNode(
-                    "⚔️ 作战",
-                    BtnState::On,
-                    nullptr,
+        // ---------- 一级：车内指挥 (order=0, 常亮) ----------
+        auto* InCar_Com = new MenuNode("车内指挥",BtnState::On,nullptr,
         {
-                        // 二级：车内指挥 (order=0, 常亮)
-                        new MenuNode("🚗 车内指挥", BtnState::On, nullptr,
-                        {
-                            // 三级：具体操作 (order 跳跃排列，演示占位)
-                            new MenuNode("📡 启动电台", BtnState::Off, radioStart, {}, true, 1),
-                            new MenuNode("📡 关闭电台", BtnState::Blink, radioStop, {}, true, 3),
-                            new MenuNode("📻 频率设置", BtnState::Off, radioSetFreq, {}, true, 0),   // 排最前面
-                            new MenuNode("🔐 加密启用", BtnState::Blink, cryptoEnable, {}, true, 2),
-                            new MenuNode("🔓 加密禁用", BtnState::Blink, cryptoDisable, {}, true, 4),
-                        }
-                        ),
-                        // 二级：战场报告 (order=1, 普通)
-                        new MenuNode("📄 战场报告", BtnState::Off, reportShow, {}, false, 1),
-                        // 二级：GPS定位 (order=2, 普通)
-                        new MenuNode("🛰️ GPS定位", BtnState::Off, gpsStatus, {}, true, 2),
-                    },
-                    true,
-                    0
-                    );
+                                           new MenuNode("路线设置", BtnState::Of, nullptr,{},0),
+                                           new MenuNode("偏航设置", BtnState::Of, nullptr, {},2),
+                                           new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                       },0);
 
-        // ---------- 一级：系统管理 (order=1, 普通) ----------
-        auto* system = new MenuNode(
-                    "⚙️ 系统",
-                    BtnState::Off,
-                    nullptr,
+        // ---------- 一级：车际指挥 (order=1, 普通) ----------
+        auto* InterVehicle_Com = new MenuNode("车际指挥",BtnState::Of,nullptr,
         {
-                        new MenuNode("🌐 网络设置", BtnState::Off, networkConfig, {}, true, 0),
-                        new MenuNode("📋 系统日志", BtnState::Off, logShow, {}, true, 2),
-                        new MenuNode("💻 系统信息", BtnState::Blink, systemInfo, {}, true, 1),
-                        new MenuNode("⚡ 省电模式", BtnState::Off, powerSave, {}, true, 3),
-                        new MenuNode("🚀 高性能", BtnState::Off, highPerformance, {}, true, 4),
-                    },
-                    true,
-                    1
-                    );
+                                                  new MenuNode("文电处理", BtnState::Of, nullptr,
+                                                  {
+                                                      new MenuNode("命令", BtnState::Of,nullptr,{},0),
+                                                      new MenuNode("请求", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                                      new MenuNode("报告", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},2),
+                                                      new MenuNode("自由文电", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},3),
+                                                      new MenuNode("图片浏览", BtnState::Of, [](){ qDebug() << "🔧 工具E执行"; },{},5),
+                                                      new MenuNode("收件箱", BtnState::Of, [](){ qDebug() << "🔧 工具F执行"; },{},6),
+                                                      new MenuNode("发件箱", BtnState::Of, [](){ qDebug() << "🔧 工具F执行"; },{},7),
+                                                      new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                  }),
+                                                  new MenuNode("情况处理", BtnState::Of, nullptr, {
+                                                      new MenuNode("目标标注", BtnState::Of,nullptr,{},0),
+                                                      new MenuNode("情况管理", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                                      new MenuNode("图层设置", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},2),
+                                                      new MenuNode("态势清除", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},3),
+                                                      new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                  }),
+                                                  new MenuNode("技况报告", BtnState::Of, nullptr,{
+                                                      new MenuNode("技术状况", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},0),
+                                                      new MenuNode("人员统计", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                                      new MenuNode("弹药统计", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},2),
+                                                      new MenuNode("燃油统计", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},3),
+                                                      new MenuNode("故障统计", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},4),
+                                                      new MenuNode("弹量输入", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},7),
+                                                      new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                  }),
+                                                  new MenuNode("导航处理", BtnState::Of, nullptr, {
+                                                      new MenuNode("导航线", BtnState::Of,nullptr,{},0),
+                                                      new MenuNode("定位发送", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                                      new MenuNode("导航管理", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},2),
+                                                      new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                  }),
+                                                  new MenuNode("通信配置", BtnState::Of, nullptr, {
+                                                      new MenuNode("接入方式", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},0),
+                                                      new MenuNode("时隙设置", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                                      new MenuNode("网络设置", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},2),
+                                                      new MenuNode("速率设置", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},3),
+                                                      new MenuNode("网络维护", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{
+                                                          new MenuNode("节点列表", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{}),
+                                                          new MenuNode("主动退网", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{}),
+                                                          new MenuNode("主动入网", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{}),
+                                                          new MenuNode("路由查询", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{}),
+                                                          new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                      },4),
+                                                      new MenuNode("指挥设置", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{
+                                                          new MenuNode("转信设置", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{}),
+                                                          new MenuNode("喇叭音量", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{}),
+                                                          new MenuNode("网际开关", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{}),
+                                                          new MenuNode("链路切换", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{}),
+                                                          new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                      },5),
+                                                      new MenuNode("电台状态", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},6),
+                                                      new MenuNode("高级设置", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{
+                                                          new MenuNode("时延设置", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},0),
+                                                          new MenuNode("恢复出场", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},1),
+                                                          new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                      },7),
+                                                      new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                  }),
+                                                  new MenuNode("系统设置", BtnState::Of, nullptr, {
+                                                      new MenuNode("席位设置", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},0),
+                                                      new MenuNode("名录查看", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},2),
+                                                      new MenuNode("数据管理", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},3),
+                                                      new MenuNode("通信测试", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},4),
+                                                      new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                                  }),
+                                                  new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                              },1);
 
-        // ---------- 一级：更多功能 (order=2, 普通) ----------
-        auto* more = new MenuNode(
-                    "📦 更多",
-                    BtnState::Off,
-                    nullptr,
+        // ---------- 一级：系统管理 (order=2, 普通) ----------
+        auto* SystemMgnt = new MenuNode("系统管理",BtnState::Of,nullptr,
         {
-                        new MenuNode("🔧 工具A", BtnState::Off, [](){ qDebug() << "🔧 工具A执行"; }),
-                        new MenuNode("🔧 工具B", BtnState::Off, [](){ qDebug() << "🔧 工具B执行"; }),
-                        new MenuNode("🔧 工具C", BtnState::Blink, [](){ qDebug() << "🔧 工具C执行"; }),
-                        new MenuNode("🔧 工具D", BtnState::Off, [](){ qDebug() << "🔧 工具D执行"; }),
-                        new MenuNode("🔧 工具E", BtnState::Off, [](){ qDebug() << "🔧 工具E执行"; }),
-                        new MenuNode("🔧 工具F", BtnState::Off, [](){ qDebug() << "🔧 工具F执行"; }),
-                    },
-                    true,
-                    2
-                    );
+                                            new MenuNode("语言设置", BtnState::Of, [](){ qDebug() << "🔧 工具A执行"; },{},0),
+                                            new MenuNode("时区时间", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                            new MenuNode("屏幕除雾", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},3),
+                                            new MenuNode("屏幕亮度", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},4),
+                                            new MenuNode("屏幕校准", BtnState::Of, [](){ qDebug() << "🔧 工具E执行"; },{},5),
+                                            new MenuNode("本机信息", BtnState::Of, [](){ qDebug() << "🔧 工具F执行"; },{},6),
+                                            new MenuNode("账户管理", BtnState::Of, [](){ qDebug() << "🔧 工具F执行"; },{},7),
+                                            new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                        },2);
+        // ---------- 一级：导航控制 (order=3, 普通) ----------
+        auto* NavControl = new MenuNode("导航控制",BtnState::Of,nullptr,
+        {
+                                            new MenuNode("归位", BtnState::Of, [](){ qDebug() << "🔧 工具A执行"; },{},0),
+                                            new MenuNode("航迹关闭", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                            new MenuNode("航迹清除", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},2),
+                                            new MenuNode("UTM经纬度", BtnState::Of, [](){ qDebug() << "🔧 工具D执行"; },{},3),
+                                            new MenuNode("全屏地图", BtnState::Of, [](){ qDebug() << "🔧 工具E执行"; },{},4),
+                                            new MenuNode("地图设置", BtnState::Of, [](){ qDebug() << "🔧 工具F执行"; },{
+                                                new MenuNode("投影设置", BtnState::Of, [](){ qDebug() << "🔧 工具A执行"; },{},0),
+                                                new MenuNode("类型设置", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                                new MenuNode("网格设置", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},2),
+                                                new MenuNode("书签管理", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},3),
+                                                new MenuNode("图层选择", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},4),
+                                                new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                            },5),
+                                            new MenuNode("导航设置", BtnState::Of, [](){ qDebug() << "🔧 工具F执行"; },{},7),
+                                            new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                        },3);
+        // ---------- 一级：武器控制 (order=4, 普通) ----------
+        auto* WeaponControl = new MenuNode("武器控制",BtnState::Of,nullptr,
+        {
+                                               new MenuNode("激光单元", BtnState::Of, [](){ qDebug() << "🔧 工具A执行"; },{},2),
+                                               new MenuNode("火控状态", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},3),
+                                               new MenuNode("烟幕发射", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{
+                                                   new MenuNode("烟左1-2", BtnState::Of, [](){ qDebug() << "🔧 工具A执行"; },{},0),
+                                                   new MenuNode("烟左3-4", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                                   new MenuNode("烟左齐发", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},2),
+                                                   new MenuNode("烟右1-2", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},3),
+                                                   new MenuNode("烟右3-4", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},4),
+                                                   new MenuNode("烟齐发", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},5),
+                                                   new MenuNode("榴齐发", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},6),
+                                                   new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                               },5),
+                                               new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                           },4);
+        // ---------- 一级：电气控制 (order=5, 普通) ----------
+        auto* ElectricalControl = new MenuNode("电气控制",BtnState::Of,nullptr,
+        {
+                                                   new MenuNode("故障列表", BtnState::Of, [](){ qDebug() << "🔧 工具A执行"; },{},0),
+                                                   new MenuNode("节点状态", BtnState::Of, [](){ qDebug() << "🔧 工具B执行"; },{},1),
+                                                   new MenuNode("风扇状态", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},2),
+                                                   new MenuNode("三防状态", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},3),
+                                                   new MenuNode("灭火状态", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},4),
+                                                   new MenuNode("信息展示", BtnState::Of, [](){ qDebug() << "🔧 工具C执行"; },{},7),
+                                                   new MenuNode("返回", BtnState::Of, [](){ qDebug() << "返回"; },{},8,true)
+                                               },5);
 
-        m_root->children = {command, system, more};
+        m_root->children = {InCar_Com, InterVehicle_Com, SystemMgnt,NavControl,WeaponControl,ElectricalControl};
     }
 
     // ===== 创建控制面板 =====
@@ -473,7 +555,7 @@ private:
         appendLog("📋 当前层级节点数: " + QString::number(nodes.size()));
         for (int i = 0; i < nodes.size(); ++i) {
             auto* n = nodes[i];
-            const char* stateName[] = {"Off", "On", "Blink"};
+            const char* stateName[] = {"Of", "On", "Of"};
             int idx = static_cast<int>(n->state);
             appendLog(QString("  [%1] %2 | state=%3 | exclusive=%4 | children=%5 | order=%6")
                       .arg(i)

@@ -267,10 +267,10 @@ int main(int argc, char *argv[]) {
 //        sq.Init();
     sq.LogRegClass();
 
-//    MainWindow win;
-//    win.show();
+    MainWindow win;
+    win.show();
 
-   BDTest();
+//   BDTest();
 
     return app.exec();
 }

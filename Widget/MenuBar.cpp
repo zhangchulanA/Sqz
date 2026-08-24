@@ -1,3 +1,4 @@
+
 // MenuBar.cpp - 底部多级菜单栏组件实现
 
 #include "MenuBar.h"
@@ -7,10 +8,16 @@ MenuNode::MenuNode(const QString& text,
                    BtnState state,
                    std::function<void()> callback,
                    const QList<MenuNode*>& children,
-                   bool exclusive,
-                   int order)
+                   int order,
+                   bool isBack,
+                   bool exclusive)
     : text(text), state(state), callback(callback), children(children),
-      exclusive(exclusive), order(order) {}
+      order(order), isBack(isBack), exclusive(exclusive) {
+
+    if(isBack == true){
+        state = BtnState::Bk;
+    }
+}
 
 // ============================ MenuButton ============================
 MenuButton::MenuButton(MenuNode* node, QWidget* parent)
@@ -123,7 +130,6 @@ void MenuBar::setSpacing(int spacing) {
 void MenuBar::setMargins(int left, int top, int right, int bottom) {
     m_margins = QMargins(left, top, right, bottom);
     updateLayout();
-
 }
 
 // ===== 状态管理 =====
@@ -132,7 +138,7 @@ void MenuBar::setNodeState(MenuNode* node, BtnState newState) {
 
     if (newState == BtnState::On) {
         if (m_currentOn && m_currentOn->node() != node) {
-            m_currentOn->node()->state = BtnState::Off;
+            m_currentOn->node()->state = BtnState::Of;
             updateStyle(m_currentOn);
             m_currentOn = nullptr;
         }
@@ -145,7 +151,7 @@ void MenuBar::setNodeState(MenuNode* node, BtnState newState) {
         if (btn && btn->node() == node) {
             updateStyle(btn);
             if (newState == BtnState::On) m_currentOn = btn;
-            else if (newState == BtnState::Off && m_currentOn == btn) m_currentOn = nullptr;
+            else if (newState == BtnState::Of && m_currentOn == btn) m_currentOn = nullptr;
             break;
         }
     }
@@ -197,11 +203,11 @@ void MenuBar::toggleState(MenuButton* btn) {
     if (!btn) return;
     MenuNode* node = btn->node();
     if (!node) return;
-    if (node->state == BtnState::Blink) {
+    if (node->state == BtnState::Bk) {
         setNodeState(node, BtnState::On);
         return;
     }
-    BtnState newState = (node->state == BtnState::Off) ? BtnState::On : BtnState::Off;
+    BtnState newState = (node->state == BtnState::Of) ? BtnState::On : BtnState::Of;
     setNodeState(node, newState);
 }
 
@@ -213,9 +219,9 @@ QString MenuBar::getStateStr(MenuButton* btn) const {
 }
 
 BtnState MenuBar::getState(MenuButton* btn) const {
-    if (!btn) return BtnState::Off;
+    if (!btn) return BtnState::Of;
     MenuNode* node = btn->node();
-    if (!node) return BtnState::Off;
+    if (!node) return BtnState::Of;
     return node->state;
 }
 
@@ -225,7 +231,7 @@ void MenuBar::trigger(MenuNode* node) {
 
     MenuButton* targetBtn = getBtn(node);
     if (targetBtn) {
-        if (node->state == BtnState::Blink) {
+        if (node->state == BtnState::Bk) {
             flash(targetBtn);
             if (node->callback) node->callback();
         } else {
@@ -260,7 +266,7 @@ void MenuBar::onPathChanged(const QList<MenuNode*>& path) {
         for (auto* node : items) {
             if (node->state == BtnState::On) {
                 if (!hasOn) hasOn = true;
-                else node->state = BtnState::Off;
+                else node->state = BtnState::Of;
             }
         }
     }
@@ -268,41 +274,53 @@ void MenuBar::onPathChanged(const QList<MenuNode*>& path) {
     // 按 order 排序
     QList<MenuNode*> orderedNodes;
     QMap<int, MenuNode*> orderMap;
-    QList<MenuNode*> tailNodes;
+    QList<MenuNode*> noOrderNodes;
     bool hasOrder = false;
+    //分离有order和没order的节点
     for (auto* node : items) {
-        if (node->order >= 0) {
+        if (node->order >= 0 ) {
             orderMap.insert(node->order, node);
             hasOrder = true;
         } else {
-            tailNodes.append(node);
+            noOrderNodes.append(node);
         }
     }
+
     if (hasOrder) {
         int maxOrder = orderMap.isEmpty() ? -1 : orderMap.lastKey();
+        int noOrderIndex = 0;
         for (int i = 0; i <= maxOrder; ++i) {
-            orderedNodes.append(orderMap.value(i, nullptr));
-        }
-    }
-    orderedNodes.append(tailNodes);
-
-    // 创建控件
-    int maxDisplay = m_maxCount - (path.size() > 1 ? 1 : 0);
-    int created = 0;
-    bool moreAdded = false;
-
-    for (auto* node : orderedNodes) {
-        if (created >= maxDisplay) {
-            if (!moreAdded) {
-                createMoreButton();
-                moreAdded = true;
+            if(orderMap.contains(i))
+                orderedNodes.append(orderMap.value(i));
+            else{
+                if(noOrderIndex < noOrderNodes.size()){
+                    orderedNodes.append(noOrderNodes[noOrderIndex]);
+                    noOrderIndex++;
+                }else{
+                    orderedNodes.append(nullptr);
+                }
             }
-            break;
         }
+        while (noOrderIndex < noOrderNodes.size()) {
+            orderedNodes.append(noOrderNodes[noOrderIndex]);
+            noOrderIndex++;
+        }
+    }else{
+        orderedNodes = noOrderNodes;
+    }
+
+
+    // 创建控件（最多 m_maxCount 个）
+    int maxDisplay = m_maxCount;
+    int created = 0;
+    int totalWidgets = 0;
+    for (auto* node : orderedNodes) {
+        if (totalWidgets >= maxDisplay) break;
         if (node) {
             MenuButton* btn = createButton(node);
             m_widgets.append(btn);
             if (node->state == BtnState::On) m_currentOn = btn;
+            created++;
         } else {
             QWidget* placeholder = new QWidget(this);
             placeholder->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
@@ -310,20 +328,7 @@ void MenuBar::onPathChanged(const QList<MenuNode*>& path) {
             placeholder->show();
             m_widgets.append(placeholder);
         }
-        created++;
-    }
-
-    // 返回按钮
-    if (path.size() > 1) {
-        static MenuNode backNode("← 返回", BtnState::Blink, nullptr, {}, false, -1);
-        MenuButton* backBtn = createButton(&backNode);
-        backBtn->setProperty("isBack", true);
-        connect(backBtn, &MenuButton::clicked, this, [=]() {
-            flash(backBtn);
-            if (m_engine) m_engine->back();
-        });
-        m_widgets.append(backBtn);
-        m_backButton = backBtn;
+        totalWidgets++;
     }
 
     updateAllStyles();
@@ -332,14 +337,26 @@ void MenuBar::onPathChanged(const QList<MenuNode*>& path) {
 
 void MenuBar::onButtonClicked(MenuButton* btn) {
     MenuNode* node = btn->node();
-    if (!node || btn == m_backButton) return;
+    if (!node) return;
 
+    // 返回按钮：自动返回上一级，并执行用户回调
+    if (node->isBack) {
+        if (node->state == BtnState::Bk) {
+            flash(btn);
+        }
+        if (m_engine) m_engine->back();
+        if (node->callback) node->callback();
+        return;
+    }
+
+    // 有子节点：进入下一级
     if (!node->children.isEmpty()) {
         if (m_engine) m_engine->enter(node);
         return;
     }
 
-    if (node->state == BtnState::Blink) {
+    // 叶子节点：切换状态并执行回调
+    if (node->state == BtnState::Bk) {
         flash(btn);
         if (node->callback) node->callback();
         return;
@@ -352,9 +369,9 @@ void MenuBar::onButtonClicked(MenuButton* btn) {
     }
 
     if (exclusiveEnabled) {
-        if (node->state == BtnState::Off) {
+        if (node->state == BtnState::Of) {
             if (m_currentOn) {
-                m_currentOn->node()->state = BtnState::Off;
+                m_currentOn->node()->state = BtnState::Of;
                 updateStyle(m_currentOn);
                 m_currentOn = nullptr;
             }
@@ -362,12 +379,12 @@ void MenuBar::onButtonClicked(MenuButton* btn) {
             m_currentOn = btn;
             updateStyle(btn);
         } else if (node->state == BtnState::On) {
-            node->state = BtnState::Off;
+            node->state = BtnState::Of;
             m_currentOn = nullptr;
             updateStyle(btn);
         }
     } else {
-        node->state = (node->state == BtnState::Off) ? BtnState::On : BtnState::Off;
+        node->state = (node->state == BtnState::Of) ? BtnState::On : BtnState::Of;
         updateStyle(btn);
     }
     if (node->callback) node->callback();
@@ -380,26 +397,18 @@ void MenuBar::clearWidgets() {
         w->deleteLater();
     }
     m_widgets.clear();
-    m_backButton = nullptr;
     m_currentOn = nullptr;
 }
 
 MenuButton* MenuBar::createButton(MenuNode* node) {
     auto* btn = new MenuButton(node, this);
     btn->setProperty("state", stateToString(node->state));
+    if (node->isBack) {
+        btn->setProperty("isBack", true);
+    }
     connect(btn, &MenuButton::clicked, this, [=]() { onButtonClicked(btn); });
     btn->show();
     return btn;
-}
-
-void MenuBar::createMoreButton() {
-    auto* moreBtn = new QPushButton("更多...", this);
-    moreBtn->setProperty("type", "more");
-    connect(moreBtn, &QPushButton::clicked, this, [=]() {
-        qDebug() << "更多按钮点击，请实现弹出菜单或进入下一级";
-    });
-    moreBtn->show();
-    m_widgets.append(moreBtn);
 }
 
 // ===== 布局计算 =====
@@ -442,7 +451,7 @@ void MenuBar::updateStyle(MenuButton* btn) {
 
 void MenuBar::flash(MenuButton* btn) {
     if (!btn) return;
-    btn->setProperty("state", "blink");
+    btn->setProperty("state", "Bk");
     btn->style()->polish(btn);
     QPointer<MenuButton> safeBtn(btn);
     QTimer::singleShot(200, this, [=]() {
@@ -463,9 +472,9 @@ void MenuBar::simulateClick(MenuButton* btn) {
     }
 
     if (exclusiveEnabled) {
-        if (node->state == BtnState::Off) {
+        if (node->state == BtnState::Of) {
             if (m_currentOn) {
-                m_currentOn->node()->state = BtnState::Off;
+                m_currentOn->node()->state = BtnState::Of;
                 updateStyle(m_currentOn);
                 m_currentOn = nullptr;
             }
@@ -473,12 +482,12 @@ void MenuBar::simulateClick(MenuButton* btn) {
             m_currentOn = btn;
             updateStyle(btn);
         } else if (node->state == BtnState::On) {
-            node->state = BtnState::Off;
+            node->state = BtnState::Of;
             m_currentOn = nullptr;
             updateStyle(btn);
         }
     } else {
-        node->state = (node->state == BtnState::Off) ? BtnState::On : BtnState::Off;
+        node->state = (node->state == BtnState::Of) ? BtnState::On : BtnState::Of;
         updateStyle(btn);
     }
 
@@ -487,10 +496,10 @@ void MenuBar::simulateClick(MenuButton* btn) {
 
 QString MenuBar::stateToString(BtnState state) const {
     switch (state) {
-        case BtnState::Off:   return "off";
-        case BtnState::On:    return "on";
-        case BtnState::Blink: return "blink";
-        default: return "off";
+    case BtnState::Of:   return "Of";
+    case BtnState::On:   return "On";
+    case BtnState::Bk:   return "Bk";
+    default: return "Of";
     }
 }
 

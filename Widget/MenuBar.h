@@ -17,27 +17,29 @@
 
 // ============================ 枚举 ============================
 enum class BtnState {
-    Off,      // 普通（暗）
+    Of,       // 普通（暗）
     On,       // 常亮（亮）
-    Blink     // 瞬时闪烁
+    Bk        // 瞬时闪烁
 };
 
 // ============================ MenuNode ============================
 class MenuNode {
 public:
     explicit MenuNode(const QString& text,
-                      BtnState state = BtnState::Off,
+                      BtnState state = BtnState::Of,
                       std::function<void()> callback = nullptr,
                       const QList<MenuNode*>& children = {},
-                      bool exclusive = true,
-                      int order = -1);
+                      int order = -1,
+                      bool isBack = false,
+                      bool exclusive = true);
 
     QString text;
     BtnState state;
     std::function<void()> callback;
     QList<MenuNode*> children;
-    bool exclusive;
     int order;
+    bool isBack;
+    bool exclusive;
 };
 
 // ============================ MenuButton ============================
@@ -93,7 +95,7 @@ public:
     void setMargins(int left, int top, int right, int bottom); // 边距
 
     // ===== 状态管理 =====
-    void setNodeState(MenuNode* node, BtnState newState); // 设置节点状态（Off/On）
+    void setNodeState(MenuNode* node, BtnState newState); // 设置节点状态（Of/On）
 
     // ===== 按钮查询 =====
     QList<MenuButton*> getButtons() const;                // 获取所有按钮
@@ -103,7 +105,7 @@ public:
     // ===== 按钮操作 =====
     void setText(MenuButton* btn, const QString& newText); // 修改按钮文本（同步节点）
     void setText(MenuNode* node, const QString& newText);  // 通过节点修改文本
-    void toggleState(MenuButton* btn);                     // 切换 Off ↔ On
+    void toggleState(MenuButton* btn);                     // 切换 Of ↔ On
     QString getStateStr(MenuButton* btn) const;            // 获取状态字符串
     BtnState getState(MenuButton* btn) const;              // 获取状态枚举
 
@@ -121,7 +123,6 @@ private:
     // ----- 控件管理 -----
     void clearWidgets();
     MenuButton* createButton(MenuNode* node);
-    void createMoreButton();
 
     // ----- 布局计算 -----
     void updateLayout();
@@ -140,10 +141,10 @@ private:
     // ----- 成员变量 -----
     MenuEngine* m_engine = nullptr;
     QList<QWidget*> m_widgets;          // 所有子控件（按钮或占位）
-    MenuButton* m_backButton = nullptr;
     MenuButton* m_currentOn = nullptr;
     int m_maxCount = 6;
     int m_buttonFixedWidth = 100;
     int m_spacing = 0;
     QMargins m_margins;
 };
+
