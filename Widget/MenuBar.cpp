@@ -44,6 +44,12 @@ void MenuEngine::setRoot(MenuNode* root) {
 void MenuEngine::enter(MenuNode* node) {
     if (!node) return;
     if (!node->children.isEmpty()) {
+        for(auto* child : node->children){
+            if(!child->isBack){
+                child->state = BtnState::Of;
+            }
+        }
+
         m_currentPath.append(node);
         emit pathChanged(m_currentPath);
     } else {
@@ -459,6 +465,7 @@ void MenuBar::flash(MenuButton* btn) {
             updateStyle(safeBtn);
         }
     });
+
 }
 
 void MenuBar::simulateClick(MenuButton* btn) {
