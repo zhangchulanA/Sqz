@@ -258,18 +258,34 @@ int BDTest()
 
 }
 
+void LogTest(){
+    // 普通日志 - 不会显示在控制台（因为 enableConsole=false）
+    logdebug << "This won't be seen";      // 等级过滤，也不写入文件
+    loginfo  << "Normal info - file only"; // 写入文件，不显示控制台
+    logwarn  << "Normal warn - file only"; // 写入文件，不显示控制台
+    logerror << "Normal error - file only";// 写入文件，不显示控制台
+
+    // 强制日志 - 忽略所有开关，同时输出到文件和控制台
+    fdebug << "Force debug - shows everywhere!";  // 蓝色
+    finfo  << "System initialized successfully";  // 绿色
+    fwarn  << "Memory usage: " << 85 << "%";      // 黄色
+    ferror << "Database connection failed!";      // 红色
+
+    // 强制日志立即刷新到文件，即使 FLUSH_INTERVAL=64 也不影响
+    finfo << "Critical transaction completed";
+}
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
-    Logger::instance().init(".","log");
+    Logger::instance().init("./log","log_");
     SqzApplication sq;
 //        sq.Init();
     sq.LogRegClass();
 
-    MainWindow win;
-    win.show();
-
+//    MainWindow win;
+//    win.show();
+LogTest();
 //   BDTest();
 
     return app.exec();

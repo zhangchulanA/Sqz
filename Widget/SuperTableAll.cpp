@@ -149,6 +149,134 @@ void SuperTableModel::setRowColorRule(const RowColorFunc &func)
 }
 
 /**
+ * @brief 根据指定列的值查找匹配的行索引（展示数据中的索引）
+ */
+QList<int> SuperTableModel::findRowsByColumn(const QString& colKey, const QString& value) const
+{
+    QList<int> matchedRows;
+    if (colKey.isEmpty() || value.isEmpty())
+        return matchedRows;
+
+    for (int i = 0; i < m_showIndex.size(); ++i)
+    {
+        const TableRowData& row = m_originData[m_showIndex[i]];
+        QString cellValue = row.get(colKey).toString();
+        if (cellValue.contains(value, Qt::CaseInsensitive))
+            matchedRows.append(i);
+    }
+    return matchedRows;
+}
+
+/**
+ * @brief 根据指定列的值精确查找匹配的行索引
+ */
+QList<int> SuperTableModel::findRowsByColumnExact(const QString& colKey, const QString& value) const
+{
+    QList<int> matchedRows;
+    if (colKey.isEmpty())
+        return matchedRows;
+
+    for (int i = 0; i < m_showIndex.size(); ++i)
+    {
+        const TableRowData& row = m_originData[m_showIndex[i]];
+        QString cellValue = row.get(colKey).toString();
+        if (cellValue == value)
+            matchedRows.append(i);
+    }
+    return matchedRows;
+}
+
+/**
+ * @brief 更新指定展示行中某列的数据
+ */
+bool SuperTableModel::updateRowCell(int rowIndex, const QString& colKey, const QVariant& newValue)
+{
+    if (rowIndex < 0 || rowIndex >= m_showIndex.size() || colKey.isEmpty())
+        return false;
+
+    int originIdx = m_showIndex[rowIndex];
+    m_originData[originIdx].set(colKey, newValue);
+
+    // 找到该行对应的列索引，触发数据变更通知
+    for (int c = 0; c < m_columns.size(); ++c)
+    {
+        if (m_columns[c].name == colKey)
+        {
+            QModelIndex idx = index(rowIndex, c);
+            emit dataChanged(idx, idx);
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief 根据某列值查找并更新该行中其他列的数据
+ */
+int SuperTableModel::updateRowsByColumn(const QString& searchColKey, const QString& searchValue,
+                                        const QMap<QString, QVariant>& updates)
+{
+    if (searchColKey.isEmpty() || updates.isEmpty())
+        return 0;
+
+    QList<int> matchedRows = findRowsByColumn(searchColKey, searchValue);
+    if (matchedRows.isEmpty())
+        return 0;
+
+    int updateCount = 0;
+    for (int rowIndex : matchedRows)
+    {
+        int originIdx = m_showIndex[rowIndex];
+        // 更新多个列
+        for (auto it = updates.begin(); it != updates.end(); ++it)
+        {
+            m_originData[originIdx].set(it.key(), it.value());
+        }
+        // 触发整个行的数据变更通知
+        for (int c = 0; c < m_columns.size(); ++c)
+        {
+            QModelIndex idx = index(rowIndex, c);
+            emit dataChanged(idx, idx);
+        }
+        ++updateCount;
+    }
+    return updateCount;
+}
+
+/**
+ * @brief 根据某列值精确查找并更新该行中其他列的数据
+ */
+int SuperTableModel::updateRowsByColumnExact(const QString& searchColKey, const QString& searchValue,
+                                             const QMap<QString, QVariant>& updates)
+{
+    if (searchColKey.isEmpty() || updates.isEmpty())
+        return 0;
+
+    QList<int> matchedRows = findRowsByColumnExact(searchColKey, searchValue);
+    if (matchedRows.isEmpty())
+        return 0;
+
+    int updateCount = 0;
+    for (int rowIndex : matchedRows)
+    {
+        int originIdx = m_showIndex[rowIndex];
+        for (auto it = updates.begin(); it != updates.end(); ++it)
+        {
+            m_originData[originIdx].set(it.key(), it.value());
+        }
+        for (int c = 0; c < m_columns.size(); ++c)
+        {
+            QModelIndex idx = index(rowIndex, c);
+            emit dataChanged(idx, idx);
+        }
+        ++updateCount;
+    }
+    return updateCount;
+}
+
+
+
+/**
  * @brief 获取表格行数（展示数据）
  * @param parent 父索引（表格中无效）
  * @return 展示索引的行数，父索引有效则返回0（表格非树形结构）
@@ -324,7 +452,7 @@ TableColumnConfig SuperTableModel::getColumnBySection(int sec) const
 static bool isCheckboxChecked(const QString& text)
 {
     return text.compare(QLatin1String("true"), Qt::CaseInsensitive) == 0
-        || text == QLatin1String("1");
+            || text == QLatin1String("1");
 }
 
 /**
@@ -594,6 +722,15 @@ SuperTableWidget::SuperTableWidget(QWidget *parent)
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
     setEditTriggers(QAbstractItemView::DoubleClicked);
+
+    // 连接双击信号
+    // 🔥 统一使用 Qt 的信号
+            connect(this, &QTableView::clicked,
+                    this, &SuperTableWidget::onClicked);
+            connect(this, &QTableView::doubleClicked,
+                    this, &SuperTableWidget::onDoubleClicked);
+
+
 }
 
 /**
@@ -743,5 +880,79 @@ void SuperTableWidget::setHeaderHeight(int h)
 void SuperTableWidget::setTableStyleSheet(const QString &qss)
 {
     this->setStyleSheet(qss);
+}
+/*
+* @brief 根据列值查找匹配的行索引（转发到模型）
+*/
+QList<int> SuperTableWidget::findRowsByColumn(const QString& colKey, const QString& value) const
+{
+    return m_model->findRowsByColumn(colKey, value);
+}
+
+/**
+* @brief 根据某列值查找并更新该行中其他列的数据（转发到模型）
+*/
+int SuperTableWidget::updateRowsByColumn(const QString& searchColKey, const QString& searchValue,
+                                         const QMap<QString, QVariant>& updates)
+{
+    return m_model->updateRowsByColumn(searchColKey, searchValue, updates);
+}
+
+/**
+* @brief 更新指定行的某列数据（转发到模型）
+*/
+bool SuperTableWidget::updateRowCell(int rowIndex, const QString& colKey, const QVariant& newValue)
+{
+    return m_model->updateRowCell(rowIndex, colKey, newValue);
+}
+
+
+
+//void SuperTableWidget::mouseReleaseEvent(QMouseEvent *event)
+//{
+//    // 调用父类处理，确保选择等行为正常
+//    QTableView::mouseReleaseEvent(event);
+
+//    // 获取点击位置的索引
+//    QModelIndex index = indexAt(event->pos());
+//    if (index.isValid())
+//    {
+//        // 只处理左键单击
+//        if (event->button() == Qt::LeftButton)
+//        {
+//            emitRowClickedSignal(index);
+//        }else if (event->button() == Qt::RightButton) {
+//            // 可以添加右键信号
+////            emit rowRightClicked(data, row);
+//        }
+//    }
+//}
+
+void SuperTableWidget::emitRowClickedSignal(const QModelIndex &index)
+{
+    if (!index.isValid())
+        return;
+
+    int row = index.row();
+    TableRowData rowData = m_model->getRow(row);
+    emit rowClicked(rowData, row);
+    emit rowClicked(rowData);
+}
+
+void SuperTableWidget::onClicked(const QModelIndex &index)
+{
+    if (!index.isValid()) return;
+    int row = index.row();
+    TableRowData data = m_model->getRow(index.row());
+    emit rowClicked(data, row);
+}
+
+void SuperTableWidget::onDoubleClicked(const QModelIndex &index)
+{
+    if (!index.isValid())return;
+
+    int row = index.row();
+    TableRowData rowData = m_model->getRow(row);
+    emit rowDoubleClicked(rowData, row);
 }
 }

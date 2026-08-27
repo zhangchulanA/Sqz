@@ -170,6 +170,57 @@ public:
      */
     void setRowColorRule(const RowColorFunc& func);
 
+//==========================新增=============================
+public:
+    /**
+     * @brief 根据指定列的值查找匹配的行索引（展示数据中的索引）
+     * @param colKey 列名
+     * @param value 要匹配的值
+     * @return 匹配的行索引列表（展示数据中的行号），未找到返回空列表
+     * @note 支持模糊匹配（值包含），大小写不敏感
+     */
+    QList<int> findRowsByColumn(const QString& colKey, const QString& value) const;
+
+    /**
+     * @brief 根据指定列的值精确查找匹配的行索引
+     * @param colKey 列名
+     * @param value 要精确匹配的值
+     * @return 匹配的行索引列表（展示数据中的行号），未找到返回空列表
+     */
+    QList<int> findRowsByColumnExact(const QString& colKey, const QString& value) const;
+
+    /**
+     * @brief 更新指定展示行中某列的数据
+     * @param rowIndex 展示数据中的行索引
+     * @param colKey 要更新的列名
+     * @param newValue 新值
+     * @return 是否更新成功
+     */
+    bool updateRowCell(int rowIndex, const QString& colKey, const QVariant& newValue);
+
+    /**
+     * @brief 根据某列值查找并更新该行中其他列的数据
+     * @param searchColKey 用于查找的列名
+     * @param searchValue 查找值
+     * @param updates 要更新的列名-新值映射
+     * @return 成功更新的行数
+     */
+    int updateRowsByColumn(const QString& searchColKey, const QString& searchValue,
+                           const QMap<QString, QVariant>& updates);
+
+    /**
+     * @brief 根据某列值精确查找并更新该行中其他列的数据
+     * @param searchColKey 用于查找的列名
+     * @param searchValue 查找值（精确匹配）
+     * @param updates 要更新的列名-新值映射
+     * @return 成功更新的行数
+     */
+    int updateRowsByColumnExact(const QString& searchColKey, const QString& searchValue,
+                                const QMap<QString, QVariant>& updates);
+
+//=======================================================
+
+
     /**
      * @brief 重写QAbstractTableModel接口：获取行数
      * @param parent 父索引（树形结构用，表格中无效）
@@ -484,6 +535,71 @@ public:
      * 支持通过QSS自定义表格样式（如网格线、选中色、字体等）
      */
     void setTableStyleSheet(const QString &qss);
+public:
+    // ========== 新增：查找和更新功能 ==========
+    /**
+     * @brief 根据列值查找匹配的行索引（模糊匹配）
+     * @param colKey 列名
+     * @param value 要匹配的值
+     * @return 匹配的行索引列表
+     */
+    QList<int> findRowsByColumn(const QString& colKey, const QString& value) const;
+
+    /**
+     * @brief 根据某列值查找并更新该行中其他列的数据（模糊匹配）
+     * @param searchColKey 用于查找的列名
+     * @param searchValue 查找值
+     * @param updates 要更新的列名-新值映射
+     * @return 成功更新的行数
+     */
+    int updateRowsByColumn(const QString& searchColKey, const QString& searchValue,
+                           const QMap<QString, QVariant>& updates);
+
+    /**
+     * @brief 更新指定行的某列数据
+     * @param rowIndex 行索引
+     * @param colKey 列名
+     * @param newValue 新值
+     * @return 是否更新成功
+     */
+    bool updateRowCell(int rowIndex, const QString& colKey, const QVariant& newValue);
+
+
+//添加信号和单击行功能
+signals:
+    /**
+     * @brief 单击某行时触发的信号
+     * @param rowData 被单击行的完整数据
+     * @param rowIndex 被单击行的索引（展示数据中的行号）
+     */
+    void rowClicked(const TableRowData& rowData, int rowIndex);
+
+    /**
+     * @brief 单击某行时触发的信号（仅包含行数据）
+     * @param rowData 被单击行的完整数据
+     */
+    void rowClicked(const TableRowData& rowData);
+
+    /**
+     * @brief 双击某行时触发的信号
+     * @param rowData 被双击行的完整数据
+     * @param rowIndex 被双击行的索引
+     */
+    void rowDoubleClicked(const TableRowData& rowData, int rowIndex);
+
+protected:
+    /**
+     * @brief 重写鼠标释放事件，捕获单击行事件
+     */
+//    void mouseReleaseEvent(QMouseEvent *event) override;
+
+private:
+    /**
+     * @brief 内部方法，用于发送行点击信号
+     */
+    void emitRowClickedSignal(const QModelIndex& index);
+    void onClicked(const QModelIndex& index);
+    void onDoubleClicked(const QModelIndex& index);
 
 
 private:

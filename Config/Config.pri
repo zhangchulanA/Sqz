@@ -1,4 +1,5 @@
 HEADERS += \
+    $$PWD/BaseModel.h \
     $$PWD/DataBind.h \
 #    $$PWD/GlobalKeyFilter.h \
     $$PWD/RF.h \
