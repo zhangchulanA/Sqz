@@ -86,5 +86,7 @@ protected:
     virtual QString className() const = 0;
 
 };
+#define RETURNNAME  QString className() const override{return this->metaObject()->className();}
+
 }
 #endif // SqzWidget_H

@@ -1,4 +1,3 @@
-// SqzService.h
 #ifndef SqzService_H
 #define SqzService_H
 
@@ -10,6 +9,7 @@
  *        并确保类名与注册名称一致。推荐使用 SqzHub 创建子类实例。
  */
 #include <QObject>
+#include <QThread>
 #include <QMetaObject>
 #include "SqzClassReg.h"
 
@@ -44,6 +44,11 @@ public:
 
     //关闭自身服务
     void CloseThis();
+    
+    //线程管理
+    void startThread();
+    void stopThread();
+
 protected:
     /**
      * 生命周期回调（由 SqzHub 调用）
@@ -58,6 +63,44 @@ protected:
     //获取子类名称（必须实现）
     virtual QString className() const = 0;
 
+    // ========== 线程控制接口（供子类在 onInit/onClose 中按需调用） ==========
+    //启动工作线程，在子线程中执行 doWork()
+    void startWorkThread();
+    //停止工作线程，在子线程中执行 stopWork()
+    void stopWorkThread();
+    //检查工作线程是否正在运行
+    bool isWorkThreadRunning() const;
+
+    /**
+     * 业务逻辑接口（子类重写）
+     * 由 startWorkThread() 启动后在子线程执行。
+     **/
+    virtual void doWork() {}
+
+    /**
+     * 停止业务逻辑接口（子类可重写）
+     * 由 stopWorkThread() 触发后在子线程执行。
+     **/
+    virtual void stopWork() {}
+
+signals:
+    //业务完成信号（子线程发射，主线程接收）
+    void workFinished();
+    //业务错误信号
+    void workError(const QString& error);
+
+private slots:
+    //启动业务（通过信号触发，确保在子线程执行）
+    void onStartWork();
+    //停止业务（通过信号触发，确保在子线程执行）
+    void onStopWork();
+
+private:
+
+    QThread* m_workThread;          //工作线程
+    bool m_running;                 //是否正在运行
 };
+
+#define RETURNNAME  QString className() const override{return this->metaObject()->className();}
 }
 #endif // SqzService_H
