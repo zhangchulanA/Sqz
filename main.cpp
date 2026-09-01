@@ -9,8 +9,8 @@
 #include <Utils/QHotkey/QHotkey>
 #include "KeyManager.h"
 #include "DBManager.h"
-
-
+#include "TestWindow.h"
+#include "SuperListAll.h"
 using namespace Sqz;
 
 void KeyTest()
@@ -285,8 +285,33 @@ int main(int argc, char *argv[]) {
 
 //    MainWindow win;
 //    win.show();
-LogTest();
+//LogTest();
 //   BDTest();
+//    TestWindow window;
+//    window.setWindowTitle("SuperTableWidget 测试示例");
+//    window.resize(800, 600);
+//    window.show();
 
+    SuperListWidget* list = new SuperListWidget();
+
+    TableColumnConfig col;
+    col.name = "status";
+    col.title = "状态";
+    col.type = TableCellType::StateTag;
+    list->setHeaders({col});   // 单列配置
+
+    TableRowData r1, r2;
+    r1.set("status", "正常");
+    r2.set("status", "失败");
+    list->addRows({r1, r2});
+
+    list->filterColumn("status", "正常");  // 筛选
+
+    QObject::connect(list, &SuperListWidget::rowClickedIndex,
+            [](const TableRowData& data, int idx){
+        qDebug() << "点击:" << data.get("status").toString();
+    });
+
+list->show();
     return app.exec();
 }

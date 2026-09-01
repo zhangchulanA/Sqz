@@ -14,7 +14,9 @@
 #include <QDateTime>
 #include <QDebug>
 #include "MenuBar.h"
+#include "Logger.h"
 
+//using namespace Sqz;
 // ========== 模拟业务函数 ==========
 inline void radioStart() {
     qDebug() << "📻 电台启动";
@@ -418,69 +420,6 @@ private:
     // ===== 样式 =====
     void applyStyle() {
         setStyleSheet(R"(
-                      QMainWindow {
-                      background-color: #1a1a2e;
-                      }
-                      QGroupBox {
-                      color: #e0e0e0;
-                      border: 1px solid #4a4a6a;
-                      border-radius: 6px;
-                      margin-top: 10px;
-                      padding-top: 10px;
-                      font-weight: bold;
-                      }
-                      QGroupBox::title {
-                      subcontrol-origin: margin;
-                      left: 10px;
-                      padding: 0 5px 0 5px;
-                      color: #8a8aaa;
-                      }
-                      QPushButton {
-                      padding: 4px 10px;
-                      background-color: #2a2a4a;
-                      color: #d0d0e0;
-                      border: 1px solid #4a4a6a;
-                      border-radius: 4px;
-                      font-size: 12px;
-                      }
-                      QPushButton:hover {
-                      background-color: #3a3a5a;
-                      border-color: #6a6a8a;
-                      }
-                      QPushButton:pressed {
-                      background-color: #1a1a3a;
-                      }
-                      QLabel {
-                      color: #b0b0c0;
-                      font-size: 12px;
-                      }
-                      QSpinBox {
-                      background-color: #2a2a4a;
-                      color: #d0d0e0;
-                      border: 1px solid #4a4a6a;
-                      border-radius: 4px;
-                      padding: 2px 4px;
-                      }
-                      QSpinBox::up-button, QSpinBox::down-button {
-                      background-color: #3a3a5a;
-                      border: none;
-                      }
-                      QCheckBox {
-                      color: #b0b0c0;
-                      font-size: 12px;
-                      }
-                      QCheckBox::indicator {
-                      width: 16px;
-                      height: 16px;
-                      }
-                      QTextEdit {
-                      background-color: #0d0d1a;
-                      color: #a0d0a0;
-                      border: 1px solid #3a3a5a;
-                      border-radius: 4px;
-                      font-family: Consolas;
-                      font-size: 11px;
-                      }
 
                       /* ===== 菜单栏按钮样式 (纯视觉，不影响间距) ===== */
                       MenuButton {
@@ -488,34 +427,40 @@ private:
                       font-size: 13px;
                       font-weight: 500;
                       }
-                      MenuButton[state="off"] {
-                      background-color: red;
-                      color: #a0a0b0;
+                      MenuButton[state="Of"] {
+                      background-color: black;
+                      color: white;
+                      font: 18px;
                       border: 1px solid white;
                       }
-                      MenuButton[state="off"]:hover:pressed {
-                      background-color: gray;
-                      color: white;
+                      MenuButton[state="Of"]:hover:pressed {
+                      background-color: rgb(115, 210, 22);
+                      color: black;
+                      font: 18px;
                       border: 1px solid white;
                       }
-                      MenuButton[state="on"] {
-                      background-color: blue;
-                      color: white;
+                      MenuButton[state="On"] {
+                      background-color: rgb(115, 210, 22);
+                      color: black;
+                      font: 18px;
                       border: 1px solid white;
                       }
-                      MenuButton[state="on"]:hover:pressed {
-                      background-color: gray;
+                      MenuButton[state="On"]:hover:pressed {
+                      background-color: black;
                       color: white;
+                      font: 18px;
                       border: 1px solid white;
                       }
-                      MenuButton[state="blink"] {
-                      background-color: red;
+                      MenuButton[state="Bk"] {
+                      background-color: black;
                       color: white;
-                      border: 1px solid #ffa726;
+                      font: 18px;
+                      border: 1px solid white;
                       }
-                      MenuButton[state="blink"]:hover:pressed {
-                      background-color: blue;
-                      color: white;
+                      MenuButton[state="Bk"]:hover:pressed {
+                      background-color: rgb(115, 210, 22);
+                      color: black;
+                      font: 18px;
                       border: 1px solid #ffa726;
                       }
                       MenuButton[flashing="true"] {
@@ -524,20 +469,13 @@ private:
                       border: 1px solid #ffca28 !important;
                       font-weight: bold;
                       }
-                      QPushButton[type="more"] {
-                      background-color: #4a4a6a;
-                      color: #b0b0c0;
-                      border: 1px solid #5a5a7a;
-                      border-radius: 3px;
-                      font-size: 13px;
-                      margin: 0px;
-                      padding: 0px;
-                      }
-                      QPushButton[type="more"]:hover {
-                      background-color: #5a5a7a;
-                      }
                       )");
-    }
+
+        MenuButton *btn = m_bar->getBtn("车内指挥");
+        loginfo << btn->styleSheet();
+        loginfo << btn->property("state").toString();
+        loginfo << btn->style()->metaObject()->className();
+}
 
     // ===== 日志辅助 =====
     void appendLog(const QString& msg) {
@@ -582,13 +520,13 @@ private:
     }
 
     void onTriggerRadio() {
-        MenuNode* target = findNodeRecursive(m_root, "📡 启动电台");
+        MenuNode* target = findNodeRecursive(m_root, "系统管理");
         if (target) {
 //            m_engine->triggerNode(target);
             m_bar->trigger(target);
-            appendLog("🎯 已触发 '启动电台' 回调");
+            appendLog("🎯 已触发 '系统管理' 回调");
         } else {
-            appendLog("❌ 未找到 '启动电台' 节点");
+            appendLog("❌ 未找到 '系统管理' 节点");
         }
     }
 

@@ -3,16 +3,23 @@ HEADERS += \
     $$PWD/FramelessWidget.h \
     $$PWD/MenuBar.h \
     $$PWD/MsgBox.h \
-    $$PWD/SuperTableAll.h
+    $$PWD/SuperListAll.h \
+    $$PWD/SuperTableAll.h \
+    $$PWD/UiKit/FramelessAttacher.h \
+    $$PWD/UiKit/PainterKit.h \
+    $$PWD/UiKit/UiBuilder.h
 
 SOURCES += \
     $$PWD/CustomSearchBox.cpp \
     $$PWD/FramelessWidget.cpp \
     $$PWD/MenuBar.cpp \
     $$PWD/MsgBox.cpp \
-    $$PWD/SuperTableAll.cpp
+    $$PWD/SuperListAll.cpp \
+    $$PWD/SuperTableAll.cpp \
+    $$PWD/UiKit/FramelessAttacher.cpp \
+    $$PWD/UiKit/PainterKit.cpp \
+    $$PWD/UiKit/UiBuilder.cpp
 
-FORMS += \
+FORMS +=
 
-
-include(SqzUiKit/SqzUiKit.pri)
+INCLUDEPATH +=  $$PWD/UiKit

@@ -1,0 +1,258 @@
+/****************************************************************************
+ *  QSS 完整学习示例
+ *  加载方式：qApp->setStyleSheet(qss文本);
+ *  优先级说明：
+ *      内联setStyleSheet() > #objectName对象选择器 > .类选择器 > Q控件类选择器 > 继承样式
+ ***************************************************************************/
+
+
+/*==========================================================================
+ * 1. 基础控件类选择器：全局统一样式，项目所有该类型控件全部生效
+ * 语法：Q控件类名 { 属性:值; }
+ * 注意：会作用程序内**全部 QPushButton**，所有窗口里的按钮都受影响
+==========================================================================*/
+QPushButton
+{
+    background-color: #4080dd;      /* 背景色 十六进制 */
+    color: #ffffff;                 /* 文字颜色 */
+    border: none;                   /* 去掉边框 */
+    border-radius: 4px;             /* 圆角 */
+    padding: 4px 12px;              /* 内边距 上下 左右 */
+    min-height: 28px;               /* 最小高度 */
+}
+
+/* 状态伪选择器 :hover :pressed :checked :disabled
+ * 只在对应状态下生效，紧跟控件名称，中间不要空格
+ */
+QPushButton:hover
+{
+    background-color: #5893e8;      /* 鼠标悬浮 */
+}
+
+QPushButton:pressed
+{
+    background-color: #2e69c2;      /* 鼠标按下 */
+}
+
+QPushButton:disabled
+{
+    background-color: #88a8d8;      /* 禁用状态 */
+    color:#dddddd;
+}
+
+
+QLineEdit
+{
+    border:1px solid #bbbbbb;
+    border-radius:3px;
+    padding:3px 6px;
+    background-color:#ffffff;
+}
+
+/* 输入框获得焦点 */
+QLineEdit:focus
+{
+    border-color:#4080dd;
+}
+
+
+/*==========================================================================
+ * 2. 对象名选择器 #objectName
+ * 【重点】针对某一个特定控件单独设置样式，不会影响其他同类控件
+ * C++代码需要设置: widget->setObjectName("btnDanger");
+ * ui设计师里直接修改控件的 objectName 属性
+ * 优先级高于普通 QPushButton{}，可以覆盖全局样式
+==========================================================================*/
+#btnDanger
+{
+    background-color:#dd3333;
+}
+#btnDanger:hover
+{
+    background-color:#e85050;
+}
+
+
+/*==========================================================================
+ * 3. 作用域限定：只作用【某个窗口内部】的子控件，不影响全局其他窗口
+ * 语法：#窗口对象名  子控件类名 {}
+ * 空格代表后代选择器：匹配该对象下所有层级的该子控件（孙子、重孙子都生效）
+ *
+ * 使用前提：给对话框/主窗口 setObjectName("dlgSpecialSetting")
+ * 只在这个窗口内部生效，其他窗口的QPushButton完全不受影响
+==========================================================================*/
+#dlgSpecialSetting QPushButton
+{
+    background-color:#222222;
+    color:#00ffaa;
+}
+
+#dlgSpecialSetting QLabel
+{
+    color:#00ffaa;
+    font-size:11pt;
+}
+
+
+/*==========================================================================
+ * 4. 直接子控件选择器 >
+ * 符号 > 只匹配【直接一级子控件】，不会递归匹配孙子辈
+ * 示例：#panel容器的直接子QLabel，嵌套里面的QLabel不会生效
+==========================================================================*/
+#panel > QLabel
+{
+    font-weight:bold;
+    color:#ff8800;
+}
+
+
+/*==========================================================================
+ * 5. 类选择器 .ClassName （自定义标记类，Qt5.7+支持）
+ * 可以给多个控件打同一个标记，一批控件统一改样式，不需要objectName一个一个写
+ * C++调用：widget->setProperty("class", "warning-label");
+ * 语法：.property值 {} 前面带小数点
+==========================================================================*/
+.warning-label
+{
+    color:#dd2222;
+}
+
+.tip-label
+{
+    color:#666666;
+    font-size:9pt;
+}
+
+/* C++示例代码
+ui->label1->setProperty("class", "warning-label");
+ui->label2->setProperty("class", "tip-label");
+注意：修改setProperty后，部分版本需要 widget->style()->unpolish(widget); widget->style()->polish(widget); 刷新样式
+*/
+
+
+/*==========================================================================
+ * 6. QGroupBox 分组框示例
+ * QGroupBox::title 子控件子元素选择器  语法：控件::子部件
+ * 很多复杂控件有内部子部件，用 :: 访问内部元素
+==========================================================================*/
+QGroupBox
+{
+    border:1px solid #aaaaaa;
+    border-radius:4px;
+    margin-top:12px;    /* 给标题留出空间 */
+}
+QGroupBox::title
+{
+    subcontrol-origin: margin;
+    left:10px;
+    padding:0 4px;
+    color:#333333;
+}
+
+
+/*==========================================================================
+ * 7. QComboBox下拉框示例，演示 ::drop-down 内部子部件
+==========================================================================*/
+QComboBox
+{
+    border:1px solid #bbbbbb;
+    padding:2px 6px;
+    border-radius:3px;
+}
+QComboBox::drop-down
+{
+    width:20px;
+    border:none;
+}
+QComboBox::down-arrow
+{
+    width:12px;
+    height:12px;
+}
+
+
+/*==========================================================================
+ * 8. QScrollBar 滚动条完整示例，复杂子控件
+==========================================================================*/
+QScrollBar:vertical
+{
+    width:10px;
+    background:#f0f0f0;
+}
+QScrollBar::handle:vertical
+{
+    background:#bbbbbb;
+    border-radius:5px;
+    min-height:20px;
+}
+QScrollBar::handle:vertical:hover
+{
+    background:#888888;
+}
+/* 把上下箭头按钮隐藏 */
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical
+{
+    height:0px;
+}
+
+
+/*==========================================================================
+ * 9. QTabWidget 标签页控件，复杂子部件
+==========================================================================*/
+QTabWidget::pane
+{
+    border:1px solid #cccccc;
+}
+QTabBar::tab
+{
+    padding:4px 12px;
+    background:#e8e8e8;
+    border-top-left-radius:4px;
+    border-top-right-radius:4px;
+}
+QTabBar::tab:selected
+{
+    background:#ffffff;
+}
+
+
+/*==========================================================================
+ * 10. !important 不推荐滥用，仅做演示
+ * 强制提升属性优先级，正常业务尽量不要用，会破坏优先级体系
+==========================================================================*/
+/*
+#btnDanger
+{
+    background-color:red !important;
+}
+*/
+
+
+/*==========================================================================
+ * 11. 针对某对象下的特定状态
+ * 示例：只有 dlgSpecialSetting窗口内的按钮hover状态
+==========================================================================*/
+#dlgSpecialSetting QPushButton:hover
+{
+    background-color:#444444;
+}
+
+
+/*==========================================================================
+ * 12. QCheckBox 复选框，::indicator子部件
+==========================================================================*/
+QCheckBox::indicator
+{
+    width:16px;
+    height:16px;
+}
+QCheckBox::indicator:unchecked
+{
+    border:1px solid #888888;
+    background:white;
+}
+QCheckBox::indicator:checked
+{
+    background:#4080dd;
+}
+

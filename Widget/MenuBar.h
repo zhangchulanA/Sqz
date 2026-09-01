@@ -14,16 +14,17 @@
 #include <QDebug>
 #include <QMap>
 #include <QMargins>
+#include <SqzGlobal.h>
 
 // ============================ 枚举 ============================
-enum class BtnState {
+enum class SQZ_FRAMEWORK_API BtnState {
     Of,       // 普通（暗）
     On,       // 常亮（亮）
     Bk        // 瞬时闪烁
 };
 
 // ============================ MenuNode ============================
-class MenuNode {
+class SQZ_FRAMEWORK_API MenuNode {
 public:
     explicit MenuNode(const QString& text,
                       BtnState state = BtnState::Of,
@@ -43,7 +44,7 @@ public:
 };
 
 // ============================ MenuButton ============================
-class MenuButton : public QPushButton {
+class SQZ_FRAMEWORK_API MenuButton : public QPushButton {
     Q_OBJECT
 public:
     explicit MenuButton(MenuNode* node, QWidget* parent = nullptr);
@@ -54,7 +55,7 @@ private:
 };
 
 // ============================ MenuEngine ============================
-class MenuEngine : public QObject {
+class SQZ_FRAMEWORK_API MenuEngine : public QObject {
     Q_OBJECT
 public:
     explicit MenuEngine(QObject* parent = nullptr);
@@ -78,7 +79,7 @@ private:
 };
 
 // ============================ MenuBar (手动布局) ============================
-class MenuBar : public QWidget {
+class SQZ_FRAMEWORK_API MenuBar : public QWidget {
     Q_OBJECT
 public:
     explicit MenuBar(QWidget* parent = nullptr);
@@ -147,4 +148,5 @@ private:
     int m_spacing = 0;
     QMargins m_margins;
 };
+
 

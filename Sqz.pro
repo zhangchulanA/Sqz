@@ -7,8 +7,8 @@ CONFIG += c++17
 #关闭编译警告提示 眼不见为净
 CONFIG      += warn_off
 
-INCLUDEPATH += /opt/QtFluentWidgets/include/Fluent
-LIBS += -L/opt/QtFluentWidgets/lib -lQtFluentWidgets
+#INCLUDEPATH += /opt/QtFluentWidgets/include/Fluent
+#LIBS += -L/opt/QtFluentWidgets/lib -lQtFluentWidgets
 
 VERSION = 1.0.0
 DEFINES += APP_PRO_VERSION=\\\"$$VERSION\\\"
@@ -24,6 +24,7 @@ CONFIG(debug,debug|release){
     DEFINES += RELEASE_MODE
     TEMPLATE = lib
     CONFIG += shared
+    CONFIG += plugin
     TARGET = Sqz
     DESTDIR = $$PWD/SqzLib
     message("Release模式：生成库文件,在当前目录SqzLib文件夹下")
@@ -77,7 +78,8 @@ SOURCES += \
 HEADERS += \
     MainWindow.h \
     SqzQuickTest.h \
-    SqzTest.h
+    SqzTest.h \
+    TestWindow.h
 
 FORMS += \
     SqzTest.ui

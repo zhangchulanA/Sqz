@@ -1,6 +1,11 @@
 QT       += svg concurrent
 
 HEADERS += \
+    $$PWD/QHotkey/KeyManager.h \
+    $$PWD/QHotkey/qhotkey.h \
+    $$PWD/QHotkey/qhotkey_p.h \
+    $$PWD/kits/ByteView.h \
+    $$PWD/kits/DynCall.h \
     $$PWD/other/Async.h \
     $$PWD/other/ChainBranch.h \
     $$PWD/other/DataJoiner.h \
@@ -35,6 +40,11 @@ HEADERS += \
 
 SOURCES += \
 #    $$PWD/other/Async.cpp \
+    $$PWD/QHotkey/KeyManager.cpp \
+    $$PWD/QHotkey/qhotkey.cpp \
+#    $$PWD/QHotkey/qhotkey_mac.cpp \
+#    $$PWD/QHotkey/qhotkey_win.cpp \
+    $$PWD/QHotkey/qhotkey_x11.cpp \
     $$PWD/other/ChainBranch.cpp \
     $$PWD/other/DataJoiner.cpp \
     $$PWD/other/Entangler.cpp \
@@ -64,6 +74,8 @@ SOURCES += \
 
 INCLUDEPATH +=  $$PWD/translator\
                 $$PWD/utils \
-                $$PWD/other
+                $$PWD/other \
+                $$PWD/QHotkey \
+                $$PWD/Kits
 
-include(QHotkey/QHotkey.pri)
+

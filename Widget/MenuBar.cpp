@@ -234,18 +234,26 @@ BtnState MenuBar::getState(MenuButton* btn) const {
 // ===== 触发执行（带视觉反馈） =====
 void MenuBar::trigger(MenuNode* node) {
     if (!node) return;
-
     MenuButton* targetBtn = getBtn(node);
-    if (targetBtn) {
-        if (node->state == BtnState::Bk) {
-            flash(targetBtn);
-            if (node->callback) node->callback();
-        } else {
-            simulateClick(targetBtn);
-        }
-    } else {
-        if (node->callback) node->callback();
+    if(!targetBtn){
+        if(node->callback) node->callback();
+        return;
     }
+
+    if(!node->children.isEmpty()){
+        if(m_engine){
+            m_engine->enter(node);
+        }
+        return;
+    }
+
+    if (node->state == BtnState::Bk) {
+        flash(targetBtn);
+        if (node->callback) node->callback();
+    } else {
+        simulateClick(targetBtn);
+    }
+
 }
 
 // ===== 事件 =====
@@ -521,3 +529,4 @@ QList<MenuNode*> MenuBar::getCurrentNodes() const {
 void MenuBar::rebuild() {
     if (m_engine) onPathChanged(m_engine->currentPath());
 }
+

@@ -4,6 +4,8 @@
 #include <QStringList>
 #include <QLineEdit>
 #include <QMouseEvent>
+#include <QJsonArray>
+#include <QJsonObject>
 
 // ====================== SuperTableModel ======================
 /**
@@ -48,6 +50,7 @@ void SuperTableModel::clearAllData()
     m_originData.clear();
     m_showIndex.clear();
     endResetModel();
+    emit jsonDataChanged();
 }
 
 /**
@@ -82,6 +85,7 @@ void SuperTableModel::appendRows(const QList<TableRowData> &rows)
     beginInsertRows(QModelIndex(), first, last);
     m_showIndex.append(visibleNewIndices);
     endInsertRows();
+    emit jsonDataChanged();
 }
 
 /**
@@ -112,8 +116,7 @@ QList<TableRowData> SuperTableModel::getAllRows() const
 
 /**
  * @brief 设置列筛选条件
- * @param colKey 要筛选的列名
- * @param filter 筛选关键词（自动去除首尾空格）
+ * @param colKey 要筛选的列名 * @param filter 筛选关键词（自动去除首尾空格）
  * 保存筛选条件，触发模型重置前的通知，执行筛选，触发模型重置后的通知，视图同步刷新筛选结果
  */
 void SuperTableModel::setFilterText(const QString &colKey, const QString &filter)
@@ -123,6 +126,7 @@ void SuperTableModel::setFilterText(const QString &colKey, const QString &filter
     beginResetModel();
     doFilter();
     endResetModel();
+    emit jsonDataChanged();
 }
 
 /**
@@ -136,6 +140,7 @@ void SuperTableModel::clearFilter()
     beginResetModel();
     doFilter();
     endResetModel();
+    emit jsonDataChanged();
 }
 
 /**
@@ -148,6 +153,166 @@ void SuperTableModel::setRowColorRule(const RowColorFunc &func)
     m_rowColorFunc = func;
 }
 
+// ========================== JSON序列化接口实现 ==========================
+/**
+ * @brief 将TableRowData转换为QJsonObject
+ * @param row 待转换的行数据
+ * @return 对应的JSON对象
+ * @note 根据列配置顺序转换，支持String、Int、Double、Bool等基本类型
+ */
+QJsonObject SuperTableModel::rowToJson(const TableRowData& row) const
+{
+    QJsonObject obj;
+    // 按照列配置的顺序遍历，保证输出顺序一致
+    for (const auto& col : m_columns) {
+        QVariant val = row.get(col.name);
+        // 根据QVariant类型转换为对应的JSON类型
+        if (val.type() == QVariant::String) {
+            obj[col.name] = val.toString();
+        } else if (val.type() == QVariant::Int || val.type() == QVariant::UInt) {
+            obj[col.name] = val.toInt();
+        } else if (val.type() == QVariant::LongLong || val.type() == QVariant::ULongLong) {
+            obj[col.name] = static_cast<double>(val.toLongLong());
+        } else if (val.type() == QVariant::Double) {
+            obj[col.name] = val.toDouble();
+        } else if (val.type() == QVariant::Bool) {
+            obj[col.name] = val.toBool();
+        } else if (val.type() == QVariant::Invalid) {
+            // 无效值跳过，不写入JSON
+            continue;
+        } else {
+            // 其他类型统一转为字符串
+            obj[col.name] = val.toString();
+        }
+    }
+    return obj;
+}
+
+/**
+ * @brief 将QJsonObject转换为TableRowData
+ * @param json 待转换的JSON对象
+ * @return 对应的行数据
+ * @note 支持String、Double、Bool等JSON基本类型，Null值会被跳过
+ */
+TableRowData SuperTableModel::jsonToRow(const QJsonObject& json) const
+{
+    TableRowData row;
+    // 遍历JSON对象的所有键值对
+    for (auto it = json.begin(); it != json.end(); ++it) {
+        QVariant val;
+        const QJsonValue& jsonVal = it.value();
+        // 根据JSON值类型转换为对应的QVariant
+        if (jsonVal.isString()) {
+            val = jsonVal.toString();
+        } else if (jsonVal.isDouble()) {
+            val = jsonVal.toDouble();
+        } else if (jsonVal.isBool()) {
+            val = jsonVal.toBool();
+        } else if (jsonVal.isNull()) {
+            // 跳过空值
+            continue;
+        } else if (jsonVal.isArray()) {
+            // 数组类型转换为字符串（简单处理）
+            val = jsonVal.toVariant().toString();
+        } else if (jsonVal.isObject()) {
+            // 对象类型转换为字符串（简单处理）
+            val = jsonVal.toVariant().toString();
+        } else {
+            // 其他类型转为字符串
+            val = jsonVal.toVariant().toString();
+        }
+        row.set(it.key(), val);
+    }
+    return row;
+}
+
+/**
+ * @brief 获取所有原始数据的JSON数组表示
+ * @return 包含所有原始数据行的QJsonArray
+ * 修复：QJsonArray没有reserve()方法，移除reserve调用
+ */
+QJsonArray SuperTableModel::getJsonData() const
+{
+    QJsonArray arr;
+    for (const auto& row : m_originData) {
+        arr.append(rowToJson(row));
+    }
+    return arr;
+}
+
+/**
+ * @brief 从JSON数组设置表格数据
+ * @param data 包含行数据的QJsonArray
+ * 清空现有数据并填充新数据，重新应用筛选条件
+ */
+void SuperTableModel::setJsonData(const QJsonArray& data)
+{
+    beginResetModel();
+    m_originData.clear();
+    // QJsonArray没有reserve，使用QList的reserve
+    m_originData.reserve(data.size());
+
+    for (const auto& item : data) {
+        if (item.isObject()) {
+            m_originData.append(jsonToRow(item.toObject()));
+        }
+    }
+    doFilter();  // 重新应用筛选条件
+    endResetModel();
+    emit jsonDataChanged();
+}
+
+/**
+ * @brief 获取指定展示行的JSON对象表示
+ * @param rowIndex 展示数据中的行索引
+ * @return 该行数据的QJsonObject
+ */
+QJsonObject SuperTableModel::getRowJson(int rowIndex) const
+{
+    if (rowIndex < 0 || rowIndex >= m_showIndex.size()) {
+        return QJsonObject();
+    }
+    return rowToJson(m_originData[m_showIndex[rowIndex]]);
+}
+
+/**
+ * @brief 通过原始数据索引获取行的JSON对象
+ * @param originIdx 原始数据中的索引
+ * @return 该行数据的QJsonObject
+ */
+QJsonObject SuperTableModel::getRowJsonByOriginIndex(int originIdx) const
+{
+    if (originIdx < 0 || originIdx >= m_originData.size()) {
+        return QJsonObject();
+    }
+    return rowToJson(m_originData[originIdx]);
+}
+
+/**
+ * @brief 更新指定展示行的数据（通过JSON对象）
+ * @param rowIndex 展示数据中的行索引
+ * @param data 新的行数据JSON对象
+ * @return 是否更新成功
+ */
+bool SuperTableModel::setRowJson(int rowIndex, const QJsonObject& data)
+{
+    if (rowIndex < 0 || rowIndex >= m_showIndex.size()) {
+        return false;
+    }
+
+    int originIdx = m_showIndex[rowIndex];
+    m_originData[originIdx] = jsonToRow(data);
+
+    // 触发该行所有列的更新通知
+    for (int c = 0; c < m_columns.size(); ++c) {
+        QModelIndex idx = index(rowIndex, c);
+        emit dataChanged(idx, idx);
+    }
+    emit jsonDataChanged();
+    return true;
+}
+
+// ========================== 查找和更新功能实现 ==========================
 /**
  * @brief 根据指定列的值查找匹配的行索引（展示数据中的索引）
  */
@@ -204,6 +369,7 @@ bool SuperTableModel::updateRowCell(int rowIndex, const QString& colKey, const Q
         {
             QModelIndex idx = index(rowIndex, c);
             emit dataChanged(idx, idx);
+            emit jsonDataChanged();
             return true;
         }
     }
@@ -240,6 +406,9 @@ int SuperTableModel::updateRowsByColumn(const QString& searchColKey, const QStri
         }
         ++updateCount;
     }
+    if (updateCount > 0) {
+        emit jsonDataChanged();
+    }
     return updateCount;
 }
 
@@ -271,10 +440,11 @@ int SuperTableModel::updateRowsByColumnExact(const QString& searchColKey, const 
         }
         ++updateCount;
     }
+    if (updateCount > 0) {
+        emit jsonDataChanged();
+    }
     return updateCount;
 }
-
-
 
 /**
  * @brief 获取表格行数（展示数据）
@@ -393,6 +563,7 @@ bool SuperTableModel::setData(const QModelIndex &index, const QVariant &value, i
     m_originData[originIdx].set(col.name, value);
 
     emit dataChanged(index, index);
+    emit jsonDataChanged();
     return true;
 }
 
@@ -730,7 +901,17 @@ SuperTableWidget::SuperTableWidget(QWidget *parent)
             connect(this, &QTableView::doubleClicked,
                     this, &SuperTableWidget::onDoubleClicked);
 
+    // 连接模型的jsonDataChanged信号到tableDataChanged
+    connect(m_model, &SuperTableModel::jsonDataChanged,
+            this, &SuperTableWidget::tableDataChanged);
 
+    // 连接行数变化信号到槽函数
+    connect(m_model, &QAbstractTableModel::rowsInserted,
+            this, &SuperTableWidget::onRowCountChanged);
+    connect(m_model, &QAbstractTableModel::rowsRemoved,
+            this, &SuperTableWidget::onRowCountChanged);
+    connect(m_model, &QAbstractTableModel::modelReset,
+            this, &SuperTableWidget::onRowCountChanged);
 }
 
 /**
@@ -818,7 +999,47 @@ TableRowData SuperTableWidget::getRow(int index)
     return m_model->getRow(index);
 }
 
-// ========== 新增尺寸控制接口实现 ==========
+// ========== JSON序列化属性接口实现 ==========
+/**
+ * @brief 获取表格所有原始数据的JSON数组
+ * @return 包含所有原始数据的QJsonArray
+ * 直接转发到模型的getJsonData()，作为Q_PROPERTY的READ函数
+ */
+QJsonArray SuperTableWidget::getTableData() const
+{
+    return m_model->getJsonData();
+}
+
+/**
+ * @brief 从JSON数组设置表格数据
+ * @param data 包含行数据的JSON数组
+ * 转发到模型的setJsonData()，作为Q_PROPERTY的WRITE函数
+ */
+void SuperTableWidget::setTableData(const QJsonArray& data)
+{
+    m_model->setJsonData(data);
+    // tableDataChanged 信号由模型的 jsonDataChanged 转发触发
+}
+
+/**
+ * @brief 获取当前选中行的JSON数组表示
+ * @return 所有选中行的QJsonArray
+ * 遍历选中的行，将每行数据转换为JSON对象
+ */
+QJsonArray SuperTableWidget::getSelectedRowsJson() const
+{
+    QJsonArray arr;
+    auto idxList = selectionModel()->selectedRows();
+    for (const auto& idx : idxList) {
+        QJsonObject obj = m_model->getRowJson(idx.row());
+        if (!obj.isEmpty()) {
+            arr.append(obj);
+        }
+    }
+    return arr;
+}
+
+// ========== 尺寸控制接口实现 ==========
 /**
  * @brief 设置全局统一行高
  * @param h 行高，单位像素
@@ -881,17 +1102,18 @@ void SuperTableWidget::setTableStyleSheet(const QString &qss)
 {
     this->setStyleSheet(qss);
 }
-/*
-* @brief 根据列值查找匹配的行索引（转发到模型）
-*/
+
+/**
+ * @brief 根据列值查找匹配的行索引（转发到模型）
+ */
 QList<int> SuperTableWidget::findRowsByColumn(const QString& colKey, const QString& value) const
 {
     return m_model->findRowsByColumn(colKey, value);
 }
 
 /**
-* @brief 根据某列值查找并更新该行中其他列的数据（转发到模型）
-*/
+ * @brief 根据某列值查找并更新该行中其他列的数据（转发到模型）
+ */
 int SuperTableWidget::updateRowsByColumn(const QString& searchColKey, const QString& searchValue,
                                          const QMap<QString, QVariant>& updates)
 {
@@ -899,54 +1121,52 @@ int SuperTableWidget::updateRowsByColumn(const QString& searchColKey, const QStr
 }
 
 /**
-* @brief 更新指定行的某列数据（转发到模型）
-*/
+ * @brief 更新指定行的某列数据（转发到模型）
+ */
 bool SuperTableWidget::updateRowCell(int rowIndex, const QString& colKey, const QVariant& newValue)
 {
     return m_model->updateRowCell(rowIndex, colKey, newValue);
 }
 
-
-
-//void SuperTableWidget::mouseReleaseEvent(QMouseEvent *event)
-//{
-//    // 调用父类处理，确保选择等行为正常
-//    QTableView::mouseReleaseEvent(event);
-
-//    // 获取点击位置的索引
-//    QModelIndex index = indexAt(event->pos());
-//    if (index.isValid())
-//    {
-//        // 只处理左键单击
-//        if (event->button() == Qt::LeftButton)
-//        {
-//            emitRowClickedSignal(index);
-//        }else if (event->button() == Qt::RightButton) {
-//            // 可以添加右键信号
-////            emit rowRightClicked(data, row);
-//        }
-//    }
-//}
-
-void SuperTableWidget::emitRowClickedSignal(const QModelIndex &index)
+/**
+ * @brief 重写选中变更事件，转发SelectionChanged信号
+ * @param selected 新选中的项目
+ * @param deselected 取消选中的项目
+ * 调用父类处理，然后发射SelectionChanged信号通知属性绑定
+ */
+void SuperTableWidget::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
 {
-    if (!index.isValid())
-        return;
-
-    int row = index.row();
-    TableRowData rowData = m_model->getRow(row);
-    emit rowClicked(rowData, row);
-    emit rowClicked(rowData);
+    QTableView::selectionChanged(selected, deselected);
+    emit SelectionChanged();
 }
 
+/**
+ * @brief 行数变更槽函数
+ * 当模型的行数发生变化时触发，发射rowCountChanged信号
+ */
+void SuperTableWidget::onRowCountChanged()
+{
+    emit rowCountChanged();
+}
+
+/**
+ * @brief 单击事件槽函数
+ * @param index 被点击的单元格索引
+ * 获取行数据和行号，发射rowClickedIndex信号
+ */
 void SuperTableWidget::onClicked(const QModelIndex &index)
 {
     if (!index.isValid()) return;
     int row = index.row();
     TableRowData data = m_model->getRow(index.row());
-    emit rowClicked(data, row);
+    emit rowClickedIndex(data, row);
 }
 
+/**
+ * @brief 双击事件槽函数
+ * @param index 被双击的单元格索引
+ * 获取行数据和行号，发射rowDoubleClicked信号
+ */
 void SuperTableWidget::onDoubleClicked(const QModelIndex &index)
 {
     if (!index.isValid())return;

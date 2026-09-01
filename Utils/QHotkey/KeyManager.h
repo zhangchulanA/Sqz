@@ -9,7 +9,7 @@
 
 #include <QObject>
 #include <QMap>
-#include <qhotkey.h>
+#include <Utils/QHotkey/qhotkey.h>
 #include <QKeySequence>
 #include <QReadWriteLock>
 #include <functional>

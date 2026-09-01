@@ -11,7 +11,10 @@
 #include <QColor>
 #include <functional>
 #include <QJsonValue>
+#include <QJsonArray>
+#include <QJsonObject>
 #include "SqzGlobal.h"
+
 /**
  * @brief 超级表格组件总头文件
  * 该组件是基于Qt的QTableView封装的高性能、高扩展表格控件，包含数据模型(SuperTableModel)、绘制代理(SuperTableDelegate)、外层封装控件(SuperTableWidget)三部分
@@ -25,6 +28,7 @@
  * 6. 便捷的交互支持：复选框单元格可直接点击切换状态，选中行获取、多行选择等交互优化
  * 7. 样式自定义：支持通过QSS设置表格整体样式，兼容Qt样式体系
  * 8. 数据编辑支持：单元格可编辑，编辑后自动同步原始数据，避免数据不一致
+ * 9. JSON序列化支持：通过Q_PROPERTY属性实现表格数据的JSON序列化读写，方便与QML/JS交互及数据持久化
  */
 
 // ====================== 基础数据结构 ======================
@@ -62,17 +66,6 @@ struct SQZ_FRAMEWORK_API TableRowData
      * @param val 要设置的单元格值
      */
     void set(const QString& key, const QVariant& val) { cells[key] = val; }
-//    void set(const QString& key, const QJsonValue& val) {
-//        if(val.isString())
-//            cells[key] = val.toString();
-//        else if(val.isDouble())
-//            cells[key] = QString::number(val.toDouble());
-//        else if(val.isBool())
-//            cells[key] = val.toBool();
-//        else
-//            cells[key] = val.toVariant();
-
-//    }
 };
 
 /**
@@ -104,6 +97,14 @@ using RowColorFunc = std::function<QColor(const TableRowData&)>;
 class SQZ_FRAMEWORK_API SuperTableModel : public QAbstractTableModel
 {
     Q_OBJECT
+    /**
+     * @brief jsonData 属性：表格所有原始数据的JSON序列化表示
+     * 读取时返回当前所有原始数据（未筛选）的JSON数组
+     * 写入时清空现有数据并解析JSON数组填充，同时重新应用筛选条件
+     * 该属性方便与QML/JS交互，以及数据的导入导出和持久化存储
+     */
+    Q_PROPERTY(QJsonArray jsonData READ getJsonData WRITE setJsonData NOTIFY jsonDataChanged)
+
 public:
     /**
      * @brief 构造函数
@@ -170,8 +171,50 @@ public:
      */
     void setRowColorRule(const RowColorFunc& func);
 
-//==========================新增=============================
-public:
+    // ========================== JSON序列化接口 ==========================
+    /**
+     * @brief 获取所有原始数据的JSON数组表示
+     * @return 包含所有原始数据行的QJsonArray，每行数据转换为QJsonObject
+     * @note 返回的是原始数据（未筛选），通过Q_PROPERTY暴露为jsonData属性
+     * @see setJsonData()
+     */
+    QJsonArray getJsonData() const;
+
+    /**
+     * @brief 从JSON数组设置表格数据
+     * @param data 包含行数据的QJsonArray，每个元素为QJsonObject
+     * 会清空现有数据并填充新数据，重新应用筛选条件，触发模型重置和属性变更通知
+     * @note 通过Q_PROPERTY暴露为jsonData属性，支持QML直接赋值
+     * @see getJsonData()
+     */
+    void setJsonData(const QJsonArray& data);
+
+    /**
+     * @brief 获取指定展示行的JSON对象表示
+     * @param rowIndex 展示数据中的行索引
+     * @return 该行数据的QJsonObject，索引越界返回空对象
+     * @note 用于单行数据的快速读取，不影响整体属性
+     */
+    QJsonObject getRowJson(int rowIndex) const;
+
+    /**
+     * @brief 通过原始数据索引获取行的JSON对象
+     * @param originIdx 原始数据中的索引（非展示索引）
+     * @return 该行数据的QJsonObject，索引越界返回空对象
+     * @note 用于内部操作和特殊场景
+     */
+    QJsonObject getRowJsonByOriginIndex(int originIdx) const;
+
+    /**
+     * @brief 更新指定展示行的数据（通过JSON对象）
+     * @param rowIndex 展示数据中的行索引
+     * @param data 新的行数据JSON对象
+     * @return 是否更新成功
+     * @note 更新后会触发视图刷新和数据变更通知
+     */
+    bool setRowJson(int rowIndex, const QJsonObject& data);
+
+    // ========================== 查找和更新功能 ==========================
     /**
      * @brief 根据指定列的值查找匹配的行索引（展示数据中的索引）
      * @param colKey 列名
@@ -217,9 +260,6 @@ public:
      */
     int updateRowsByColumnExact(const QString& searchColKey, const QString& searchValue,
                                 const QMap<QString, QVariant>& updates);
-
-//=======================================================
-
 
     /**
      * @brief 重写QAbstractTableModel接口：获取行数
@@ -272,6 +312,15 @@ public:
      * 编辑后会同步更新展示数据和原始数据（同索引），并触发数据变更通知
      */
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
+
+signals:
+    /**
+     * @brief JSON数据变更信号
+     * 当通过setJsonData()或任何修改原始数据的操作导致JSON表示变化时触发
+     * @note 用于Q_PROPERTY的NOTIFY信号，支持属性绑定
+     */
+    void jsonDataChanged();
+
 private:
     /**
      * @brief 执行数据筛选逻辑
@@ -294,6 +343,24 @@ private:
      * @return 列配置，索引越界返回空配置
      */
     TableColumnConfig getColumnBySection(int sec) const;
+
+    /**
+     * @brief 将TableRowData转换为QJsonObject
+     * @param row 待转换的行数据
+     * @return 对应的JSON对象，键为列名，值为对应的数据
+     * @note 支持String、Int、Double、Bool等基本类型，其他类型转为字符串
+     * @see jsonToRow()
+     */
+    QJsonObject rowToJson(const TableRowData& row) const;
+
+    /**
+     * @brief 将QJsonObject转换为TableRowData
+     * @param json 待转换的JSON对象
+     * @return 对应的行数据
+     * @note 支持String、Double、Bool等JSON基本类型，Null值会被跳过
+     * @see rowToJson()
+     */
+    TableRowData jsonToRow(const QJsonObject& json) const;
 
     // ★ 单一存储结构：m_originData 是唯一数据源，m_showIndex 是展示索引映射
     // 修复：移除 m_showData 副本，消除"双重存储需手动同步"的 bug 温床
@@ -375,10 +442,6 @@ public:
      */
     void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const override;
 
-
-
-
-
 private:
     /**
      * @brief 绘制普通文本单元格
@@ -427,6 +490,28 @@ private:
 class SQZ_FRAMEWORK_API SuperTableWidget : public QTableView
 {
     Q_OBJECT
+    /**
+     * @brief tableData 属性：表格所有原始数据的JSON序列化表示
+     * 直接转发到模型的jsonData属性，方便QML和外部代码通过属性方式读写表格数据
+     * 读取时获取所有原始数据的JSON数组，写入时清空并填充新数据
+     * @see SuperTableModel::jsonData
+     */
+    Q_PROPERTY(QJsonArray tableData READ getTableData WRITE setTableData NOTIFY tableDataChanged)
+
+    /**
+     * @brief rowCount 属性：当前表格展示的行数（只读）
+     * 返回筛选后的展示数据行数，当数据变化时自动更新
+     * @note 只读属性，用于QML绑定和外部查询
+     */
+    Q_PROPERTY(int rowCount READ getRowCount NOTIFY rowCountChanged)
+
+    /**
+     * @brief selectedRows 属性：当前选中的行数据（只读）
+     * 返回所有选中行的JSON数组表示，支持多行选择
+     * @note 只读属性，当选择变化时自动更新
+     */
+    Q_PROPERTY(QJsonArray selectedRows READ getSelectedRowsJson NOTIFY SelectionChanged)
+
 public:
     /**
      * @brief 构造函数
@@ -482,13 +567,45 @@ public:
      * 支持多行选择，返回所有选中行的数据
      */
     QList<TableRowData> getSelectedRows() const;
+
     /**
      * @brief getRow 获取某一行数据
-     * @param index
-     * @return
+     * @param index 展示数据中的行索引
+     * @return 该行数据
      */
     TableRowData getRow(int index);
 
+    // ========== JSON序列化属性接口 ==========
+    /**
+     * @brief 获取表格所有原始数据的JSON数组
+     * @return 包含所有原始数据的QJsonArray
+     * @note 对应Q_PROPERTY的READ函数，返回原始数据（未筛选）
+     * @see setTableData()
+     */
+    QJsonArray getTableData() const;
+
+    /**
+     * @brief 从JSON数组设置表格数据
+     * @param data 包含行数据的JSON数组
+     * 转发到模型的setJsonData()，会清空现有数据并填充新数据
+     * @note 对应Q_PROPERTY的WRITE函数
+     * @see getTableData()
+     */
+    void setTableData(const QJsonArray& data);
+
+    /**
+     * @brief 获取当前选中行的JSON数组表示
+     * @return 所有选中行的QJsonArray，每行数据为QJsonObject
+     * @note 对应Q_PROPERTY的READ函数（只读属性），支持多行选择
+     */
+    QJsonArray getSelectedRowsJson() const;
+
+    /**
+     * @brief 获取当前展示数据的行数
+     * @return 筛选后的行数
+     * @note 对应Q_PROPERTY的READ函数（只读属性）
+     */
+    int getRowCount() const { return m_model->rowCount(); }
 
     // ========== 尺寸控制接口 ==========
     /**
@@ -535,8 +652,8 @@ public:
      * 支持通过QSS自定义表格样式（如网格线、选中色、字体等）
      */
     void setTableStyleSheet(const QString &qss);
-public:
-    // ========== 新增：查找和更新功能 ==========
+
+    // ========== 查找和更新功能 ==========
     /**
      * @brief 根据列值查找匹配的行索引（模糊匹配）
      * @param colKey 列名
@@ -564,21 +681,40 @@ public:
      */
     bool updateRowCell(int rowIndex, const QString& colKey, const QVariant& newValue);
 
-
-//添加信号和单击行功能
 signals:
+    /**
+     * @brief 表格数据变更信号
+     * 当通过setTableData()或模型数据发生变化时触发
+     * @note 对应Q_PROPERTY的NOTIFY信号，支持属性绑定
+     */
+    void tableDataChanged();
+
+    /**
+     * @brief 行数变更信号
+     * 当表格行数（筛选后）发生变化时触发
+     * @note 对应Q_PROPERTY的NOTIFY信号，支持属性绑定
+     */
+    void rowCountChanged();
+
+    /**
+     * @brief 选中行变更信号
+     * 重新定义QTableView的SelectionChanged，适配Q_PROPERTY的NOTIFY信号
+     * @note 对应Q_PROPERTY的NOTIFY信号，支持属性绑定
+     */
+    void SelectionChanged();
+
     /**
      * @brief 单击某行时触发的信号
      * @param rowData 被单击行的完整数据
      * @param rowIndex 被单击行的索引（展示数据中的行号）
      */
-    void rowClicked(const TableRowData& rowData, int rowIndex);
+    void rowClickedIndex(const TableRowData& rowData, int rowIndex);
 
-    /**
-     * @brief 单击某行时触发的信号（仅包含行数据）
-     * @param rowData 被单击行的完整数据
-     */
-    void rowClicked(const TableRowData& rowData);
+//    /**
+//     * @brief 单击某行时触发的信号（仅包含行数据）
+//     * @param rowData 被单击行的完整数据
+//     */
+//    void rowClicked(const TableRowData& rowData);
 
     /**
      * @brief 双击某行时触发的信号
@@ -589,18 +725,35 @@ signals:
 
 protected:
     /**
-     * @brief 重写鼠标释放事件，捕获单击行事件
+     * @brief 重写选中变更事件，转发SelectionChanged信号
+     * @param selected 新选中的项目
+     * @param deselected 取消选中的项目
+     * 调用父类处理，然后发射SelectionChanged信号通知属性绑定
      */
-//    void mouseReleaseEvent(QMouseEvent *event) override;
+    void selectionChanged(const QItemSelection &selected, const QItemSelection &deselected) override;
+
+private slots:
+    /**
+     * @brief 行数变更槽函数
+     * 当模型的行数发生变化时触发，发射rowCountChanged信号
+     */
+    void onRowCountChanged();
 
 private:
     /**
      * @brief 内部方法，用于发送行点击信号
      */
     void emitRowClickedSignal(const QModelIndex& index);
-    void onClicked(const QModelIndex& index);
-    void onDoubleClicked(const QModelIndex& index);
 
+    /**
+     * @brief 单击事件槽函数
+     */
+    void onClicked(const QModelIndex& index);
+
+    /**
+     * @brief 双击事件槽函数
+     */
+    void onDoubleClicked(const QModelIndex& index);
 
 private:
     SuperTableModel* m_model;       // 表格数据模型
@@ -608,4 +761,3 @@ private:
 };
 }
 #endif // SUPERTABLEALL_H
-
