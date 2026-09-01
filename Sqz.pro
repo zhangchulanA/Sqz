@@ -10,7 +10,7 @@ CONFIG      += warn_off
 #INCLUDEPATH += /opt/QtFluentWidgets/include/Fluent
 #LIBS += -L/opt/QtFluentWidgets/lib -lQtFluentWidgets
 
-VERSION = 1.0.0
+VERSION = 1.0.1
 DEFINES += APP_PRO_VERSION=\\\"$$VERSION\\\"
 
 CONFIG(debug,debug|release){

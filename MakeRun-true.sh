@@ -8,7 +8,7 @@ if [ -z "$VERSION" ] || [ -z "$PRO_PWD" ]; then
 fi
 
 # ========== 可配置的系统路径 ==========
-PREFIX=${PREFIX:-/usr}
+PREFIX=${PREFIX:-/usr}                    # 可通过环境变量覆盖，如: PREFIX=/opt ./MakeRun.sh 1.0 .
 HEADER_INSTALL_DIR="${PREFIX}/include/Sqz"
 LIB_INSTALL_DIR="${PREFIX}/lib/Sqz"
 # =====================================
@@ -37,6 +37,7 @@ echo "库文件目录: $LIB_INSTALL_DIR"
 # 1. 收集所有子目录下的 .h 文件（保留目录结构），跳过根目录的 .h
 echo "收集头文件（仅子目录，保留目录结构）..."
 cd "$PRO_PWD"
+# 只收集 depth>=2 的 .h 文件（即至少有一层子目录）
 find . -mindepth 2 -name "*.h" -type f | while read header; do
     header_clean="${header#./}"
     target_dir="$WORK_DIR/$PACKAGE_NAME/$(dirname "$header_clean")"
@@ -46,6 +47,7 @@ done
 
 # 2. 收集所有子目录（用于生成 pri 文件的 INCLUDEPATH）
 echo "收集目录结构（用于生成 pri）..."
+# 获取所有包含 .h 文件的子目录（从 Sqz 根目录开始）
 INCLUDE_DIRS=$(find "$WORK_DIR/$PACKAGE_NAME" -type d | sed "s|$WORK_DIR/$PACKAGE_NAME||" | grep -v "^$" | sort -u)
 
 # 3. 复制 README.md 到 Sqz 目录下
@@ -60,6 +62,7 @@ fi
 # 4. 复制 SqzLib（带检查）
 echo "收集库文件..."
 if [ -d "$PRO_PWD/SqzLib" ]; then
+    # 检查 SqzLib 目录下是否有库文件
     LIB_COUNT=$(find "$PRO_PWD/SqzLib" -type f \( -name "*.so*" -o -name "*.a" -o -name "*.dylib" -o -name "*.dll" \) 2>/dev/null | wc -l)
     if [ "$LIB_COUNT" -eq 0 ]; then
         echo "警告: SqzLib 目录下未找到库文件（.so/.a/.dylib/.dll）"
@@ -67,7 +70,7 @@ if [ -d "$PRO_PWD/SqzLib" ]; then
     else
         echo "找到 $LIB_COUNT 个库文件"
     fi
-
+    
     mkdir -p "$WORK_DIR/$PACKAGE_NAME/SqzLib"
     cp -r "$PRO_PWD/SqzLib"/* "$WORK_DIR/$PACKAGE_NAME/SqzLib/" 2>/dev/null || true
     echo "已复制 SqzLib 完整目录"
@@ -76,14 +79,10 @@ else
     exit 1
 fi
 
-# 5. 生成 install.sh（使用占位符 __VERSION__）
+# 5. 生成 install.sh
 echo "生成 install.sh..."
-cat > "$WORK_DIR/install.sh" << 'INSTALL_EOF'
+cat > "$WORK_DIR/install.sh" << 'EOF'
 #!/bin/bash
-
-# ========== 版本信息 ==========
-SQZ_VERSION="__VERSION__"
-# ==============================
 
 # ========== 可配置的系统路径（从环境变量读取） ==========
 PREFIX=${PREFIX:-/usr}
@@ -96,12 +95,12 @@ echo "安装 Sqz 到系统目录"
 echo "安装前缀: $PREFIX"
 echo "头文件: $HEADER_INSTALL_DIR"
 echo "库文件: $LIB_INSTALL_DIR"
-echo "版本: ${SQZ_VERSION}"
 echo "=========================================="
 
 # 清理旧文件（但保留 Sqz.pri 文件，防止卸载后无法使用）
 if [ -d "$HEADER_INSTALL_DIR" ]; then
     echo "检测到旧版本头文件，正在删除..."
+    # 删除所有目录和文件，但保留 Sqz.pri
     find "$HEADER_INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name "Sqz.pri" -exec rm -rf {} + 2>/dev/null || true
     echo "已清理旧头文件（保留 Sqz.pri）"
 fi
@@ -119,10 +118,16 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # 安装头文件（保留完整目录结构，排除 SqzLib）
 echo "安装头文件（保留目录结构，排除 SqzLib）..."
 cd "$SCRIPT_DIR/Sqz"
+# 复制所有文件和目录结构到 /usr/include/Sqz，但排除 SqzLib
+# 使用 rsync 如果可用，否则使用 find + cp
 if command -v rsync &> /dev/null; then
+    # rsync 方式：排除 SqzLib 目录
     rsync -av --exclude="SqzLib" ./* "$HEADER_INSTALL_DIR/" 2>/dev/null || true
 else
+    # 备用方式：使用 find 排除 SqzLib
     find . -mindepth 1 ! -path "./SqzLib" ! -path "./SqzLib/*" -exec cp -r {} "$HEADER_INSTALL_DIR/" \; 2>/dev/null || true
+    # 修复目录结构（find + cp 可能不会保留完整结构，这里用 tar 方式更可靠）
+    # 更好的方式：使用 tar 排除
     tar -cf - --exclude="SqzLib" . | (cd "$HEADER_INSTALL_DIR" && tar -xf -)
 fi
 echo "头文件安装完成（已排除 SqzLib）"
@@ -156,6 +161,8 @@ sudo chmod -R 755 "$HEADER_INSTALL_DIR" "$LIB_INSTALL_DIR" 2>/dev/null || true
 echo "生成 Sqz.pri 配置文件..."
 PRI_FILE="$HEADER_INSTALL_DIR/Sqz.pri"
 
+# 收集所有子目录（排除 SqzLib 目录及其内容）
+# 注意：这里需要排除 SqzLib 相关的所有目录
 ALL_DIRS=$(find "$HEADER_INSTALL_DIR" -mindepth 1 -type d ! -path "*/SqzLib*" ! -path "*/SqzLib" | sed "s|$HEADER_INSTALL_DIR||" | grep -v "^$" | sort -u)
 
 cat > "/tmp/Sqz.pri" << 'PRI_EOF'
@@ -167,17 +174,22 @@ SRC_ROOT = /usr/include/Sqz
 
 PRI_EOF
 
+# 添加 INCLUDEPATH 条目（排除 SqzLib）
 echo "INCLUDEPATH += \\" >> "/tmp/Sqz.pri"
 
+# 收集所有需要包含的目录（排除 SqzLib）
+# 使用数组收集目录，更可靠
 DIRS_ARRAY=()
 while IFS= read -r dir; do
     DIRS_ARRAY+=("$dir")
 done <<< "$ALL_DIRS"
 
+# 输出目录列表
 for i in "${!DIRS_ARRAY[@]}"; do
     dir="${DIRS_ARRAY[$i]}"
     dir_escaped=$(echo "$dir" | sed 's/ /\\ /g')
     if [ $i -eq $((${#DIRS_ARRAY[@]} - 1)) ]; then
+        # 最后一个目录不加反斜杠
         echo "                \$\$SRC_ROOT$dir_escaped" >> "/tmp/Sqz.pri"
     else
         echo "                \$\$SRC_ROOT$dir_escaped \\" >> "/tmp/Sqz.pri"
@@ -189,6 +201,7 @@ cat >> "/tmp/Sqz.pri" << 'PRI_EOF'
 # 库文件路径（仅当库存在时添加）
 LIBS += -L/usr/lib/Sqz/
 
+# 检查库文件是否存在，如果存在则链接
 exists(/usr/lib/Sqz/libSqz.so) {
     LIBS += -lSqz
 } else: exists(/usr/lib/Sqz/libSqz.a) {
@@ -199,47 +212,12 @@ exists(/usr/lib/Sqz/libSqz.so) {
 
 PRI_EOF
 
+# 复制 pri 文件到目标目录
 sudo cp "/tmp/Sqz.pri" "$PRI_FILE"
 rm -f "/tmp/Sqz.pri"
 
 echo "已生成 Sqz.pri: $PRI_FILE"
 
-# ========================================
-
-# ========== 创建版本查看命令 ==========
-echo "创建 sqz-version 命令..."
-
-# 保存版本信息到系统
-sudo mkdir -p /etc
-sudo cat > /etc/sqz_version << VER_EOF
-Package: Sqz
-Version: ${SQZ_VERSION}
-Build Date: $(date +%Y%m%d_%H%M%S)
-System: $(uname -s)
-Install Prefix: ${PREFIX}
-Header Dir: ${HEADER_INSTALL_DIR}
-Lib Dir: ${LIB_INSTALL_DIR}
-VER_EOF
-
-# 创建版本查看命令
-sudo cat > /usr/local/bin/sqz-version << 'CMD_EOF'
-#!/bin/bash
-if [ -f /etc/sqz_version ]; then
-    echo "=== Sqz 版本信息 ==="
-    echo ""
-    cat /etc/sqz_version
-    echo ""
-else
-    echo "错误: 未找到 Sqz 版本信息"
-    echo "请确认 Sqz 已正确安装"
-    exit 1
-fi
-CMD_EOF
-
-sudo chmod +x /usr/local/bin/sqz-version
-
-echo "版本信息已保存到 /etc/sqz_version"
-echo "版本查看命令: sqz-version"
 # ========================================
 
 echo "=========================================="
@@ -250,20 +228,14 @@ echo "Pri文件: $PRI_FILE"
 echo ""
 echo "使用方式：在 .pro 文件中添加"
 echo "  include(/usr/include/Sqz/Sqz.pri)"
-echo ""
-echo "查看版本: sqz-version"
 echo "=========================================="
-INSTALL_EOF
-
-# 替换占位符为实际版本号
-sed -i "s/__VERSION__/${VERSION}/g" "$WORK_DIR/install.sh"
-
+EOF
 chmod +x "$WORK_DIR/install.sh"
 
 # 6. 直接构建自解压run
 echo "创建 .run 自解压包..."
 cd "$WORK_DIR"
-cat > "$RUN_FILE" << 'RUN_EOF'
+cat > "$RUN_FILE" << 'EOF'
 #!/bin/bash
 ARCHIVE=$(awk '/^__ARCHIVE_BELOW__/ {print NR + 1; exit 0;}' "$0")
 tail -n +$ARCHIVE "$0" | tar -xzv
@@ -277,8 +249,7 @@ fi
 rm -rf Sqz/ install.sh
 exit 0
 __ARCHIVE_BELOW__
-RUN_EOF
-
+EOF
 tar -czf - Sqz/ install.sh >> "$RUN_FILE"
 chmod +x "$RUN_FILE"
 
