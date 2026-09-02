@@ -71,12 +71,14 @@ include(Protocol/Protocol.pri)
 
 SOURCES += \
     MainWindow.cpp \
+    NavGlobalTest.cpp \
     SqzQuickTest.cpp \
     SqzTest.cpp \
     main.cpp
 
 HEADERS += \
     MainWindow.h \
+    NavGlobalTest.h \
     SqzQuickTest.h \
     SqzTest.h \
     TestWindow.h
@@ -106,7 +108,8 @@ unix {
 }
 
 RESOURCES += \
-    QML.qrc
+    QML.qrc \
+    image.qrc
 
 
 DISTFILES += \

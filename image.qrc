@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/">
+        <file>SqzData/img/1.png</file>
+        <file>SqzData/img/2.png</file>
+        <file>SqzData/img/3.png</file>
+        <file>SqzData/img/4.png</file>
+        <file>SqzData/img/123.png</file>
+        <file>SqzData/img/cdl.png</file>
+        <file>SqzData/img/HLXT1.png</file>
+        <file>SqzData/img/logo1.png</file>
+        <file>SqzData/img/QBZC1.png</file>
+        <file>SqzData/img/ZDXT1.png</file>
+        <file>SqzData/img/ZHZH1.png</file>
+        <file>SqzData/img/ZZBZ1.png</file>
+        <file>SqzData/img/对钩.jpeg</file>
+    </qresource>
+</RCC>

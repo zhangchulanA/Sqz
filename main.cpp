@@ -11,6 +11,10 @@
 #include "DBManager.h"
 #include "TestWindow.h"
 #include "SuperListAll.h"
+#include "NavGlobalTest.h"
+#include "NavGlobalView.h"
+#include "RouteWidget.h"
+
 using namespace Sqz;
 
 void KeyTest()
@@ -275,23 +279,9 @@ void LogTest(){
     finfo << "Critical transaction completed";
 }
 
-int main(int argc, char *argv[]) {
-    QApplication app(argc, argv);
 
-    Logger::instance().init("./log","log_");
-    SqzApplication sq;
-//        sq.Init();
-    sq.LogRegClass();
-
-//    MainWindow win;
-//    win.show();
-//LogTest();
-//   BDTest();
-//    TestWindow window;
-//    window.setWindowTitle("SuperTableWidget 测试示例");
-//    window.resize(800, 600);
-//    window.show();
-
+void SuperListAllTest()
+{
     SuperListWidget* list = new SuperListWidget();
 
     TableColumnConfig col;
@@ -313,5 +303,32 @@ int main(int argc, char *argv[]) {
     });
 
 list->show();
+
+}
+int main(int argc, char *argv[]) {
+    QApplication app(argc, argv);
+
+    Logger::instance().init("./log","log_");
+    SqzApplication sq;
+//        sq.Init();
+    sq.LogRegClass();
+
+//    MainWindow win;
+//    win.show();
+//LogTest();
+//   BDTest();
+//    TestWindow window;
+//    window.setWindowTitle("SuperTableWidget 测试示例");
+//    window.resize(800, 600);
+//    window.show();
+//    NavGlobalTest test;
+//    test.show();
+//    NavGlobalView v;
+//    v.setMinimumSize(200,200);
+//    v.show();
+
+    RouteWidget r;
+    r.show();
+
     return app.exec();
 }

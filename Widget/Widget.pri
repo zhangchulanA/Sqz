@@ -3,6 +3,8 @@ HEADERS += \
     $$PWD/FramelessWidget.h \
     $$PWD/MenuBar.h \
     $$PWD/MsgBox.h \
+    $$PWD/NavGlobalView.h \
+    $$PWD/RouteWidget.h \
     $$PWD/SuperListAll.h \
     $$PWD/SuperTableAll.h \
     $$PWD/UiKit/FramelessAttacher.h \
@@ -14,6 +16,8 @@ SOURCES += \
     $$PWD/FramelessWidget.cpp \
     $$PWD/MenuBar.cpp \
     $$PWD/MsgBox.cpp \
+    $$PWD/NavGlobalView.cpp \
+    $$PWD/RouteWidget.cpp \
     $$PWD/SuperListAll.cpp \
     $$PWD/SuperTableAll.cpp \
     $$PWD/UiKit/FramelessAttacher.cpp \
