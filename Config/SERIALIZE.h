@@ -699,4 +699,20 @@ bool fromJsonValue(const QJsonValue& value, std::unordered_map<K, V>& out) {
         return fromJson(doc.object()); \
     }
 
+
+
+// 使用辅助宏定义特化函数（必须在 SERIALIZE 之前）
+#define SERIALIZE_ENUM(EnumType) \
+    Q_DECLARE_METATYPE(EnumType) \
+    inline QJsonValue toJsonValue(EnumType value) { \
+        return QJsonValue(static_cast<int>(value)); \
+    } \
+    inline bool fromJsonValue(const QJsonValue& value, EnumType& out) { \
+        if (!value.isDouble()) { \
+            qWarning() << #EnumType " expects number"; \
+            return false; \
+        } \
+        out = static_cast<EnumType>(value.toInt()); \
+        return true; \
+    }
 #endif // SERIALIZE_H

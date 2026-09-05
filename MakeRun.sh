@@ -152,6 +152,36 @@ fi
 # 权限
 sudo chmod -R 755 "$HEADER_INSTALL_DIR" "$LIB_INSTALL_DIR" 2>/dev/null || true
 
+# ========== 为每个 .h 文件创建同名无后缀文件 ==========
+echo "为头文件创建同名无后缀引用文件..."
+
+# 递归查找所有 .h 文件（排除 SqzLib 目录）
+find "$HEADER_INSTALL_DIR" -type f -name "*.h" ! -path "*/SqzLib/*" | while read header_file; do
+    # 获取文件所在目录
+    header_dir=$(dirname "$header_file")
+    # 获取文件名（不含扩展名）
+    header_basename=$(basename "$header_file" .h)
+    # 创建同名无后缀文件路径
+    link_file="$header_dir/$header_basename"
+
+    # 如果文件已存在则跳过（可能是其他类型的文件）
+    if [ -f "$link_file" ] && [ ! -L "$link_file" ]; then
+        echo "  警告: $link_file 已存在，跳过创建"
+        continue
+    fi
+
+    # 创建文件，内容为 #include "xxx.h"
+    echo "#include \"$header_basename.h\"" | sudo tee "$link_file" > /dev/null
+
+    # 设置权限
+    sudo chmod 644 "$link_file"
+
+    echo "  创建: $link_file -> #include \"$header_basename.h\""
+done
+
+echo "头文件引用文件创建完成"
+# ====================================================
+
 # ========== 生成 Sqz.pri 文件 ==========
 echo "生成 Sqz.pri 配置文件..."
 PRI_FILE="$HEADER_INSTALL_DIR/Sqz.pri"

@@ -26,6 +26,7 @@ HEADERS += \
     $$PWD/other/ThreadPool.h \
     $$PWD/other/TimeoutKeeper.h \
     $$PWD/other/Toolbox.h \
+    $$PWD/other/UndoManager.h \
     $$PWD/translator/Translator.h \
     $$PWD/translator/TranslatorMask.h \
     $$PWD/utils/FileUtils.h \
@@ -61,6 +62,7 @@ SOURCES += \
     $$PWD/other/Singleton.cpp \
     $$PWD/other/ThreadPool.cpp \
     $$PWD/other/TimeoutKeeper.cpp \
+    $$PWD/other/UndoManager.cpp \
     $$PWD/translator/Translator.cpp \
     $$PWD/translator/TranslatorMask.cpp \
     $$PWD/utils/FileUtils.cpp \

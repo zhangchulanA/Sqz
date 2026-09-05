@@ -74,6 +74,7 @@ SOURCES += \
     NavGlobalTest.cpp \
     SqzQuickTest.cpp \
     SqzTest.cpp \
+    TestModel.cpp \
     main.cpp
 
 HEADERS += \
@@ -81,6 +82,7 @@ HEADERS += \
     NavGlobalTest.h \
     SqzQuickTest.h \
     SqzTest.h \
+    TestModel.h \
     TestWindow.h
 
 FORMS += \

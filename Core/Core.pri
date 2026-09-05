@@ -6,6 +6,7 @@ HEADERS += \
     $$PWD/SqzClassReg.h \
     $$PWD/SqzHub.h \
     $$PWD/SqzMainWindow.h \
+    $$PWD/SqzModel.h \
     $$PWD/SqzQuick.h \
     $$PWD/SqzService.h \
     $$PWD/SqzState.h \
