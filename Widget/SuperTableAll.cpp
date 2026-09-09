@@ -845,9 +845,9 @@ void SuperTableDelegate::drawStateTag(QPainter *p, const QStyleOptionViewItem &o
 {
     QRect rc = opt.rect.adjusted(8,6,-8,-6);
     QColor tagColor;
-    if (text.compare("正常", Qt::CaseInsensitive) == 0) tagColor = QColor(70,190,90);
-    else if (text.compare("失败", Qt::CaseInsensitive) ==0) tagColor = QColor(220,70,70);
-    else if (text.compare("等待", Qt::CaseInsensitive)==0) tagColor = QColor(230,180,40);
+    if (text.compare("绿色", Qt::CaseInsensitive) == 0) tagColor = QColor(70,190,90);
+    else if (text.compare("红色", Qt::CaseInsensitive) ==0) tagColor = QColor(220,70,70);
+    else if (text.compare("橙色", Qt::CaseInsensitive)==0) tagColor = QColor(230,180,40);
     else tagColor = Qt::gray;
 
     p->setBrush(tagColor);

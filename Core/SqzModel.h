@@ -48,6 +48,9 @@
  * 提供统一的序列化、反序列化、文件读写能力
  * 子类通过宏自动注册字段，无需手动实现序列化逻辑
  */
+namespace Sqz {
+
+
 class SqzModel
 {
 public:
@@ -502,3 +505,4 @@ public: \
     const ModelType& Name() const { return m_##Name; } \
     ModelType& Name() { return m_##Name; } \
     void set##Name(const ModelType& val) { m_##Name = val; }
+}
