@@ -15,20 +15,9 @@
 #include "SqzGlobal.h"
 
 namespace Sqz {
-#define llog (qDebug()<<"["<<__LINE__<<__FUNCTION__<<"]")
 
-inline QString LogData(const QByteArray& data){
-    QString text;
-    for(int i=0;i<data.size();i++){
-        text += QString::number(data[i],16)+',';
-    }
-    return  text;
-}
-
-
-
-// 用法: VIEW_MODE(类型, 名称, 默认值)
-// 示例: VIEW_MODE(int, age, 0)
+// 用法: VIEW_MODE(类型, 名称)
+// 示例: VIEW_MODE(int, age)
 #define VIEW_MODE(type, name)                         \
     Q_PROPERTY(type m_##name READ get##name WRITE set##name NOTIFY name##Changed) \
     public:                                                              \

@@ -349,6 +349,7 @@ bool SqzApplication::Init()
 void SqzApplication::QuitApp()
 {
     QTimer::singleShot(m_Cfg.ExitDelayMs,this,[=](){
+        SqzBus::ClearAll();
         ReleaseAllResources();
         qApp->quit();
     });
@@ -608,7 +609,8 @@ void SqzApplication::CreateViews()
                 if (win)
                 {
                     m_MainObject = win;
-                    win->installEventFilter(this);
+                    connect(m_MainObject,&QObject::destroyed,this,&SqzApplication::QuitApp);
+//                    win->installEventFilter(this);
                 }
                 else
                 {

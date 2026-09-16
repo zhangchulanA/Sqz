@@ -9,6 +9,19 @@
 #include <QDateTime>
 #include <QAtomicInt>
 
+
+#define llog (qDebug()<<"["<<__LINE__<<__FUNCTION__<<"]")
+
+inline QString LogData(const QByteArray& data){
+    QString text;
+    for(int i=0;i<data.size();i++){
+        text += QString::number((uchar)data[i],16)+',';
+    }
+    return  text;
+}
+
+
+
 // 日志等级枚举
 enum LogLevel {
     E_LOG_DEBUG = 0,   // 调试信息，最详细

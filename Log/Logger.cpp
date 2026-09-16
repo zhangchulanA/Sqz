@@ -6,7 +6,9 @@
 #include <QDebug>
 #include <QRegularExpression>
 #include <cstdio>
+#include "SqzBus.h"
 
+using namespace Sqz;
 // ---------- 控制台 ANSI 颜色定义 ----------
 #define COLOR_DEBUG  "\033[34m"   // 蓝色
 #define COLOR_INFO   "\033[32m"   // 绿色
@@ -16,6 +18,7 @@
 
 // 获取绑定到 stderr 的 UTF-8 文本流，用于控制台日志输出
 // 不使用 qDebug() 输出控制台日志，避免受 QT_LOGGING_RULES 影响或引发递归
+
 static QTextStream& consoleStream()
 {
     static QTextStream s(stderr);
@@ -393,5 +396,7 @@ void Logger::log(LogLevel level, const char* file, int line, const char* functio
     if (force || m_enableConsole) {
         consoleStream() << colorPrefix(level) << logText << colorSuffix() << '\n';
         consoleStream().flush();
+
+        SqzBus::Send("SQZ_LOG_DATA",logText);
     }
 }

@@ -654,7 +654,6 @@ void SqzHub::SafeDelete(void* Ptr, bool isQObject, bool immediate)
         else
             obj->deleteLater();
     } else {
-        // 兜底路径：void* 无法还原真实类型，delete char* 不调用实际析构函数（对含资源成员的类型为 UB）
         // 正常销毁应通过 ClassMeta.deleter 完成；注册时已强制非 QObject 类提供 deleter
         delete static_cast<char*>(Ptr);
     }
@@ -967,7 +966,6 @@ void SqzHub::PrintRegClass()
 // 销毁所有单例
 void SqzHub::CloseAll()
 {
-    // 统一调用 destroyAllObjects()（修复 Bug #17：原与 ~SqzHub 逻辑重复，现共用同一销毁路径）
     // 退出阶段事件循环可能即将停止，立即同步销毁（deleteLater 不可靠）
     destroyAllObjects();
 }

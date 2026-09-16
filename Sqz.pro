@@ -128,9 +128,8 @@ DISTFILES += \
     config.path = $$OUT_PWD
     COPIES += config
 
-    translators.files += $$PWD/SqzData/translator/简体中文.json \
-                         $$PWD/SqzData/translator/English.json
-    translators.path = $$OUT_PWD/SqzData/translator
+    translators.files += $$PWD/SqzData/translator
+    translators.path = $$OUT_PWD/SqzData
     COPIES += translators
 
 
