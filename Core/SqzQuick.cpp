@@ -31,41 +31,6 @@ bool SqzQuick::HasView(const QString& className) const {
     return SqzViewOps::HasView(className);
 }
 
-// ---------- 窗口专属操作 ----------
-void SqzQuick::HideView(const QString& className) {
-    SqzViewOps::HideView(className);
-}
-
-void SqzQuick::ShowView(const QString& className) {
-    SqzViewOps::ShowView(className);
-}
-
-void SqzQuick::ToggleView(const QString& className) {
-    SqzViewOps::ToggleView(className);
-}
-
-bool SqzQuick::IsViewVisible(const QString& className) const {
-    return SqzViewOps::IsViewVisible(className);
-}
-
-void SqzQuick::SetViewTopMost(const QString& className, bool topMost) {
-    SqzViewOps::SetViewTopMost(className, topMost);
-}
-
-void SqzQuick::ResizeView(const QString& className, int w, int h) {
-    SqzViewOps::ResizeView(className, w, h);
-}
-
-void SqzQuick::MoveView(const QString& className, int x, int y) {
-    SqzViewOps::MoveView(className, x, y);
-}
-
-// ---------- 快捷操作 ----------
-void SqzQuick::OpenThis() {  SqzViewOps::OpenThis(className());}
-void SqzQuick::CloseThis() {  SqzViewOps::CloseThis(className()); }
-void SqzQuick::HideThis() { SqzViewOps::HideThis(className()); }
-void SqzQuick::ShowThis()  {   SqzViewOps::ShowThis(className()); }
-
 
 bool SqzQuick::init()
 {

@@ -59,7 +59,6 @@ SOURCES += \
     $$PWD/other/Random.cpp \
     $$PWD/other/ResourceHub.cpp \
     $$PWD/other/ShortcutManager.cpp \
-    $$PWD/other/Singleton.cpp \
     $$PWD/other/ThreadPool.cpp \
     $$PWD/other/TimeoutKeeper.cpp \
     $$PWD/other/UndoManager.cpp \

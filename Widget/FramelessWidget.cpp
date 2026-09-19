@@ -286,6 +286,7 @@ FramelessWidget::FramelessWidget(QWidget *parent)
       m_shadowEffect(new QGraphicsDropShadowEffect(this)),
       m_resizeTimer(new QTimer(this)) // 新增：初始化缩放防抖定时器
 {
+
     // 设置无边框窗口标志，保留系统菜单和最小化/最大化按钮能力
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowSystemMenuHint | Qt::WindowMinMaxButtonsHint);
     // 设置透明背景，用于渲染圆角和阴影
@@ -340,6 +341,7 @@ FramelessWidget::FramelessWidget(QWidget *parent)
         }
     });
 }
+
 
 /**
  * @brief 设置窗口圆角半径

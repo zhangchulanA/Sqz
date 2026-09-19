@@ -5,6 +5,8 @@
 #include <QMutexLocker>
 #include "SqzGlobal.h"
 //        Q_GLOBAL_STATIC(OfflineASR,OfflineASR)
+
+//字类必须写    friend class Singleton<T>;
 namespace Sqz{
 template <typename T>
 class Singleton

@@ -23,7 +23,7 @@ CONFIG(debug,debug|release){
     #release 专属配置
     DEFINES += RELEASE_MODE
     TEMPLATE = lib
-    CONFIG += shared
+    CONFIG += staticlib create_pri #shared
     CONFIG += plugin
     TARGET = Sqz
     DESTDIR = $$PWD/SqzLib

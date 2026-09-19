@@ -41,36 +41,6 @@ public:
     //检查视图是否存在
     bool HasView(const QString& className) const;
 
-    // ========== 视图显隐/位置操作 ==========
-
-    //隐藏视图（不销毁）
-    void HideView(const QString& className);
-
-    //显示视图（并提升到最前）
-    void ShowView(const QString& className);
-
-    //切换视图显隐状态
-    void ToggleView(const QString& className);
-
-    //视图是否可见
-    bool IsViewVisible(const QString& className) const;
-
-    //设置视图置顶
-    void SetViewTopMost(const QString& className, bool topMost);
-
-    //调整视图大小
-    void ResizeView(const QString& className, int w, int h);
-
-    //移动视图位置
-    void MoveView(const QString& className, int x, int y);
-
-    // ========== 快捷操作（操作自身） ==========
-
-    void OpenThis();      // 打开自身
-    void CloseThis();     // 关闭自身
-    void HideThis();      // 隐藏自身
-    void ShowThis();      // 显示自身
-
 protected:
     /**
      * 生命周期回调（由 SqzHub 调用）
@@ -82,8 +52,6 @@ protected:
     //对象即将销毁前回调
     virtual void onClose() {}
 
-    //获取子类名称（必须实现）
-    virtual QString className() const = 0;
 
 };
 #define RETURNNAME  QString className() const override{return this->metaObject()->className();}

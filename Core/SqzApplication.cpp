@@ -141,22 +141,14 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
     QJsonObject metaObj = root["AppMeta"].toObject();
     // A1：AppMeta 字段类型校验
     checkType("AppMeta", "AppName",      metaObj["AppName"],      QJsonValue::String);
-    checkType("AppMeta", "DisplayName",  metaObj["DisplayName"],  QJsonValue::String);
     checkType("AppMeta", "Version",      metaObj["Version"],      QJsonValue::String);
-    checkType("AppMeta", "ThreadPrefix", metaObj["ThreadPrefix"], QJsonValue::String);
-    checkType("AppMeta", "ExitDelayMs",  metaObj["ExitDelayMs"],  QJsonValue::Double);
-    checkType("AppMeta", "StrictVersion", metaObj["StrictVersion"], QJsonValue::Bool);
 
     m_Cfg.AppName = metaObj["AppName"].toString("");
-    m_Cfg.DisplayName = metaObj["DisplayName"].toString("");
     m_Cfg.Version = metaObj["Version"].toString("1.0.0");
-    m_Cfg.ThreadPrefix = metaObj["ThreadPrefix"].toString();
-    m_Cfg.ExitDelayMs = metaObj["ExitDelayMs"].toInt(500);
-    // A7：解析 StrictVersion 开关（版本不匹配时是否 fail-fast）
-    m_Cfg.StrictVersion = metaObj["StrictVersion"].toBool(false);
+
 
     // 全局设置线程局部前缀，移除pro宏依赖
-    SqzHub::SetThreadPrefix(m_Cfg.ThreadPrefix);
+    SqzHub::SetThreadPrefix(m_Cfg.AppName);
 
     // 解析后台服务
     QJsonArray serviceArr = root["Services"].toArray();
@@ -170,7 +162,6 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         s.ClassName = obj["ClassName"].toString();
         s.AutoStart = obj["AutoStart"].toBool();
         s.StartOrder = obj["StartOrder"].toInt(99);
-        s.Critical = obj["Critical"].toBool(false);   // D2
         s.Props = obj["Props"].toObject().toVariantMap();
         QJsonArray argArr = obj["Args"].toArray();
         for (auto arg : argArr) s.Args.append(arg.toVariant());
@@ -179,7 +170,7 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         checkType("Services", "ClassName",  obj["ClassName"],  QJsonValue::String);
         checkType("Services", "AutoStart",   obj["AutoStart"],  QJsonValue::Bool);
         checkType("Services", "StartOrder",  obj["StartOrder"], QJsonValue::Double);
-        checkType("Services", "Critical",    obj["Critical"],   QJsonValue::Bool);
+
         checkType("Services", "Args",        obj["Args"],       QJsonValue::Array);
         checkType("Services", "Props",       obj["Props"],      QJsonValue::Object);
 
@@ -281,14 +272,11 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
     // 修复 C3：解析结果 dump（便于启动排错，线上问题直接贴日志对比源 JSON）
     loginfo << "[SqzApp] 配置解析完成 - "
             << "App:" << m_Cfg.AppName << "/" << m_Cfg.Version
-            << " | ThreadPrefix:" << m_Cfg.ThreadPrefix
-            << " | StrictVersion:" << (m_Cfg.StrictVersion ? "on" : "off")
             << " | Services:" << m_Cfg.ServiceList.size()
             << " | Views:" << m_Cfg.ViewList.size();
     for (const auto& s : m_Cfg.ServiceList)
         loginfo << "[SqzApp]   Service:" << s.ClassName
                 << " | AutoStart:" << (s.AutoStart ? "on" : "off")
-                << " | Critical:" << (s.Critical ? "on" : "off")
                 << " | Order:" << s.StartOrder;
     for (const auto& v : m_Cfg.ViewList)
         loginfo << "[SqzApp]   View:" << v.ClassName
@@ -308,23 +296,6 @@ bool SqzApplication::Init()
         return false;
     }
 
-    // 版本匹配校验（pro中定义APP_PRO_VERSION宏与json对比）
-#ifdef APP_PRO_VERSION
-    const QString compileVer = APP_PRO_VERSION;
-    const QString configVer = m_Cfg.Version;
-    if (compileVer != configVer)
-    {
-        // A7：StrictVersion=true 时 fail-fast（版本跨度大字段增删会导致后续空指针，中止比半崩更安全）
-        if (m_Cfg.StrictVersion)
-        {
-            logerror << "[SqzApp] 版本不匹配且 StrictVersion=true，中止启动"
-                     << " | 编译版本:" << compileVer << " | 配置版本:" << configVer;
-            return false;
-        }
-        logwarn << "[SqzApp] 版本不匹配 编译版本:" << compileVer << " 配置版本:" << configVer
-                << "（StrictVersion=off，继续启动）";
-    }
-#endif
 
     BatchRegisterClass();
 
@@ -341,14 +312,14 @@ bool SqzApplication::Init()
     m_InitComplete = true;
 
     qApp->setApplicationName(m_Cfg.AppName);
-    qApp->setApplicationDisplayName(m_Cfg.DisplayName);
+    qApp->setApplicationDisplayName(m_Cfg.AppName);
     qApp->setApplicationVersion(m_Cfg.Version);
     return true;
 }
 
 void SqzApplication::QuitApp()
 {
-    QTimer::singleShot(m_Cfg.ExitDelayMs,this,[=](){
+    QTimer::singleShot(100,this,[=](){
         SqzBus::ClearAll();
         ReleaseAllResources();
         qApp->quit();
@@ -552,20 +523,12 @@ void SqzApplication::CreateServices()
                 : hub.CreateObjectWithArg(s.ClassName, s.Args,s.Props);
         if (!svc)
         {
-            //Critical=true 的关键服务创建失败时中止 直接退出）
-            if (s.Critical)
-            {
-                logerror << "[SqzApp] 关键服务创建失败，中止初始化:" << s.ClassName
-                         << "（配置 Critical:true）";
-                m_InitFailed = true;
-                return;
-            }
-            logwarn << "[SqzApp] 创建服务失败:" << s.ClassName;
-            continue;
+            logerror << "[SqzApp] 关键服务创建失败，中止初始化:" << s.ClassName;
+            m_InitFailed = true;
+            return;
+
         }
         //        ApplyProps(svc, s.Props);
-        loginfo << "[SqzApp] 自动启动服务:" << s.ClassName
-                << (s.Critical ? " (Critical)" : "");
     }
 }
 
@@ -610,7 +573,7 @@ void SqzApplication::CreateViews()
                 {
                     m_MainObject = win;
                     connect(m_MainObject,&QObject::destroyed,this,&SqzApplication::QuitApp);
-//                    win->installEventFilter(this);
+                    //                    win->installEventFilter(this);
                 }
                 else
                 {
@@ -652,7 +615,7 @@ void SqzApplication::CreateViews()
                     m_MainObject = quick;
                     QQuickWindow* win = quick->window();
                     // Qt 5.12 支持 QQuickWindow::closing 信号
-                   connect(win, &QObject::destroyed, this, &SqzApplication::QuitApp);
+                    connect(win, &QObject::destroyed, this, &SqzApplication::QuitApp);
                 }
                 else
                 {

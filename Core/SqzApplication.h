@@ -24,11 +24,7 @@ struct SQZ_FRAMEWORK_API AppConfig
 {
     // 程序基础元信息
     QString AppName;
-    QString DisplayName;
     QString Version;
-    QString ThreadPrefix;
-    int ExitDelayMs = 500;
-    bool StrictVersion = false;   //版本不匹配时是否 fail-fast（true=中止启动，false=仅 warn）
 
     // 后台服务条目
     struct SQZ_FRAMEWORK_API ServiceItem
@@ -36,7 +32,6 @@ struct SQZ_FRAMEWORK_API AppConfig
         QString ClassName;
         bool AutoStart;
         int StartOrder;
-        bool Critical = false;   //关键服务标志，创建失败时中止 Init
         QVariantList Args;
         QVariantMap Props;
     };

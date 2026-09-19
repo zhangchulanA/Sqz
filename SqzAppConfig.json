@@ -1,18 +1,13 @@
 {
   "AppMeta": {
     "AppName": "Sqz",
-    "DisplayName": "Sqz框架",
-    "Version": "1.0.0",
-    "ThreadPrefix": "Sqz",
-    "ExitDelayMs": 300,
-    "StrictVersion": false
+    "Version": "1.0.0"
   },
   "Services": [
   {
   "ClassName": "DataReceivedService",
   "AutoStart": false,
   "StartOrder": 1,
-  "Critical" : false,
   "Args" : [],
   "Props": {"sss1": 123}
    }
