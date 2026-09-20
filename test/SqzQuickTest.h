@@ -11,11 +11,6 @@ class SqzQuickTest : public SqzQuick
 public:
     explicit SqzQuickTest(QObject *parent = nullptr);
 
-
-    virtual QString className() const{
-        return  "SqzQuickTest";
-    }
-
 public slots:
     void QuitApp();
 

@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QTimer>
 #include <memory>
+#include <QApplication>
 #include <QSet>
 #include "SqzGlobal.h"
 #include "SqzHub.h"
@@ -32,7 +33,7 @@ struct SQZ_FRAMEWORK_API AppConfig
         QString ClassName;
         bool AutoStart;
         int StartOrder;
-        QVariantList Args;
+        bool Async = false;
         QVariantMap Props;
     };
     QList<ServiceItem> ServiceList;
@@ -45,7 +46,6 @@ struct SQZ_FRAMEWORK_API AppConfig
         QString QmlSource;
         bool IsMain;
         bool AutoStart;
-        QVariantList Args;
         QVariantMap Props;
     };
     QList<ViewItem> ViewList;
@@ -88,28 +88,6 @@ public:
     //检查视图是否存在
     bool HasView(const QString& className) const;
 
-    // ========== 视图显隐/位置操作 ==========
-
-    //隐藏视图（不销毁）
-    void HideView(const QString& className);
-
-    //显示视图（并提升到最前）
-    void ShowView(const QString& className);
-
-    //切换视图显隐状态
-    void ToggleView(const QString& className);
-
-    //视图是否可见
-    bool IsViewVisible(const QString& className) const;
-
-    //设置视图置顶
-    void SetViewTopMost(const QString& className, bool topMost);
-
-    //调整视图大小
-    void ResizeView(const QString& className, int w, int h);
-
-    //移动视图位置
-    void MoveView(const QString& className, int x, int y);
 
     // ========== 通用单例操作（与 SqzView 同名但后缀为 Service） ==========
 
@@ -148,7 +126,7 @@ private:
 
 protected:
     // 事件过滤器：拦截主窗口 Close 事件触发退出流程（QWidget::close 非信号，无法 connect）
-    bool eventFilter(QObject *obj, QEvent *event) override;
+//    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
     // 主窗口关闭触发退出流程

@@ -34,19 +34,19 @@ echo "安装前缀: $PREFIX"
 echo "头文件目录: $HEADER_INSTALL_DIR"
 echo "库文件目录: $LIB_INSTALL_DIR"
 
-# 1. 收集所有子目录下的 .h 文件（保留目录结构），跳过根目录的 .h
-echo "收集头文件（仅子目录，保留目录结构）..."
+# 1. 收集所有子目录下的 .h 文件（保留目录结构），跳过根目录的 .h，忽略 test 目录
+echo "收集头文件（仅子目录，保留目录结构，忽略 test 目录）..."
 cd "$PRO_PWD"
-find . -mindepth 2 -name "*.h" -type f | while read header; do
+find . -mindepth 2 -name "*.h" -type f ! -path "./test/*" ! -path "*/test/*" | while read header; do
     header_clean="${header#./}"
     target_dir="$WORK_DIR/$PACKAGE_NAME/$(dirname "$header_clean")"
     mkdir -p "$target_dir"
     cp "$header" "$target_dir/"
 done
 
-# 2. 收集所有子目录（用于生成 pri 文件的 INCLUDEPATH）
-echo "收集目录结构（用于生成 pri）..."
-INCLUDE_DIRS=$(find "$WORK_DIR/$PACKAGE_NAME" -type d | sed "s|$WORK_DIR/$PACKAGE_NAME||" | grep -v "^$" | sort -u)
+# 2. 收集所有子目录（用于生成 pri 文件的 INCLUDEPATH），忽略 test 目录
+echo "收集目录结构（用于生成 pri，忽略 test 目录）..."
+INCLUDE_DIRS=$(find "$WORK_DIR/$PACKAGE_NAME" -type d ! -path "*/test*" ! -path "*/test" | sed "s|$WORK_DIR/$PACKAGE_NAME||" | grep -v "^$" | sort -u)
 
 # 3. 复制 README.md 到 Sqz 目录下
 echo "复制 README.md..."
@@ -116,16 +116,16 @@ sudo mkdir -p "$HEADER_INSTALL_DIR" "$LIB_INSTALL_DIR"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# 安装头文件（保留完整目录结构，排除 SqzLib）
-echo "安装头文件（保留目录结构，排除 SqzLib）..."
+# 安装头文件（保留完整目录结构，排除 SqzLib 和 test）
+echo "安装头文件（保留目录结构，排除 SqzLib 和 test）..."
 cd "$SCRIPT_DIR/Sqz"
 if command -v rsync &> /dev/null; then
-    rsync -av --exclude="SqzLib" ./* "$HEADER_INSTALL_DIR/" 2>/dev/null || true
+    rsync -av --exclude="SqzLib" --exclude="test" ./* "$HEADER_INSTALL_DIR/" 2>/dev/null || true
 else
-    find . -mindepth 1 ! -path "./SqzLib" ! -path "./SqzLib/*" -exec cp -r {} "$HEADER_INSTALL_DIR/" \; 2>/dev/null || true
-    tar -cf - --exclude="SqzLib" . | (cd "$HEADER_INSTALL_DIR" && tar -xf -)
+    find . -mindepth 1 ! -path "./SqzLib" ! -path "./SqzLib/*" ! -path "./test" ! -path "./test/*" -exec cp -r {} "$HEADER_INSTALL_DIR/" \; 2>/dev/null || true
+    tar -cf - --exclude="SqzLib" --exclude="test" . | (cd "$HEADER_INSTALL_DIR" && tar -xf -)
 fi
-echo "头文件安装完成（已排除 SqzLib）"
+echo "头文件安装完成（已排除 SqzLib 和 test）"
 
 # 安装库文件
 echo "安装库文件到 $LIB_INSTALL_DIR ..."
@@ -152,11 +152,41 @@ fi
 # 权限
 sudo chmod -R 755 "$HEADER_INSTALL_DIR" "$LIB_INSTALL_DIR" 2>/dev/null || true
 
+# ========== 为每个 .h 文件创建同名无后缀文件 ==========
+echo "为头文件创建同名无后缀引用文件..."
+
+# 递归查找所有 .h 文件（排除 SqzLib 和 test 目录）
+find "$HEADER_INSTALL_DIR" -type f -name "*.h" ! -path "*/SqzLib/*" ! -path "*/test/*" | while read header_file; do
+    # 获取文件所在目录
+    header_dir=$(dirname "$header_file")
+    # 获取文件名（不含扩展名）
+    header_basename=$(basename "$header_file" .h)
+    # 创建同名无后缀文件路径
+    link_file="$header_dir/$header_basename"
+
+    # 如果文件已存在则跳过（可能是其他类型的文件）
+    if [ -f "$link_file" ] && [ ! -L "$link_file" ]; then
+        echo "  警告: $link_file 已存在，跳过创建"
+        continue
+    fi
+
+    # 创建文件，内容为 #include "xxx.h"
+    echo "#include \"$header_basename.h\"" | sudo tee "$link_file" > /dev/null
+
+    # 设置权限
+    sudo chmod 644 "$link_file"
+
+#    echo "  创建: $link_file -> #include \"$header_basename.h\""
+done
+
+echo "头文件引用文件创建完成"
+# ====================================================
+
 # ========== 生成 Sqz.pri 文件 ==========
 echo "生成 Sqz.pri 配置文件..."
 PRI_FILE="$HEADER_INSTALL_DIR/Sqz.pri"
 
-ALL_DIRS=$(find "$HEADER_INSTALL_DIR" -mindepth 1 -type d ! -path "*/SqzLib*" ! -path "*/SqzLib" | sed "s|$HEADER_INSTALL_DIR||" | grep -v "^$" | sort -u)
+ALL_DIRS=$(find "$HEADER_INSTALL_DIR" -mindepth 1 -type d ! -path "*/SqzLib*" ! -path "*/SqzLib" ! -path "*/test*" ! -path "*/test" | sed "s|$HEADER_INSTALL_DIR||" | grep -v "^$" | sort -u)
 
 cat > "/tmp/Sqz.pri" << 'PRI_EOF'
 # Sqz.pri

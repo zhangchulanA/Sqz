@@ -33,7 +33,7 @@ inline QHash<QString,ClassFactory>& GlobalClassTable()
     return table;
 }
 
-#define SQZ_REG_NOARG(Cls) \
+#define SQZ_REG(Cls) \
 namespace { \
     struct AutoReg_##Cls { \
         AutoReg_##Cls() { \
@@ -47,20 +47,20 @@ namespace { \
     static AutoReg_##Cls Reg_##Cls; \
 }
 
-#define SQZ_REG_ARG(Cls) \
-namespace { \
-    struct AutoReg_##Cls { \
-        AutoReg_##Cls() { \
-            auto& table = Sqz::GlobalClassTable(); \
-            Sqz::ClassFactory info; \
-            info.ArgCreator = [](const QVariantList& args)->void*{ return new Cls(args); }; \
-            info.IsQuick = Sqz::IsSqzQuickClass<Cls>(); \
-            info.IsQObject = std::is_base_of_v<QObject, Cls>; \
-            table[#Cls] = info; \
-        } \
-    }; \
-    static AutoReg_##Cls Reg_##Cls; \
-}
+//#define SQZ_REG_ARG(Cls) \
+//namespace { \
+//    struct AutoReg_##Cls { \
+//        AutoReg_##Cls() { \
+//            auto& table = Sqz::GlobalClassTable(); \
+//            Sqz::ClassFactory info; \
+//            info.ArgCreator = [](const QVariantList& args)->void*{ return new Cls(args); }; \
+//            info.IsQuick = Sqz::IsSqzQuickClass<Cls>(); \
+//            info.IsQObject = std::is_base_of_v<QObject, Cls>; \
+//            table[#Cls] = info; \
+//        } \
+//    }; \
+//    static AutoReg_##Cls Reg_##Cls; \
+//}
 //该宏仅供内部使用
 //#define SqzIn  SqzHub::Instance()
 }

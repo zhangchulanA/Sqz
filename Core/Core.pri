@@ -1,4 +1,4 @@
-QT       += qml quick quickwidgets
+QT       += qml quick
 
 HEADERS += \
     $$PWD/SqzApplication.h \
@@ -12,7 +12,6 @@ HEADERS += \
     $$PWD/SqzState.h \
     $$PWD/SqzViewOps.h \
     $$PWD/SqzWidget.h
-#    $$PWD/SqzWidgetOps.h
 
 SOURCES += \
     $$PWD/SqzApplication.cpp \

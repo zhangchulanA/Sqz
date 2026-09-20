@@ -42,19 +42,13 @@ public:
     bool HasView(const QString& className) const;
 
 protected:
-    /**
-     * 生命周期回调（由 SqzHub 调用）
-     * 不要在构造函数或 onInit() 中调用 CallSelfView() 或 KillSelfView() 等依赖虚函数的方法。
-     **/
+
     //    对象首次创建后回调
     virtual void onInit() {}
 
     //    对象即将销毁前回调
-    ///
     virtual void onClose() {}
 
-    //    获取子类名称（必须实现）
-    virtual QString className() const = 0;
 };
 }
 #endif // SqzMainWindow_H

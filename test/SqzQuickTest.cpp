@@ -13,4 +13,4 @@ void SqzQuickTest::QuitApp()
 {
     SqzApp->QuitApp();
 }
-SQZ_REG_NOARG(SqzQuickTest);
+SQZ_REG(SqzQuickTest);

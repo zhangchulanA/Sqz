@@ -26,7 +26,7 @@ void SqzTest::onInit()
     logerror << property("sss2")<<property("sss3")<<property("sss4");
 }
 
-SQZ_REG_NOARG(SqzTest);
+SQZ_REG(SqzTest);
 
 void SqzTest::on_pushButton_clicked()
 {

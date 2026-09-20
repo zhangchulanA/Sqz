@@ -11,12 +11,14 @@
 #include <QObject>
 #include <QThread>
 #include <QMetaObject>
+#include <QCoreApplication>
 #include "SqzClassReg.h"
 
 namespace Sqz {
 class SQZ_FRAMEWORK_API SqzService : public QObject
 {
     Q_OBJECT
+     Q_PROPERTY(bool async READ isAsync)
     friend class SqzHub;
 public:
     explicit SqzService(QObject* parent = nullptr);
@@ -38,16 +40,36 @@ public:
     //检查服务是否存在
     bool HasService(const QString& className) const;
 
-protected:
-    /**
-     * 生命周期回调（由 SqzHub 调用）
-     * 不要在构造函数或 onInit() 中调用 OpenSelf() 或 CloseSelf() 等依赖虚函数的方法。
-     **/
+protected slots:
+
     //对象首次创建后回调
     virtual void onInit() {}
 
     //对象即将销毁前回调
     virtual void onClose() {}
+
+protected:
+    // ========== 异步工具（供子类业务代码使用） ==========
+
+    // 在主线程执行 fn（同步服务或已在主线程时直接执行）
+    template <typename F>
+    void OnMainThread(F&& fn) const
+    {
+        QCoreApplication* app = QCoreApplication::instance();
+        if (!m_isAsync || !app || QThread::currentThread() == app->thread()) {
+            fn();
+        } else {
+            QMetaObject::invokeMethod(app,std::forward<F>(fn),Qt::QueuedConnection);
+        }
+    }
+
+private:
+
+    // ========== 异步标记（由 SqzHub 在创建时设置） ==========
+    bool isAsync() const { return m_isAsync; }
+    void setAsync(bool a) { m_isAsync = a; }
+
+    bool m_isAsync = false;
 };
 
 }

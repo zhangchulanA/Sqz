@@ -1,5 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>SqzQuickTest.qml</file>
+        <file>test/SqzQuickTest.qml</file>
     </qresource>
 </RCC>

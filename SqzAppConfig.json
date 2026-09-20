@@ -5,30 +5,28 @@
   },
   "Services": [
   {
-  "ClassName": "DataReceivedService",
-  "AutoStart": false,
-  "StartOrder": 1,
-  "Args" : [],
-  "Props": {"sss1": 123}
-   }
+  "ClassName": "SqzServiceTest",
+  "Auto": true,
+  "Order": 1,
+  "Async": false,
+  "Props": {}
+  }
   ],
   "Views": [
     {
       "ViewType": "SqzWidget",
       "ClassName": "SqzTest",
-      "IsMain": true,
-      "AutoStart": true,
-      "Args" : [],
-      "Props": {"sss2": 234,"sss3":"ppp","sss4":",.,.,]["}
+      "Main": true,
+      "Auto": false,
+      "Props": {}
     },
     {
       "ViewType": "SqzQuick",
       "ClassName": "SqzQuickTest",
-      "IsMain": false,
-      "QmlSource": "qrc:/SqzQuickTest.qml",
-      "AutoStart": true,
-      "Args" : [],
-      "Props": {"sss3": 345}
+      "Main": false,
+      "Source": "qrc:/SqzQuickTest.qml",
+      "Auto": false,
+      "Props": {}
      }
   ]
 }

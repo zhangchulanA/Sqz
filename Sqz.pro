@@ -23,7 +23,7 @@ CONFIG(debug,debug|release){
     #release 专属配置
     DEFINES += RELEASE_MODE
     TEMPLATE = lib
-    CONFIG += staticlib create_pri #shared
+    CONFIG += shared create_pri #shared  staticlib
     CONFIG += plugin
     TARGET = Sqz
     DESTDIR = $$PWD/SqzLib
@@ -70,23 +70,28 @@ include(Global/Global.pri)
 include(Protocol/Protocol.pri)
 
 SOURCES += \
-    MainWindow.cpp \
-    NavGlobalTest.cpp \
-    SqzQuickTest.cpp \
-    SqzTest.cpp \
-    TestModel.cpp \
-    main.cpp
+    test/MainWindow.cpp \
+    test/NavGlobalTest.cpp \
+    test/SqzQuickTest.cpp \
+    test/SqzServiceTest.cpp \
+    test/SqzTest.cpp \
+    test/TestModel.cpp \
+    main.cpp \
+    test/form.cpp
 
 HEADERS += \
-    MainWindow.h \
-    NavGlobalTest.h \
-    SqzQuickTest.h \
-    SqzTest.h \
-    TestModel.h \
-    TestWindow.h
+    test/MainWindow.h \
+    test/NavGlobalTest.h \
+    test/SqzQuickTest.h \
+    test/SqzServiceTest.h \
+    test/SqzTest.h \
+    test/TestModel.h \
+    test/TestWindow.h \
+    test/form.h
 
 FORMS += \
-    SqzTest.ui
+    test/SqzTest.ui \
+    test/form.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -119,8 +124,8 @@ DISTFILES += \
     README.md \
     SqzAppConfig.json \
     SqzData/translator/English.json \
-    SqzData/translator/简体中文.json \
-    SqzQuickTest.qml
+    SqzData/translator/简体中文.json
+
 #复制配置文件到输出目录
 
     config.files += $$PWD/SqzAppConfig.json \

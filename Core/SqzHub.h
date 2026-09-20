@@ -6,11 +6,12 @@
 #include <QVariantList>
 #include <QWidget>
 #include <QWriteLocker>     // 同上
-#include <type_traits>
+
 #include <QQmlApplicationEngine>
 #include <memory>
-#include "QQmlEngine"
-#include "QtQuick/QQuickView"
+#include <QQmlEngine>
+#include <QtQuick/QQuickView>
+#include <QThread>
 #include "SqzGlobal.h"
 
 namespace Sqz {
@@ -99,13 +100,10 @@ public:
     //创建/获取 QML Quick 窗口单例（主线程）
     QObject* CreateQuick(const QString& ClassName,const QString& qmlpath = "",const QVariantMap& props = {});
 
-    //带参创建/获取 QWidget 单例
-    QWidget* CreateWidgetWithArg(const QString& ClassName, const QVariantList& args,const QVariantMap& props = {});
+    //创建异步对象
+    QObject* CreateObjectAsync(const QString& ClassName, const QVariantMap& props);
 
-    //带参创建/获取 QObject 单例
-    QObject* CreateObjectWithArg(const QString& ClassName, const QVariantList& args,const QVariantMap& props = {});
-
-// ================================= 生命周期管理 =================================
+    // ================================= 生命周期管理 =================================
 
     //判断单例是否已存在
     bool IsExist(const QString& ClassName) const;
@@ -127,61 +125,6 @@ public:
 
     //安全释放裸指针（静态）
     static void SafeDelete(void* Ptr, bool isQObject = false, bool immediate = false);
-
-// ============================= Widget 窗口操作 ====================================
-
-    //隐藏 Widget 窗口
-    void HideWidget(const QString& ClassName);
-
-    //显示 Widget 窗口
-    void ShowWidget(const QString& ClassName);
-
-    //切换 Widget 窗口显隐
-    void ToggleWidget(const QString& ClassName);
-
-    //检查 Widget 窗口是否可见
-    bool IsWidgetVisible(const QString& ClassName) const;
-
-    //设置 Widget 窗口置顶
-    void SetWidgetTop(const QString& ClassName, bool TopMost);
-
-    //设置 Widget 窗口大小
-    void SetWidgetSize(const QString& ClassName, int W, int H);
-
-    //设置 Widget 窗口位置
-    void SetWidgetPos(const QString& ClassName, int X, int Y);
-
-    //获取 Widget 窗口原生指针
-    QWidget* GetWidgetPtr(const QString& ClassName) const;
-
-    //隐藏所有 Widget 窗口
-    void HideAllWidget();
-
-// ============================= Quick 窗口操作 =============================
-
-    //隐藏 Quick 窗口
-    void HideQuick(const QString& ClassName);
-
-    //显示 Quick 窗口
-    void ShowQuick(const QString& ClassName);
-
-    //切换 Quick 窗口显隐
-    void ToggleQuick(const QString& ClassName);
-
-    //检查 Quick 窗口是否可见
-    bool IsQuickVisible(const QString& ClassName) const;
-
-    //设置 Quick 窗口置顶
-    void SetQuickTop(const QString& ClassName, bool TopMost);
-
-    //设置 Quick 窗口大小
-    void SetQuickSize(const QString& ClassName, int W, int H);
-
-    //设置 Quick 窗口位置
-    void SetQuickPos(const QString& ClassName, int X, int Y);
-
-    //获取 Quick 窗口的 QQuickWindow 指针
-    QQuickWindow* GetQuickPtr(const QString& ClassName);
 
 // ============================== 工具 =================================
 
@@ -214,9 +157,6 @@ public:
     //获取 QML 引擎指针
     QQmlApplicationEngine* qmlEngine();
 
-protected:
-    //清空注册表（慎用）
-    void ClearReg();
 
 private:
 
@@ -238,6 +178,12 @@ private:
 
     void destroyAllObjects();
 
+    // 内部工具：在指定线程执行一段代码（异步创建/销毁统一复用）
+       void stopServiceThread(const QString& fullname, QThread* thread, QObject* obj);
+
+       bool IsAsyncService(const QString& ClassName) const;
+
+private:
     std::unique_ptr<QQmlApplicationEngine> m_qmlEngine;  //   QML 引擎
 
     QHash<QString, ClassMeta>      m_noArgCreator;   //   无参构造器表
@@ -246,6 +192,8 @@ private:
     QHash<QString, void*>          m_singlePool;     //   单例对象池
     QHash<QString, ClassMeta>      m_qmlCreators;     //   Quick 类构造器表
     QHash<QString, QString>        m_quickQmlPath;   //   Quick 视图 QML 源路径缓存（供 ResetObj 重建使用）
+    // 每个类的异步线程
+    QHash<QString, QThread*> m_serviceThreads;
 };
 
 #if A

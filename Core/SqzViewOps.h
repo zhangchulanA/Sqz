@@ -19,20 +19,6 @@ public:
     static void RestartView(const QString& className);
     static bool HasView(const QString& className);
 
-    // ========== 视图显隐/位置操作 ==========
-    static void HideView(const QString& className);
-    static void ShowView(const QString& className);
-    static void ToggleView(const QString& className);
-    static bool IsViewVisible(const QString& className);
-    static void SetViewTopMost(const QString& className, bool topMost);
-    static void ResizeView(const QString& className, int w, int h);
-    static void MoveView(const QString& className, int x, int y);
-
-    // ========== 快捷操作（操作自身） ==========
-    static void OpenThis(const QString& className);
-    static void CloseThis(const QString& className);
-    static void HideThis(const QString& className);
-    static void ShowThis(const QString& className);
 };
 
 } // namespace Sqz

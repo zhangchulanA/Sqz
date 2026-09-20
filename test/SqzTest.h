@@ -1,7 +1,6 @@
 #ifndef SQZTEST_H
 #define SQZTEST_H
 
-#include <QWidget>
 #include <SqzWidget.h>
 namespace Ui {
 class SqzTest;
@@ -17,9 +16,6 @@ public:
     ~SqzTest();
 
 protected:
-    virtual QString className() const{
-        return  "SqzTest";
-    }
     void onInit();
 private slots:
     void on_pushButton_clicked();
