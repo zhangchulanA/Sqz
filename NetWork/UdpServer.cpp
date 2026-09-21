@@ -46,32 +46,44 @@ void UdpServer::SendSendInfo(QString ip, quint16 port)
     _port = port;
 }
 
-bool UdpServer::SetIpAndPort(QString ip, quint16 port)
+bool UdpServer::SetIpAndPort(QString ip, quint16 port, QString *err)
 {
     _sendIp.setAddress(ip);
     _sendPort = port;
     if(m_Socket->bind(_sendIp,_sendPort))
         return true;
-    else
+    else{
+        if(err){
+            *err = m_Socket->errorString();
+        }
         return false;
+    }
 }
 
-bool UdpServer::SetAnyHostPort()
+bool UdpServer::SetAnyHostPort(QString *err)
 {
     if(m_Socket->bind(QHostAddress(QHostAddress::Any)))
         return true;
-    else
+    else{
+        if(err){
+            *err = m_Socket->errorString();
+        }
         return false;
+    }
 }
 
-bool UdpServer::SetLocalHostPort(quint16 port)
+bool UdpServer::SetLocalHostPort(quint16 port,QString *err)
 {
     _sendIp.setAddress(QHostAddress::LocalHost);
     _sendPort = port;
     if(m_Socket->bind(_sendIp,_sendPort))
         return true;
-    else
+    else{
+        if(err){
+            *err = m_Socket->errorString();
+        }
         return false;
+    }
 }
 
 bool UdpServer::SetMulticastIpAndPort(QString groupIp, int groupPort)

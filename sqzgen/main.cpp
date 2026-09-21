@@ -394,19 +394,14 @@ int main(int argc, char *argv[])
     QString workDir = QFileInfo(outJsonPath).absoluteDir().absolutePath();
     auto oldCache = readCache(workDir);
     QHash<QString, qint64> newCache;
-    bool sourceFileChanged = false;
 
     auto checkFile = [&](const QFileInfo& fi){
         qint64 mtime = fi.lastModified().toMSecsSinceEpoch();
         QString absPath = fi.absoluteFilePath();
         newCache[absPath] = mtime;
-        if(!oldCache.contains(absPath) || oldCache.value(absPath) != mtime)
-            sourceFileChanged = true;
     };
     for(const auto& fi : cppFiles) checkFile(fi);
     for(const auto& fi : hFiles)   checkFile(fi);
-    if(oldCache.size() != newCache.size())
-        sourceFileChanged = true;
 
     // ---------- 2. 解析源文件得到扫描结果 ----------
     QSet<QString> regAllClasses;
@@ -442,7 +437,7 @@ int main(int argc, char *argv[])
     if(!newRoot.contains("AppMeta") || !newRoot["AppMeta"].isObject())
     {
         QJsonObject meta;
-        meta.insert("AppName", "YYY");
+        meta.insert("AppName", "XXX");
         meta.insert("Version", "1.0.0");
         newRoot.insert("AppMeta", meta);
     }
@@ -552,13 +547,13 @@ int main(int argc, char *argv[])
             if(found)
             {
                 // SqzWidget 不写 ClassName，移除可能存在的 ClassName
-                matched.remove("ClassName");
                 newWidgetList.append(matched);
             }
             else
             {
                 QJsonObject o;
                 o.insert("ViewType", "SqzWidget");
+                o.insert("ClassName", cls);
                 o.insert("QmlSource", "");
                 o.insert("Auto", false);
                 o.insert("Main", false);

@@ -23,11 +23,11 @@ public:
     //设置接收方ip和port
     void SendSendInfo(QString ip,quint16 port);
 //设置本地ip和端口
-    bool SetIpAndPort(QString ip,quint16 port);
+    bool SetIpAndPort(QString ip,quint16 port,QString* err = nullptr);
 //ip设为任意地址，设置端口
-    bool SetAnyHostPort();
+    bool SetAnyHostPort(QString* err = nullptr);
 //ip设为本地循环 ，设置端口
-    bool SetLocalHostPort(quint16 port);
+    bool SetLocalHostPort(quint16 port,QString* err = nullptr);
     //单播发送消息
     void SendMessage(const QString& data);
     void SendMessage(const char* data,int len);
