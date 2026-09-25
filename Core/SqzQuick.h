@@ -12,8 +12,6 @@
  * @brief QML 窗口界面的逻辑基类，继承自 QObject。
  *        提供与 SqzWidget 同名的接口，
  *        内部持有 QQuickWindow* 用于实际窗口操作。
- *        子类必须实现 className() 纯虚函数，并注册到 SqzHub。
- *        推荐使用 SqzHub::CreateQuick() 创建单例。
  */
 
 namespace Sqz {

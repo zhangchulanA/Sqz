@@ -495,6 +495,7 @@ void SqzApplication::CreateViews()
                 QWidget* win = qobject_cast<QWidget*>(viewObj);
                 if (win)
                 {
+                    win->setAttribute(Qt::WA_DeleteOnClose);
                     m_MainObject = win;
                     connect(m_MainObject,&QObject::destroyed,this,&SqzApplication::QuitApp);
                 }
@@ -510,8 +511,7 @@ void SqzApplication::CreateViews()
         // ========== SqzQuick 类型 ==========
         else if (v.ViewType == "SqzQuick")
         {
-            if (!v.AutoStart)
-                continue;
+            if (!v.AutoStart){continue;}
 
             // 创建 Quick 视图（内部已处理 QML 路径缓存及初始化失败回滚）
             viewObj = hub.CreateQuick(v.ClassName, v.QmlSource, v.Props);
@@ -538,7 +538,8 @@ void SqzApplication::CreateViews()
                     m_MainObject = quick;
                     QQuickWindow* win = quick->window();
                     // Qt 5.12 支持 QQuickWindow::closing 信号
-                    connect(win, &QObject::destroyed, this, &SqzApplication::QuitApp);
+                    connect(win, &QQuickWindow::destroy, this, &SqzApplication::QuitApp);
+
                 }
                 else
                 {

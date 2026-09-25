@@ -51,7 +51,7 @@ public:
     // forceUpdate=true：强制更新，刷新时间戳并通知
     // forceUpdate=false：值未变则忽略（去重）
     void Set(const QString& key, const QVariant& value,
-             const QString& source = "Unknown", bool forceUpdate = true);
+              bool forceUpdate = false,const QString& source = "Unknown");
 
     DataItem Get(const QString& key) const;                      // 获取完整包裹
     QVariant Value(const QString& key, const QVariant& defaultValue = QVariant()) const; // 直接取值

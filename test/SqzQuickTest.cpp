@@ -9,7 +9,7 @@ SqzQuickTest::SqzQuickTest(QObject *parent) : SqzQuick(parent)
     });
 }
 
-void SqzQuickTest::QuitApp()
+void SqzQuickTest::quitApp()
 {
     SqzApp->QuitApp();
 }

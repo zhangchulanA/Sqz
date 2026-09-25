@@ -4,9 +4,8 @@
 /**
  * @class SqzService
  * @brief 所有业务对象（服务、管理器等）的基类，继承自 QObject。
- *        提供与 SqzWidget 同名的通用单例操作接口（Open/Close/Reset/IsExist），
- *        但不包含界面相关方法。子类必须实现 className() 纯虚函数，
- *        并确保类名与注册名称一致。推荐使用 SqzHub 创建子类实例。
+ *        提供与 SqzWidget 同名的通用单例操作接口（Open/Close/Reset/IsExist
+ *
  */
 #include <QObject>
 #include <QThread>

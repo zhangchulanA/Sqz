@@ -12,7 +12,7 @@ public:
     explicit SqzQuickTest(QObject *parent = nullptr);
 
 public slots:
-    void QuitApp();
+    void quitApp();
 
 signals:
 

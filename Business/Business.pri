@@ -1,7 +1,6 @@
 HEADERS += \
     $$PWD/CommandLineParser.h \
     $$PWD/FlexData.h \
-    $$PWD/HotConfigManager.h \
     $$PWD/Pipeline.h \
     $$PWD/ProtocolSchema.h \
     $$PWD/SandboxMode.h \

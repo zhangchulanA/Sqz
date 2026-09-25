@@ -60,7 +60,8 @@ public:
     static QString ThreadPrefix();
 
 private:
-    static thread_local QString t_prefix;
+    static QString          s_prefix;       // 全局前缀
+    static QReadWriteLock   s_prefixLock;   // 保护 s_prefix
     static QString maybeAddThreadPrefix(const QString& className);
 
 public:
@@ -155,7 +156,7 @@ public:
     QObject* CreateObjectByArg(const QString& ClassName, const QVariantList& Args);
 
     //获取 QML 引擎指针
-    QQmlApplicationEngine* qmlEngine();
+    QQmlEngine* qmlEngine();
 
 
 private:
@@ -184,8 +185,8 @@ private:
        bool IsAsyncService(const QString& ClassName) const;
 
 private:
-    std::unique_ptr<QQmlApplicationEngine> m_qmlEngine;  //   QML 引擎
-
+//    std::unique_ptr<QQmlApplicationEngine> m_qmlEngine;  //   QML 引擎
+    std::unique_ptr<QQmlEngine> m_qmlEngine;
     QHash<QString, ClassMeta>      m_noArgCreator;   //   无参构造器表
     QHash<QString, CreatorWithArg> m_argCreator;     //   带参构造器表
     QHash<QString, ClassMeta>      m_argMeta;         //   带参类元数据表（销毁时查 deleter/isQObject）

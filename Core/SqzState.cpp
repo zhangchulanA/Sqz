@@ -21,7 +21,7 @@ SqzState::~SqzState() {
 
 // ==================== 核心读写 ====================
 void SqzState::Set(const QString& key, const QVariant& value,
-                  const QString& source, bool forceUpdate) {
+                   bool forceUpdate,const QString& source) {
     bool shouldNotify = false;
     {
         QMutexLocker locker(&m_mutex);

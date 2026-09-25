@@ -49,8 +49,8 @@ bool SqzQuick::init()
     }
 
     // 创建独立子上下文隔离 "This"（修复 Bug #7：多视图共享 rootContext 导致 "This" 互相覆盖）
-    QQmlContext* subCtx = new QQmlContext(engine->rootContext());
-    subCtx->setContextProperty("This", this);
+    QQmlContext* subCtx = new QQmlContext(engine->rootContext(),this);
+    subCtx->setContextProperty("View", this);
 
     QObject* obj = component.create(subCtx);
     if (!obj) {
@@ -69,9 +69,6 @@ bool SqzQuick::init()
 
     // 设置 C++ 所有权，防止 QML 引擎自动销毁
     QQmlEngine::setObjectOwnership(m_window, QQmlEngine::CppOwnership);
-
-    // 子上下文生命周期绑定到 m_window（随窗口销毁，避免泄漏）
-    subCtx->setParent(m_window);
 
     m_initialized = true;
 
