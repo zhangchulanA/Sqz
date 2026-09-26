@@ -1,6 +1,7 @@
 QT       +=  network
 HEADERS += \
     $$PWD/TcpClient.h \
+    $$PWD/UdpPacket.h \
     $$PWD/UdpServer.h \
     $$PWD/UdpSocket.h
 

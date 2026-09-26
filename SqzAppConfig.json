@@ -24,7 +24,6 @@
       "ViewType": "SqzQuick",
       "ClassName": "SqzQuickTest",
       "Main": false,
-      "Source": "qrc:/test/SqzQuickTest.qml",
       "Auto": true,
       "Props": {}
      }

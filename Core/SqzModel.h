@@ -133,6 +133,95 @@ public:
         return fromJson(doc.object());
     }
 
+
+    // ================================================================
+    // QByteArray 序列化扩展（紧凑 JSON，二进制友好）
+    // ================================================================
+
+    /**
+     * @brief  将模型序列化为紧凑JSON字节流
+     * @return UTF-8 编码的紧凑 JSON 字节数组（无缩进，适合网络传输/存储）
+     * @note   与 toJson() 数据等价，仅输出格式更紧凑；
+     *         QByteArray 字段仍走 Base64，可安全嵌入字节流。
+     */
+    QByteArray toByteArray() const
+    {
+        return QJsonDocument(toJson()).toJson(QJsonDocument::Compact);
+    }
+
+    /**
+     * @brief  从紧凑JSON字节流反序列化填充模型
+     * @param  data UTF-8 编码的 JSON 字节数组
+     * @return 反序列化是否成功
+     * @note   缺失字段保持默认值，与 fromJson() 行为一致
+     */
+    bool fromByteArray(const QByteArray& data)
+    {
+        QJsonParseError error;
+        QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+            return false;
+        }
+        return fromJson(doc.object());
+    }
+
+    /**
+     * @brief  将模型保存为本地二进制（紧凑JSON）文件
+     * @param  filePath 目标文件路径
+     * @return 是否保存成功
+     * @note   与 saveToFile() 的区别：不写缩进、不按 Text 模式打开，
+     *         文件体积更小，适合频繁读写。
+     */
+    bool saveToBinaryFile(const QString& filePath) const
+    {
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly)) {
+            return false;
+        }
+        const qint64 written = file.write(toByteArray());
+        file.close();
+        return written >= 0;
+    }
+
+    /**
+     * @brief  从本地二进制（紧凑JSON）文件加载模型
+     * @param  filePath 源文件路径
+     * @return 是否加载成功
+     */
+    bool loadFromBinaryFile(const QString& filePath)
+    {
+        QFile file(filePath);
+        if (!file.open(QIODevice::ReadOnly)) {
+            return false;
+        }
+        const QByteArray data = file.readAll();
+        file.close();
+        return fromByteArray(data);
+    }
+
+    /**
+     * @brief  序列化为 QVariant（QByteArray 载体），便于放入 Qt 信号槽/模型视图
+     * @return 含紧凑 JSON 的 QByteArray 封装的 QVariant
+     */
+    QVariant toVariant() const
+    {
+        return QVariant(toByteArray());
+    }
+
+    /**
+     * @brief  从 QVariant（QByteArray 载体）反序列化
+     * @param  var 含紧凑 JSON 的 QVariant
+     * @return 反序列化是否成功
+     */
+    bool fromVariant(const QVariant& var)
+    {
+        if (!var.canConvert<QByteArray>()) {
+            return false;
+        }
+        return fromByteArray(var.toByteArray());
+    }
+
+
     /**
      * @brief 注册字段（内部接口，由宏自动调用，请勿手动调用）
      * @param name   字段名称

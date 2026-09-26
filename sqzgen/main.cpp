@@ -58,7 +58,7 @@ QSet<QString> parseCppForReg(const QString& filePath)
 }
 
 // ============================================================
-// 解析 h：提取 class Xxx : public SqzWidget / SqzService
+// 解析 h：提取 class Xxx : public SqzWidget / SqzQuick / SqzService
 // ============================================================
 QHash<QString, QString> parseHeaderForInherit(const QString& filePath)
 {
@@ -69,12 +69,17 @@ QHash<QString, QString> parseHeaderForInherit(const QString& filePath)
     QString content = QString::fromUtf8(f.readAll());
     f.close();
 
-    QRegularExpression reClassWidget("class\\s+(\\w+)\\s*:\\s*public\\s+SqzWidget");
-    QRegularExpression reClassService("class\\s+(\\w+)\\s*:\\s*public\\s+SqzService");
+    QRegularExpression reClassWidget ("class\\s+(\\w+)\\s*:\\s*public\\s+SqzWidget\\b");
+    QRegularExpression reClassQuick  ("class\\s+(\\w+)\\s*:\\s*public\\s+SqzQuick\\b");
+    QRegularExpression reClassService("class\\s+(\\w+)\\s*:\\s*public\\s+SqzService\\b");
 
     auto iterW = reClassWidget.globalMatch(content);
     while(iterW.hasNext())
         map.insert(iterW.next().captured(1), "widget");
+
+    auto iterQ = reClassQuick.globalMatch(content);
+    while(iterQ.hasNext())
+        map.insert(iterQ.next().captured(1), "quick");
 
     auto iterS = reClassService.globalMatch(content);
     while(iterS.hasNext())
@@ -187,6 +192,7 @@ QString cleanJsonForQt(const QString& raw)
 
 // ============================================================
 // 读取旧 JSON（容错）
+// 返回 false 表示无法读取/解析，调用方应停止工作、保留原文件
 // ============================================================
 bool readOldJson(const QString& path, QJsonObject& outRoot, bool& fileExisted)
 {
@@ -195,7 +201,10 @@ bool readOldJson(const QString& path, QJsonObject& outRoot, bool& fileExisted)
 
     QFile f(path);
     if(!f.exists())
+    {
+        // 文件不存在：允许新建
         return true;
+    }
 
     fileExisted = true;
     if(!f.open(QIODevice::ReadOnly))
@@ -207,7 +216,10 @@ bool readOldJson(const QString& path, QJsonObject& outRoot, bool& fileExisted)
     f.close();
 
     if(raw.trimmed().isEmpty())
+    {
+        // 空文件视为可新建，但保留原文件不动（下面会覆盖为空结构）
         return true;
+    }
 
     QJsonParseError err;
     QJsonDocument doc = QJsonDocument::fromJson(cleanJsonForQt(raw).toUtf8(), &err);
@@ -256,7 +268,6 @@ QString escapeJsonString(const QString& s)
     return out;
 }
 
-// 序列化 JSON 值（递归），indent 为当前缩进层级
 QString serializeValue(const QJsonValue& v, int indent);
 
 QString serializeObject(const QJsonObject& obj, const QStringList& keyOrder, int indent)
@@ -333,7 +344,6 @@ QString serializeValue(const QJsonValue& v, int indent)
     if(v.isDouble())
     {
         double d = v.toDouble();
-        // 整数不输出小数点
         if(d == qint64(d))
             return QString::number(qint64(d));
         return QString::number(d, 'g', 17);
@@ -356,13 +366,20 @@ QString serializeService(const QJsonObject& obj, int indent)
 
 // ============================================================
 // 按指定 key 顺序序列化 View 条目
+// 只输出这几个 key（旧数据里的 QmlSource / Source 会被自动丢弃）
 // ============================================================
 QString serializeView(const QJsonObject& obj, int indent)
 {
     static const QStringList order = {
-        "ViewType", "ClassName", "QmlSource", "Auto", "Main", "Props"
+        "ClassName", "ViewType", "Main", "Auto", "Props"
     };
-    return serializeObject(obj, order, indent);
+    QJsonObject filtered;
+    for(const QString& k : order)
+    {
+        if(obj.contains(k))
+            filtered.insert(k, obj.value(k));
+    }
+    return serializeObject(filtered, order, indent);
 }
 
 // ============================================================
@@ -375,7 +392,7 @@ int main(int argc, char *argv[])
     if(argc < 3)
     {
         fprintf(stderr,"用法：SqzCodeGen <src目录> <SqzAppConfig.json输出路径>\n");
-        return 1;
+        return 0;
     }
     QString srcDirPath = argv[1];
     QString outJsonPath = argv[2];
@@ -384,7 +401,7 @@ int main(int argc, char *argv[])
     if(!srcDir.exists())
     {
         fprintf(stderr,"错误：源码目录不存在 %s\n", srcDirPath.toUtf8().constData());
-        return 2;
+        return 0;
     }
 
     // ---------- 1. 扫描源文件 ----------
@@ -412,12 +429,13 @@ int main(int argc, char *argv[])
     for(const auto& fi : hFiles)
         classNameToType.unite(parseHeaderForInherit(fi.absoluteFilePath()));
 
-    QSet<QString> widgetScanSet, serviceScanSet;
+    QSet<QString> widgetScanSet, quickScanSet, serviceScanSet;
     for(const QString& cls : regAllClasses)
     {
         if(!classNameToType.contains(cls)) continue;
         QString t = classNameToType[cls];
         if(t == "widget")       widgetScanSet.insert(cls);
+        else if(t == "quick")   quickScanSet.insert(cls);
         else if(t == "service") serviceScanSet.insert(cls);
     }
 
@@ -426,8 +444,12 @@ int main(int argc, char *argv[])
     bool fileExisted = false;
     if(!readOldJson(outJsonPath, oldRoot, fileExisted))
     {
-        fprintf(stderr, "错误：旧 JSON 解析失败，已中止以避免覆盖用户配置。请检查文件内容。\n");
-        return 4;
+        fprintf(stderr,
+                "错误：无法读取/解析旧 JSON 文件，已中止以避免覆盖用户配置。\n"
+                "      请检查文件 %s 是否存在、可读且格式合法。\n",
+                outJsonPath.toUtf8().constData());
+        // 直接退出：不写 JSON、不写缓存，文件保留原样
+        return 0;
     }
 
     // ---------- 4. 增量更新 ----------
@@ -445,7 +467,7 @@ int main(int argc, char *argv[])
     // ---- Services 增量更新 ----
     {
         QJsonArray oldArr = newRoot["Services"].toArray();
-        QHash<QString, QJsonObject> oldMap;   // ClassName -> 原始对象
+        QHash<QString, QJsonObject> oldMap;
         for(auto item : oldArr)
         {
             QJsonObject o = item.toObject();
@@ -454,7 +476,6 @@ int main(int argc, char *argv[])
                 oldMap.insert(cls, o);
         }
 
-        // 按 ClassName 升序排序的类名列表
         QStringList sortedClasses = serviceScanSet.values();
         std::sort(sortedClasses.begin(), sortedClasses.end());
 
@@ -483,46 +504,48 @@ int main(int argc, char *argv[])
     {
         QJsonArray oldArr = newRoot["Views"].toArray();
 
-        // 分类旧数据
-        QHash<QString, QJsonObject> oldWidgetMapByQml;   // QmlSource -> 旧对象
-        QList<QJsonObject> oldWidgetList;                // 顺序列表，用于兜底
-        QList<QJsonObject> nonWidgetList;                // 非 SqzWidget 原样保留
+        // 分类旧数据：可扫描类型（SqzWidget / SqzQuick） vs 其他
+        QList<QJsonObject> oldWidgetList;   // SqzWidget / SqzQuick 旧条目
+        QList<QJsonObject> nonWidgetList;   // 其他 ViewType 原样保留
 
         for(auto item : oldArr)
         {
             QJsonObject o = item.toObject();
-            if(o["ViewType"].toString() != "SqzWidget")
+            QString vt = o["ViewType"].toString();
+            if(vt != "SqzWidget" && vt != "SqzQuick")
             {
                 nonWidgetList.append(o);
                 continue;
             }
             oldWidgetList.append(o);
-            QString qml = o["QmlSource"].toString();
-            if(!qml.isEmpty() && !oldWidgetMapByQml.contains(qml))
-                oldWidgetMapByQml.insert(qml, o);
         }
 
-        // 用于标记 oldWidgetList 中已被使用的索引
+        // 合并 widget + quick 类列表，按 ClassName 升序排序
+        struct ViewEntry { QString type; QString cls; };
+        QList<ViewEntry> allViews;
+        for(const QString& cls : widgetScanSet)
+            allViews.append({QStringLiteral("SqzWidget"), cls});
+        for(const QString& cls : quickScanSet)
+            allViews.append({QStringLiteral("SqzQuick"), cls});
+        std::sort(allViews.begin(), allViews.end(),
+                  [](const ViewEntry& a, const ViewEntry& b){
+            return a.cls < b.cls;
+        });
+
         QSet<int> usedIndices;
         QList<QJsonObject> newWidgetList;
 
-        // 按 ClassName 升序排序扫描到的 Widget 类
-        QStringList sortedWidgets = widgetScanSet.values();
-        std::sort(sortedWidgets.begin(), sortedWidgets.end());
-
-        for(const QString& cls : sortedWidgets)
+        for(const auto& ve : allViews)
         {
             QJsonObject matched;
             bool found = false;
 
-            // 1) 按 QmlSource 匹配（QmlSource 包含类名，忽略大小写）
+            // 1) 按 ClassName 精确匹配
             for(int i = 0; i < oldWidgetList.size(); ++i)
             {
                 if(usedIndices.contains(i)) continue;
                 QJsonObject o = oldWidgetList[i];
-                QString qml = o["QmlSource"].toString();
-                if(qml.isEmpty()) continue;
-                if(qml.contains(cls, Qt::CaseInsensitive))
+                if(o["ClassName"].toString() == ve.cls)
                 {
                     matched = o;
                     usedIndices.insert(i);
@@ -531,7 +554,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-            // 2) 顺序兜底：取第一个未被使用的旧 SqzWidget
+            // 2) 顺序兜底：取第一个未被使用的旧条目（兼容 ClassName 为空的历史数据）
             if(!found)
             {
                 for(int i = 0; i < oldWidgetList.size(); ++i)
@@ -546,33 +569,39 @@ int main(int argc, char *argv[])
 
             if(found)
             {
-                // SqzWidget 不写 ClassName，移除可能存在的 ClassName
+                // 强制写入/覆盖 ClassName 与 ViewType
+                matched["ClassName"] = ve.cls;
+                matched["ViewType"]  = ve.type;
+                // 保证必要字段存在
+                if(!matched.contains("Main"))
+                    matched.insert("Main", false);
+                if(!matched.contains("Auto"))
+                    matched.insert("Auto", false);
+                if(!matched.contains("Props") || !matched["Props"].isObject())
+                    matched.insert("Props", QJsonObject());
                 newWidgetList.append(matched);
             }
             else
             {
                 QJsonObject o;
-                o.insert("ViewType", "SqzWidget");
-                o.insert("ClassName", cls);
-                o.insert("QmlSource", "");
-                o.insert("Auto", false);
+                o.insert("ViewType", ve.type);
+                o.insert("ClassName", ve.cls);
                 o.insert("Main", false);
+                o.insert("Auto", false);
                 o.insert("Props", QJsonObject());
                 newWidgetList.append(o);
             }
         }
 
-        // 非 SqzWidget 的 View 也按 ClassName 排序后追加
+        // 非 SqzWidget/SqzQuick 的 View 按 ClassName 排序后追加
         std::sort(nonWidgetList.begin(), nonWidgetList.end(),
                   [](const QJsonObject& a, const QJsonObject& b){
             return a["ClassName"].toString() < b["ClassName"].toString();
         });
 
         QJsonArray newArr;
-        // 先放非 SqzWidget（已按 ClassName 排序）
         for(const auto& o : nonWidgetList)
             newArr.append(o);
-        // 再放 SqzWidget（已按扫描类名升序）
         for(const auto& o : newWidgetList)
             newArr.append(o);
 
@@ -633,17 +662,19 @@ int main(int argc, char *argv[])
 
     // ---------- 6. 写回文件 ----------
     QFile outFile(outJsonPath);
-    if(!outFile.open(QIODevice::WriteOnly | QIODevice::Text))
+    if(!outFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate))
     {
         fprintf(stderr,"错误：无法写入输出文件 %s\n", outJsonPath.toUtf8().constData());
-        return 3;
+        return 0;
     }
     outFile.write(finalJson.toUtf8());
     outFile.close();
 
     writeCache(workDir, newCache);
 
-    qDebug() << QString("扫描完成：Widget:%1个 Service:%2个；已增量更新 SqzAppConfig.json")
-                .arg(widgetScanSet.size()).arg(serviceScanSet.size());
+    qDebug() << QString("扫描完成：Widget:%1个 Quick:%2个 Service:%3个；已增量更新 SqzAppConfig.json")
+                .arg(widgetScanSet.size())
+                .arg(quickScanSet.size())
+                .arg(serviceScanSet.size());
     return 0;
 }

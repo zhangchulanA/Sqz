@@ -199,15 +199,12 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         AppConfig::ViewItem v;
         v.ViewType = obj["ViewType"].toString();
         v.ClassName = obj["ClassName"].toString();
-        v.QmlSource = obj["Source"].toString();
         v.IsMain = obj["Main"].toBool(false);
         v.AutoStart = obj["Auto"].toBool(true);
         v.Props = obj["Props"].toObject().toVariantMap();
         // View 字段类型校验
         checkType("Views", "ViewType", obj["ViewType"], QJsonValue::String);
         checkType("Views", "ClassName", obj["ClassName"], QJsonValue::String);
-        if(obj["ViewType"].toString() == "SqzQuick")
-            checkType("Views", "Source", obj["Source"], QJsonValue::String);
         checkType("Views", "Main", obj["Main"], QJsonValue::Bool);
         checkType("Views", "Auto", obj["Auto"], QJsonValue::Bool);
         checkType("Views", "Props", obj["Props"], QJsonValue::Object);
@@ -229,12 +226,6 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         }
         viewNameSet.insert(v.ClassName);
 
-        //SqzQuick 视图的 QmlSource 必填（空路径会让 CreateQuick 走缓存空值→初始化失败）
-        if (v.ViewType == "SqzQuick" && v.QmlSource.isEmpty())
-        {
-            logwarn << " Views[" << idx << "] 类型 SqzQuick 缺少 QmlSource:" << v.ClassName;
-        }
-
         //统计 IsMain=true 的视图数
         if (v.IsMain)
         {
@@ -251,7 +242,7 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
     //IsMain 存在性提示（0 个主窗口：启动后无窗口可关闭，进程无法正常退出）
     else if (mainViewCount == 0)
     {
-        logwarn << " Views 中没有任何 IsMain:true 的视图，进程将无法通过关闭窗口退出";
+        loginfo << " Views 中没有 IsMain:true 的视图";
     }
 
     //解析结果 dump（便于启动排错，线上问题直接贴日志对比源 JSON）
@@ -268,9 +259,7 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         loginfo << "   View:" << v.ClassName
                 << " | Type:" << v.ViewType
                 << " | IsMain:" << (v.IsMain ? "on" : "off")
-                << " | AutoStart:" << (v.AutoStart ? "on" : "off")
-                << (v.QmlSource.isEmpty() ? QString() : " | Qml:" + v.QmlSource);
-
+                << " | AutoStart:" << (v.AutoStart ? "on" : "off");
     return true;
 }
 
@@ -340,7 +329,7 @@ void SqzApplication::OpenView(const QString& className) {
             if (v.ViewType == "SqzWidget") {
                 m_hub.CreateWidget(className, v.Props);
             } else if (v.ViewType == "SqzQuick") {
-                m_hub.CreateQuick(className, v.QmlSource, v.Props);
+                m_hub.CreateQuick(className, v.Props);   // 去掉了 v.QmlSource
             } else {
                 logwarn << "未知 ViewType:" << v.ViewType;
             }
@@ -498,7 +487,7 @@ void SqzApplication::CreateViews()
             if (!v.AutoStart){continue;}
 
             // 创建 Quick 视图（内部已处理 QML 路径缓存及初始化失败回滚）
-            viewObj = hub.CreateQuick(v.ClassName, v.QmlSource, v.Props);
+            viewObj = hub.CreateQuick(v.ClassName,v.Props);
 
             if (!viewObj)
             {

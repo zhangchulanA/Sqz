@@ -374,19 +374,19 @@ QObject* SqzHub::CreateObject(const QString& ClassName, const QVariantMap &props
 }
 
 
-QObject *SqzHub::CreateQuick(const QString &ClassName, const QString& qmlpath, const QVariantMap &props)
+QObject *SqzHub::CreateQuick(const QString &ClassName, const QVariantMap &props)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
     if (QThread::currentThread() != QCoreApplication::instance()->thread()) {
         logwarn << "[SqzHub] 禁止子线程操作QML UI：" << fullname;
         return nullptr;
     }
-    // 第一次检查：池中是否已有对象
+
+    // 池中已有对象：激活并返回
     {
-        QReadLocker locker(&GetFactoryLock());;
+        QReadLocker locker(&GetFactoryLock());
         if (m_singlePool.contains(fullname)) {
             QObject* obj = static_cast<QObject*>(m_singlePool[fullname]);
-            // 激活窗口
             QMetaObject::invokeMethod(obj, "show");
             QMetaObject::invokeMethod(obj, "raise");
             QMetaObject::invokeMethod(obj, "requestActivate");
@@ -394,31 +394,24 @@ QObject *SqzHub::CreateQuick(const QString &ClassName, const QString& qmlpath, c
         }
     }
 
-    // 获取 QML 类的元数据
+    // 取元数据
     ClassMeta meta;
-    QString actualQmlPath = qmlpath;
     {
-        QWriteLocker locker(&GetFactoryLock());
+        QReadLocker locker(&GetFactoryLock());
         if (!m_qmlCreators.contains(fullname)) {
             logwarn << "[SqzHub] 未注册 QML 类：" << fullname;
             return nullptr;
         }
         meta = m_qmlCreators[fullname];
-        // 存储或读取 qmlpath（供 ResetObj 重建使用，修复 Bug #18：ResetObj 用空 qmlpath 重建失败）
-        if (!actualQmlPath.isEmpty())
-            m_quickQmlPath[fullname] = actualQmlPath;
-        else
-            actualQmlPath = m_quickQmlPath.value(fullname);
     }
 
-    // 创建 QML 逻辑对象（子类实例）
+    // 创建逻辑对象
     void* raw = meta.creator();
     if (!raw) {
         logwarn << "[SqzHub] 创建 QML 对象失败：" << fullname;
         return nullptr;
     }
 
-    // 类型转换
     QObject* qmlObj = static_cast<QObject*>(raw);
     SqzQuick* view = qobject_cast<SqzQuick*>(qmlObj);
     if (!view) {
@@ -426,11 +419,13 @@ QObject *SqzHub::CreateQuick(const QString &ClassName, const QString& qmlpath, c
         logwarn << "[SqzHub] 类型转换失败（需要 SqzQuick）：" << fullname;
         return nullptr;
     }
-    ApplyPropsToObject(view,props);
-    view->setQmlSourcePath(actualQmlPath);
+
+    ApplyPropsToObject(view, props);
+
+    // QML 路径完全由子类构造函数 setQmlSourcePath() 提供，这里不再设置
     view->init();
 
-    // 存入池
+    // 入池（并发兜底）
     QWriteLocker locker(&GetFactoryLock());
     if (m_singlePool.contains(fullname)) {
         if (view->window()) {
@@ -439,19 +434,16 @@ QObject *SqzHub::CreateQuick(const QString &ClassName, const QString& qmlpath, c
             view->window()->requestActivate();
         }
         meta.immediateDeleter(raw);
-        // 返回池中已存在的对象，而不是刚被销毁的 raw
         return static_cast<QObject*>(m_singlePool[fullname]);
     }
     m_singlePool[fullname] = raw;
 
-    // 连接销毁信号
     connect(qmlObj, &QObject::destroyed, this, [this, fullname, raw]() {
         QWriteLocker locker(&GetFactoryLock());
-        // 仅当池中仍是同一对象时移除（防止 ResetObj 后旧对象销毁误删新对象）
         if (m_singlePool.value(fullname) == raw)
             m_singlePool.remove(fullname);
     });
-    // 显示窗口
+
     if (view->window()) {
         view->window()->show();
         view->window()->raise();
@@ -763,7 +755,7 @@ void SqzHub::CloseAll()
             return;
         pool.swap(m_singlePool);
         threads.swap(m_serviceThreads);
-        m_quickQmlPath.clear();
+
     }
 
     // 排序：Service → Widget → Quick

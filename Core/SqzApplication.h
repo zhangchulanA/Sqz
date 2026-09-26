@@ -43,7 +43,6 @@ struct SQZ_FRAMEWORK_API AppConfig
     {
         QString ViewType;  // "Widget" / "Quick"
         QString ClassName;
-        QString QmlSource;
         bool IsMain;
         bool AutoStart;
         QVariantMap Props;

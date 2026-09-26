@@ -3,10 +3,7 @@
 #include "SqzBus.h"
 SqzQuickTest::SqzQuickTest(QObject *parent) : SqzQuick(parent)
 {
-    loginfo << " SqzQuickTest start";
-    SqzBus::Receive(this,"123",[=](const QVariant& var){
-        logdebug << var.toInt();
-    });
+setQmlSourcePath("qrc:/test/SqzQuickTest.qml");
 }
 
 void SqzQuickTest::quitApp()

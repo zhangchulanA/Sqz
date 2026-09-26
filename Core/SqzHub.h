@@ -98,7 +98,7 @@ public:
     QObject* CreateObject(const QString& ClassName,const QVariantMap& props = {});
 
     //创建/获取 QML Quick 窗口单例（主线程）
-    QObject* CreateQuick(const QString& ClassName,const QString& qmlpath = "",const QVariantMap& props = {});
+    QObject* CreateQuick(const QString& ClassName, const QVariantMap& props = {});
 
     //创建异步对象
     QObject* CreateObjectAsync(const QString& ClassName, const QVariantMap& props);
@@ -187,7 +187,6 @@ private:
     QHash<QString, ClassMeta>      m_argMeta;         //   带参类元数据表（销毁时查 deleter/isQObject）
     QHash<QString, void*>          m_singlePool;     //   单例对象池
     QHash<QString, ClassMeta>      m_qmlCreators;     //   Quick 类构造器表
-    QHash<QString, QString>        m_quickQmlPath;   //   Quick 视图 QML 源路径缓存（供 ResetObj 重建使用）
     // 每个类的异步线程
     QHash<QString, QThread*> m_serviceThreads;
 };

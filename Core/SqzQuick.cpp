@@ -36,6 +36,13 @@ bool SqzQuick::init()
 {
     if (m_initialized) return true;
 
+    if (m_qmlSourcePath.isEmpty()) {
+        logwarn << "QML source path is empty! ClassName:"
+                << metaObject()->className()
+                << " | 请在子类构造函数里调用 setQmlSourcePath()";
+        return false;
+    }
+
     QQmlEngine* engine = SqzApp->hub().qmlEngine();
     if (!engine) {
         logwarn << "QML engine not available!";

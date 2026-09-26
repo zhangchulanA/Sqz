@@ -25,10 +25,7 @@
  *        // 临时屏蔽
  *        SqzBus::BlockReceiver(this);   // 屏蔽该对象的所有回调
  *        SqzBus::UnblockReceiver(this); // 恢复
- *
- *        // 精确删除单条回调（Receive 返回 ID 后可用）
- *        quint64 id = SqzBus::Receive(this, "evt", handler);
- *        SqzBus::OffById(id);
+
  */
 
 #include <QObject>
