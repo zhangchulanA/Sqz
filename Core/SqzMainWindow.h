@@ -5,10 +5,8 @@
 /**
  * @class SqzMainWindow
  * @brief 所有窗口/视图界面的基类，继承自 QMainWindow。
- *        提供与 SqzService 同名的通用单例操作接），
+ *        提供与 SqzService 同名的通用单例操作接口），
  *        并额外提供窗口专属操作。
- *        子类必须实现 className() 纯虚函数，并确保类名与注册名称一致。
- *        推荐使用 SqzHub 创建子类实例，避免直接 new。
  */
 #include <QMainWindow>
 #include <QMetaObject>

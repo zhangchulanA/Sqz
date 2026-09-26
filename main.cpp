@@ -282,316 +282,6 @@ void LogTest(){
 }
 
 
-
-// 1. 标准枚举（从 0 开始）
-enum Weekday {
-    Monday = 0,
-    Tuesday = 1,
-    Wednesday = 2,
-    Thursday = 3,
-    Friday = 4,
-    Saturday = 5,
-    Sunday = 6
-};
-SERIALIZE_ENUM(Weekday)  // ✅ 一行搞定
-
-// 2. 自定义值的枚举
-enum Priority {
-    Low = 1,
-            Medium = 5,
-            High = 10,
-            Critical = 20
-};
-SERIALIZE_ENUM(Priority)  // ✅ 一行搞定
-
-// 3. 不连续的枚举
-enum StatusCode {
-    Success = 200,
-            NotFound = 404,
-            ServerError = 500,
-            Timeout = 504
-};
-SERIALIZE_ENUM(StatusCode)  // ✅ 一行搞定
-
-// 4. enum class（强枚举）
-enum class UserRole {
-    Guest = 0,
-            User = 1,
-            Moderator = 2,
-            Admin = 3,
-            SuperAdmin = 4
-};
-SERIALIZE_ENUM(UserRole)  // ✅ 一行搞定
-
-// 5. 负值枚举
-enum Temperature {
-    Cold = -10,
-            Cool = 0,
-            Warm = 25,
-            Hot = 40
-};
-SERIALIZE_ENUM(Temperature)  // ✅ 一行搞定
-
-// ==================== 使用 SERIALIZE 宏的结构体 ====================
-
-// 示例 1: 包含多个枚举的结构体
-struct Task {
-    int id;
-    QString title;
-    Priority priority;
-    StatusCode status;
-    Weekday dueDay;
-
-    SERIALIZE(id, title, priority, status, dueDay)  // ✅ 所有枚举都工作
-};
-
-// 示例 2: 包含 enum class 的结构体
-struct User {
-    int userId;
-    QString username;
-    UserRole role;
-    bool isActive;
-
-    SERIALIZE(userId, username, role, isActive)  // ✅ enum class 也工作
-};
-
-// 示例 3: 包含枚举容器的结构体
-struct Schedule {
-    QString name;
-    QList<Weekday> workingDays;
-    QVector<Priority> taskPriorities;
-    QMap<Weekday, QString> dailyTasks;
-
-    SERIALIZE(name, workingDays, taskPriorities, dailyTasks)  // ✅ 容器中的枚举也工作
-};
-
-// 示例 4: 嵌套结构体
-struct Team {
-    QString teamName;
-    QList<User> members;
-    UserRole defaultRole;
-
-    SERIALIZE(teamName, members, defaultRole)  // ✅ 嵌套也工作
-};
-
-// 示例 5: 带默认值的结构体（避免未初始化）
-struct SafeTask {
-    int id = 0;
-    QString title = "Untitled";
-    Priority priority = Priority::Low;  // 默认值
-    StatusCode status = StatusCode::Success;  // 默认值
-    Weekday dueDay = Weekday::Monday;  // 默认值
-
-    SERIALIZE(id, title, priority, status, dueDay)
-};
-
-// ==================== 辅助函数 ====================
-void printJson(const QByteArray& json) {
-    QJsonDocument doc = QJsonDocument::fromJson(json);
-    qDebug().noquote() << doc.toJson(QJsonDocument::Indented);
-}
-
-void printSeparator() {
-    qDebug() << "\n" << QString(60, '=') << "\n";
-}
-
-void ENumTest(){
-    // ==================== 测试 1: 基础枚举序列化 ====================
-    printSeparator();
-    qDebug() << "测试 1: 基础枚举序列化";
-
-    Task task;
-    task.id = 1001;
-    task.title = "完成项目报告";
-    task.priority = Priority::High;
-    task.status = StatusCode::Success;
-    task.dueDay = Weekday::Friday;
-
-    QByteArray json1 = task.toByteArray();
-    printJson(json1);
-
-    // 反序列化
-    Task task2;
-    bool ok = task2.fromByteArray(json1);
-    qDebug() << "反序列化成功:" << ok;
-    qDebug() << "Task ID:" << task2.id;
-    qDebug() << "标题:" << task2.title;
-    qDebug() << "优先级值:" << task2.priority;  // 输出 10
-    qDebug() << "状态码:" << task2.status;       // 输出 200
-    qDebug() << "到期日:" << task2.dueDay;       // 输出 4 (Friday)
-
-    // ==================== 测试 2: enum class ====================
-    printSeparator();
-    qDebug() << "测试 2: enum class (UserRole)";
-
-    User user;
-    user.userId = 2001;
-    user.username = "张三";
-    user.role = UserRole::Admin;
-    user.isActive = true;
-
-    QByteArray json2 = user.toByteArray();
-    printJson(json2);
-
-    User user2;
-    user2.fromByteArray(json2);
-    qDebug() << "用户名:" << user2.username;
-    qDebug() << "角色值:" << static_cast<int>(user2.role);  // 输出 3
-    qDebug() << "活跃状态:" << user2.isActive;
-
-    // ==================== 测试 3: 容器中的枚举 ====================
-    printSeparator();
-    qDebug() << "测试 3: 容器中的枚举";
-
-    Schedule schedule;
-    schedule.name = "开发组工作安排";
-    schedule.workingDays = {Weekday::Monday, Weekday::Tuesday, Weekday::Wednesday,
-                            Weekday::Thursday, Weekday::Friday};
-    schedule.taskPriorities = {Priority::High, Priority::Medium, Priority::Critical};
-    schedule.dailyTasks[Weekday::Monday] = "晨会";
-    schedule.dailyTasks[Weekday::Wednesday] = "代码审查";
-    schedule.dailyTasks[Weekday::Friday] = "项目总结";
-
-    QByteArray json3 = schedule.toByteArray();
-    printJson(json3);
-
-    Schedule schedule2;
-    schedule2.fromByteArray(json3);
-    qDebug() << "工作日数量:" << schedule2.workingDays.size();
-    qDebug() << "优先级数量:" << schedule2.taskPriorities.size();
-    qDebug() << "周一日程:" << schedule2.dailyTasks[Weekday::Monday];
-
-    // ==================== 测试 4: 嵌套结构体 ====================
-    printSeparator();
-    qDebug() << "测试 4: 嵌套结构体";
-
-    Team team;
-    team.teamName = "核心开发组";
-    team.defaultRole = UserRole::Moderator;
-
-    User member1;
-    member1.userId = 3001;
-    member1.username = "李四";
-    member1.role = UserRole::User;
-    member1.isActive = true;
-    team.members.append(member1);
-
-    User member2;
-    member2.userId = 3002;
-    member2.username = "王五";
-    member2.role = UserRole::Admin;
-    member2.isActive = true;
-    team.members.append(member2);
-
-    QByteArray json4 = team.toByteArray();
-    printJson(json4);
-
-    Team team2;
-    team2.fromByteArray(json4);
-    qDebug() << "团队名称:" << team2.teamName;
-    qDebug() << "成员数量:" << team2.members.size();
-    qDebug() << "默认角色值:" << static_cast<int>(team2.defaultRole);
-
-    // ==================== 测试 5: 默认值保护 ====================
-    printSeparator();
-    qDebug() << "测试 5: 默认值保护（避免未初始化）";
-
-    SafeTask safeTask;
-    qDebug() << "默认优先级:" << safeTask.priority;  // 输出 1 (Low)
-    qDebug() << "默认状态码:" << safeTask.status;    // 输出 200 (Success)
-    qDebug() << "默认到期日:" << safeTask.dueDay;    // 输出 0 (Monday)
-
-    // 从缺少字段的 JSON 反序列化
-    QByteArray partialJson = "{\"id\":5001,\"title\":\"紧急修复\"}";  // 缺少枚举字段
-    SafeTask safeTask2;
-    safeTask2.fromByteArray(partialJson);
-    qDebug() << "反序列化后优先级（保持默认）:" << safeTask2.priority;  // 仍为 1
-    qDebug() << "反序列化后状态码（保持默认）:" << safeTask2.status;    // 仍为 200
-
-    // ==================== 测试 6: 错误数据处理 ====================
-    printSeparator();
-    qDebug() << "测试 6: 错误数据处理";
-
-    // 6a: 超出范围的枚举值（SERIALIZE_ENUM 不检查范围，会接受）
-    QByteArray badJson1 = "{\"id\":6001,\"title\":\"测试\",\"priority\":999,\"status\":200,\"dueDay\":0}";
-    Task task3;
-    ok = task3.fromByteArray(badJson1);
-    qDebug() << "超出范围的枚举值（999）反序列化:" << (ok ? "成功" : "失败");
-    qDebug() << "优先级被设置为:" << task3.priority;  // 输出 999（无效值！）
-    qDebug() << "注意: SERIALIZE_ENUM 不检查范围，所以 999 被接受";
-
-    // 6b: 类型错误（字符串而不是数字）
-    QByteArray badJson2 = "{\"id\":6002,\"title\":\"测试\",\"priority\":\"high\",\"status\":200,\"dueDay\":0}";
-    Task task4;
-    ok = task4.fromByteArray(badJson2);
-    qDebug() << "类型错误（字符串）反序列化:" << (ok ? "成功" : "失败");  // 应该失败
-
-    // 6c: 手动验证枚举值
-    qDebug() << "\n建议: 反序列化后手动验证枚举值";
-    bool isValidPriority = (task3.priority == Priority::Low ||
-                            task3.priority == Priority::Medium ||
-                            task3.priority == Priority::High ||
-                            task3.priority == Priority::Critical);
-    qDebug() << "task3 的优先级是否有效:" << isValidPriority;  // false
-
-    // ==================== 测试 7: 负值枚举 ====================
-    printSeparator();
-    qDebug() << "测试 7: 负值枚举";
-
-    struct Weather {
-        QString city;
-        Temperature temp;
-        SERIALIZE(city, temp)
-    };
-
-    Weather weather;
-    weather.city = "北京";
-    weather.temp = Temperature::Cold;
-
-    QByteArray json5 = weather.toByteArray();
-    printJson(json5);
-
-    Weather weather2;
-    weather2.fromByteArray(json5);
-    qDebug() << "城市:" << weather2.city;
-    qDebug() << "温度值:" << weather2.temp;  // 输出 -10
-
-    // ==================== 测试 8: 复杂的 Map 结构 ====================
-    printSeparator();
-    qDebug() << "测试 8: 复杂的 Map 结构";
-
-    struct Project {
-        QString name;
-        QMap<Weekday, Priority> dailyPriority;
-        SERIALIZE(name, dailyPriority)
-    };
-
-    Project project;
-    project.name = "项目X";
-    project.dailyPriority[Weekday::Monday] = Priority::Low;
-    project.dailyPriority[Weekday::Wednesday] = Priority::High;
-    project.dailyPriority[Weekday::Friday] = Priority::Critical;
-
-    QByteArray json6 = project.toByteArray();
-    printJson(json6);
-
-    Project project2;
-    project2.fromByteArray(json6);
-    qDebug() << "项目:" << project2.name;
-    qDebug() << "周三优先级:" << project2.dailyPriority[Weekday::Wednesday];  // 输出 10
-
-    // ==================== 总结 ====================
-    printSeparator();
-    qDebug() << "========== 测试总结 ==========";
-    qDebug() << "✅ SERIALIZE_ENUM 适用于所有枚举类型";
-    qDebug() << "✅ 支持标准枚举、enum class、负值、不连续值";
-    qDebug() << "✅ 支持容器中的枚举（QList, QVector, QMap 等）";
-    qDebug() << "✅ 支持嵌套结构体";
-    qDebug() << "✅ 配合默认值可避免未初始化";
-    qDebug() << "⚠️  SERIALIZE_ENUM 不检查范围，需要手动验证";
-    qDebug() << "==========================================\n";
-}
-
 void SuperListAllTest()
 {
     SuperListWidget* list = new SuperListWidget();
@@ -618,64 +308,33 @@ void SuperListAllTest()
 
 }
 
-void modelTest(){
-    UserModel user;
-    user. setId(10086);
-    user.setUserName("李四");
-    user.setCreateTime(1788888888888LL);
-    user.setIsVip(true);
-    user.setNote("这是一条备注信息");
 
-    // 二进制数据示例
-    QByteArray bin = "hello binary data";
-    user.setAvatarBin(bin);
-
-    // 嵌套对象赋值：拿到引用直接操作子模型字段
-    user.address().setCity("北京市");
-    user.address().setStreet("未来科学城路");
-    user.address().setHouseNumber(88);
-    user.address().setZipCode(12);
-
-    // ========== 2. 序列化为 QJsonObject ==========
-    QJsonObject jsonObj = user.toJson();
-    qDebug() << "===== toJson 输出 =====";
-    qDebug() << jsonObj;
-
-    // ========== 3. 保存到本地json文件 ==========
-    bool saveOk = user.saveToFile("./user_data.json");
-    qDebug() << "保存文件结果:" << saveOk;
-
-    // ========== 4. 新建空模型，从文件加载恢复数据 ==========
-    UserModel userLoad;
-    bool loadOk = userLoad.loadFromFile("./user_data.json");
-    qDebug() << "加载文件结果:" << loadOk;
-
-    // 读取加载出来的数据
-    qDebug() << "\n===== 读取加载后的数据 =====";
-    qDebug() << "id:" << userLoad.Id();
-    qDebug() << "userName:" << userLoad.UserName();
-    qDebug() << "isVip:" << userLoad.IsVip();
-    qDebug() << "note(std::string):" << QString::fromStdString(userLoad.Note());
-    qDebug() << "avatarBin:" << userLoad.AvatarBin();
-
-    // 读取嵌套模型
-    qDebug() << "地址-城市:" << userLoad.address().City();
-    qDebug() << "地址-街道:" << userLoad.address().Street();
-    qDebug() << "地址-门牌号:" << userLoad.address().HouseNumber();
-
-    // ========== 5. 从QJsonObject反序列化 ==========
-    UserModel userFromJson;
-    userFromJson.fromJson(jsonObj);
-    qDebug() << "\nfromJson 恢复用户名：" << userFromJson.UserName();
+// ============================================================
+// 打印工具
+// ============================================================
+static void printUser(const QString& tag, const UserModel& u)
+{
+    qDebug().noquote() << QString("[%1] id=%2 name=%3 city=%4 number=%5")
+                          .arg(tag)
+                          .arg(u.id())
+                          .arg(u.name())
+                          .arg(u.address().city())
+                          .arg(u.address().number());
 }
 
+static void printJson(const QString& tag, const UserModel& u)
+{
+    QJsonDocument doc(u.toJson());
+    qDebug().noquote() << QString("[%1] toJson = %2")
+                          .arg(tag)
+                          .arg(QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
+}
 
 int main(int argc, char *argv[]) {
-    QApplication app(argc, argv);
+//    QApplication app(argc, argv);
 
-    Logger::instance().init("./log","log_");
-    SqzApplication sq;
-    sq.Init();
+    Logger::instance().init("./log","log_",true,true);
+    SqzApplication sq(argc,argv);
     sq.LogRegClass();
 
     //    MainWindow win;
@@ -697,6 +356,5 @@ int main(int argc, char *argv[]) {
     //     ENumTest();
     //modelTest();
 
-
-    return app.exec();
+    return sq.Exec();
 }

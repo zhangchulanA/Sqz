@@ -121,30 +121,33 @@ void SqzState::EndBatch() {
 
 // ==================== 自动清理 ====================
 void SqzState::SetAutoCleanup(int intervalMs, int staleMs) {
-    // S6 修复：参数范围校验
-    // staleMs <= 0 会导致所有数据立即被认为过期（IsStale 中 msecsTo(now) > 0 对刚存入的数据为 true），
-    // 清理器一跑就全删，属误用。拒绝设置，保护已有数据。
-    // intervalMs <= 0 是合法意图（关闭自动清理），不拒绝。
     if (staleMs <= 0) {
         logwarn << "[SqzState] SetAutoCleanup: staleMs 必须 > 0，实际：" << staleMs
                 << "，拒绝设置（避免误删所有数据）";
         return;
     }
-    // QTimer 必须在其所属线程创建/销毁（线程亲和性要求）
-    // 跨线程调用时投递到本对象线程执行（修复 Bug #10：跨线程 delete QTimer 崩溃）
+    // 新增：intervalMs < 0 视为误用，归零（关闭自动清理）
+    if (intervalMs < 0) {
+        logwarn << "[SqzState] SetAutoCleanup: intervalMs 不能为负，实际：" << intervalMs
+                << "，已按 0 处理（关闭自动清理）";
+        intervalMs = 0;
+    }
+
+    // 跨线程投递到本对象线程（保持原样）
     if (QThread::currentThread() != this->thread()) {
         QMetaObject::invokeMethod(this, [this, intervalMs, staleMs]() {
             SetAutoCleanup(intervalMs, staleMs);
         }, Qt::QueuedConnection);
         return;
     }
+
     QMutexLocker locker(&m_mutex);
     if (m_cleanupTimer) {
         m_cleanupTimer->stop();
         delete m_cleanupTimer;
         m_cleanupTimer = nullptr;
     }
-    m_staleMs = staleMs;
+    m_staleThresholdMs = staleMs;
     if (intervalMs > 0) {
         m_cleanupTimer = new QTimer(this);
         connect(m_cleanupTimer, &QTimer::timeout, this, &SqzState::CleanupStale);
@@ -157,7 +160,7 @@ void SqzState::CleanupStale() {
     {
         QMutexLocker locker(&m_mutex);
         for (auto it = m_cache.begin(); it != m_cache.end(); ++it) {
-            if (it->IsStale(m_staleMs)) {
+            if (it->IsStale(m_staleThresholdMs)) {
                 toRemove.append(it.key());
             }
         }
@@ -209,7 +212,6 @@ int SqzState::Watch(QObject* receiver, const QString& key, std::function<void(co
             }, Qt::DirectConnection);
         }
     }
-    // S4 修复：锁外推送初始值（避免回调中 Set/Get 死锁）
     // 注意：Watch 在调用方线程执行，初始值推送也在调用方线程同步执行
     if (hasValue && callback) {
         callback(currentValue);

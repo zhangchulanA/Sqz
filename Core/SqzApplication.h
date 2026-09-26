@@ -28,7 +28,7 @@ struct SQZ_FRAMEWORK_API AppConfig
     QString Version;
 
     // 后台服务条目
-    struct SQZ_FRAMEWORK_API ServiceItem
+    struct ServiceItem
     {
         QString ClassName;
         bool AutoStart;
@@ -39,7 +39,7 @@ struct SQZ_FRAMEWORK_API AppConfig
     QList<ServiceItem> ServiceList;
 
     // 统一视图条目（Widget / Quick）
-    struct SQZ_FRAMEWORK_API ViewItem
+    struct ViewItem
     {
         QString ViewType;  // "Widget" / "Quick"
         QString ClassName;
@@ -56,12 +56,14 @@ class SQZ_FRAMEWORK_API SqzApplication : public QObject
     Q_OBJECT
 public:
     // 构造接管程序入口参数，自动创建Core/Gui底层App
-    explicit SqzApplication(QObject *parent = nullptr);
+    explicit SqzApplication(int& argc, char** argv);
     ~SqzApplication() override;
 
     static SqzApplication* instance();
     // 完整初始化流程：加载配置→注册类→启动组件
     bool Init();
+
+    int Exec();
 
     // 触发延迟安全退出
     void QuitApp();
@@ -113,10 +115,7 @@ private:
     bool ParseJson(const QJsonDocument &doc);
 
     // 批量把全局注册类灌入SqzHub工厂
-    void BatchRegisterClass();
-
-    // 给QObject批量反射赋值属性 //暂时无用
-    void ApplyProps(QObject *obj, const QVariantMap &props);
+    bool BatchRegisterClass();
 
     // 创建全部后台服务
     void CreateServices();
@@ -124,29 +123,24 @@ private:
     // 统一创建Widget/Quick所有视图
     void CreateViews();
 
-protected:
-    // 事件过滤器：拦截主窗口 Close 事件触发退出流程（QWidget::close 非信号，无法 connect）
-//    bool eventFilter(QObject *obj, QEvent *event) override;
-
 private slots:
     // 主窗口关闭触发退出流程
     void OnMainWindowClose();
-private:
-    bool m_resourceReleased = false;
-    void ReleaseAllResources();
-private:
-    AppConfig m_Cfg;
-    QPointer<QObject> m_MainObject;
-    bool m_ConfigValid = false;
-    bool m_InitComplete = false;
-    bool m_InitFailed = false;   // D1：主窗口创建失败标志，Init 中检查后返回 false 中止启动
 
-    QHash<QString,QVariantMap> m_PropsCache;
+private:
+    std::unique_ptr<QApplication> m_app;
+
+    AppConfig m_Cfg;
+
+    bool m_ConfigValid = false;
+
+    bool m_InitFailed = false;   // D1：主窗口创建失败标志，Init 中检查后返回 false 中止启动
 
     static SqzApplication* m_s_instance;
 
-private:
     SqzHub m_hub;
+
+    bool m_quitting = false;
 };
 #define SqzApp SqzApplication::instance()
 

@@ -29,7 +29,10 @@ struct SQZ_FRAMEWORK_API DataItem {
 
     // 判断数据是否过期（距今超过 ms 毫秒）
     bool IsStale(int ms) const {
-        return !Valid || Timestamp.msecsTo(QDateTime::currentDateTime()) > ms;
+        if (!Valid) return true;
+        qint64 elapsed = Timestamp.msecsTo(QDateTime::currentDateTime());
+        // 系统时钟回拨时 elapsed < 0，视为过期（数据可信度已无法判断）
+        return elapsed < 0 || elapsed > ms;
     }
 
     // 数据年龄（毫秒），-1 表示无效
@@ -69,12 +72,11 @@ public:
 
     // ---------- 值变化监控（Watch 模式） ----------
     // 监控 key，值变化时执行回调，返回监控 ID（无生命周期绑定，保持向后兼容）
-    // sendCurrent=true：注册时若 key 已有值，立即推送当前值给回调（S4 修复）
+    // 无 receiver 版本必须自行 Unwatch
     int Watch(const QString& key, std::function<void(const QVariant&)> callback, bool sendCurrent = false);
 
     // 监控 key（带生命周期绑定）：receiver 销毁时自动清理该监控，避免悬挂回调
-    // sendCurrent=true：注册时若 key 已有值，立即推送当前值给回调（S4 修复）
-    int Watch(QObject* receiver, const QString& key, std::function<void(const QVariant&)> callback, bool sendCurrent = false);
+      int Watch(QObject* receiver, const QString& key, std::function<void(const QVariant&)> callback, bool sendCurrent = false);
 
     // 取消监控：移除指定 key 下的某个监控者
     bool Unwatch(const QString& key, int watcherId);
@@ -106,7 +108,7 @@ private:
     QSet<QString> m_batchKeys;          // 批量中更新的 Key
 
     QTimer* m_cleanupTimer = nullptr;
-    int m_staleMs = 3000;
+    int m_staleThresholdMs= 3000;
 
     // 监控者
     struct Watcher {

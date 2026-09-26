@@ -13,7 +13,7 @@ Window {
         height: 40
         anchors.centerIn: parent
         onClicked: {
-            This.quitApp()
+            View.quitApp()
         }
     }
 }

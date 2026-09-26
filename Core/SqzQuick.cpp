@@ -54,7 +54,7 @@ bool SqzQuick::init()
 
     QObject* obj = component.create(subCtx);
     if (!obj) {
-        logwarn << "Failed to create QML object!";
+        logwarn << "Failed to create QML object!" << component.errors();
         delete subCtx;
         return false;
     }

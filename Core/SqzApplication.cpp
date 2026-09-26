@@ -14,17 +14,19 @@ namespace Sqz
 {
 
 SqzApplication* SqzApplication::m_s_instance = nullptr;
-SqzApplication::SqzApplication(QObject *parent)
-    : QObject(parent)
+SqzApplication::SqzApplication(int& argc, char** argv)
+    :m_app(new QApplication(argc, argv))
 {
     m_s_instance = this;
     m_ConfigValid = LoadConfig();
+
+    Init();
 }
 
 SqzApplication::~SqzApplication()
 {
-    // 析构阶段事件循环可能已停止，直接同步释放资源
-    ReleaseAllResources();
+    QuitApp();
+    // m_hub 作为成员，随后自动 ~SqzHub → CloseAll
 }
 
 SqzApplication *SqzApplication::instance()
@@ -140,7 +142,6 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
     m_Cfg.AppName = metaObj["AppName"].toString("");
     m_Cfg.Version = metaObj["Version"].toString("1.0.0");
 
-
     // 全局设置线程局部前缀，移除pro宏依赖
     SqzHub::SetThreadPrefix(m_Cfg.AppName);
 
@@ -158,7 +159,6 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         s.StartOrder = obj["Order"].toInt(99);
         s.Async = obj["Async"].toBool(false);
         s.Props = obj["Props"].toObject().toVariantMap();
-        m_PropsCache[s.ClassName] = s.Props;
         //Service 字段类型校验
         checkType("Services", "ClassName",  obj["ClassName"],  QJsonValue::String);
         checkType("Services", "Auto",   obj["Auto"],  QJsonValue::Bool);
@@ -166,7 +166,6 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         checkType("Services", "Async", obj["Async"], QJsonValue::Bool);
         checkType("Services", "Props",       obj["Props"],      QJsonValue::Object);
 
-        // A1：ClassName 必填校验（空 ClassName 会导致后续创建失败但无早期 warn）
         if (s.ClassName.isEmpty()) {
             logwarn << " Services[" << idx << "] 缺少 ClassName，跳过";
             continue;
@@ -204,7 +203,6 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         v.IsMain = obj["Main"].toBool(false);
         v.AutoStart = obj["Auto"].toBool(true);
         v.Props = obj["Props"].toObject().toVariantMap();
-        m_PropsCache[v.ClassName] = v.Props;
         // View 字段类型校验
         checkType("Views", "ViewType", obj["ViewType"], QJsonValue::String);
         checkType("Views", "ClassName", obj["ClassName"], QJsonValue::String);
@@ -219,7 +217,7 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
             logwarn << " Views[" << idx << "] 缺少 ClassName，跳过";
             continue;
         }
-        // A1：ViewType 必填校验
+        // ViewType 必填校验
         if (v.ViewType.isEmpty()) {
             logwarn << " Views[" << idx << "] 缺少 ViewType:" << v.ClassName;
         }
@@ -246,7 +244,6 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
         m_Cfg.ViewList.append(v);
     }
 
-    //IsMain 唯一性校验（多个 IsMain:true 会互相覆盖 m_MainWindow + eventFilter 绑错对象）
     if (mainViewCount > 1)
     {
         logwarn << " 检测到 " << mainViewCount << " 个 IsMain:true 的视图，"<< "只有最后一个会被设为主窗口，其余的关闭事件无法触发退出流程";
@@ -279,24 +276,25 @@ bool SqzApplication::ParseJson(const QJsonDocument &doc)
 
 bool SqzApplication::Init()
 {
-    if (!m_ConfigValid)
-    {
-        logerror << " 配置加载失败，终止初始化";
-        return false;
-    }
+    if (!m_ConfigValid) { logerror << " 配置加载失败，终止初始化"; return false; }
 
-    BatchRegisterClass();
+    if (!BatchRegisterClass()) {logerror << " 类注册阶段失败，终止初始化";return false;}
+
     CreateServices();
-    CreateViews();
-
-    //主窗口创建失败时 CreateViews 设置 m_InitFailed=true 并提前 return，此处检查中止 Init
-    if (m_InitFailed)
-    {
-        logerror << " 因关键组件创建失败，初始化中止";
+    if (m_InitFailed) {
+        logerror << " 服务创建失败，终止初始化";
+        m_hub.CloseAll();
+        SqzBus::ClearAll();
         return false;
     }
 
-    m_InitComplete = true;
+    CreateViews();
+    if (m_InitFailed) {
+        logerror << " 视图创建失败，终止初始化";
+        m_hub.CloseAll();
+        SqzBus::ClearAll();
+        return false;
+    }
 
     qApp->setApplicationName(m_Cfg.AppName);
     qApp->setApplicationDisplayName(m_Cfg.AppName);
@@ -304,13 +302,20 @@ bool SqzApplication::Init()
     return true;
 }
 
+int SqzApplication::Exec()
+{
+    return m_app->exec();
+}
+
 void SqzApplication::QuitApp()
 {
-    QTimer::singleShot(100,this,[=](){
+    if (!qApp || m_quitting) return;
+    m_quitting = true;
+    QMetaObject::invokeMethod(qApp, [this]() {
+        m_hub.CloseAll();
         SqzBus::ClearAll();
-        ReleaseAllResources();
         qApp->quit();
-    });
+    }, Qt::QueuedConnection);
 }
 
 void SqzApplication::LogRegClass()
@@ -333,7 +338,7 @@ void SqzApplication::OpenView(const QString& className) {
     for (const auto& v : m_Cfg.ViewList) {
         if (v.ClassName == className) {
             if (v.ViewType == "SqzWidget") {
-                    m_hub.CreateWidget(className, v.Props);
+                m_hub.CreateWidget(className, v.Props);
             } else if (v.ViewType == "SqzQuick") {
                 m_hub.CreateQuick(className, v.QmlSource, v.Props);
             } else {
@@ -409,29 +414,9 @@ bool SqzApplication::HasService(const QString& className) const {
     return m_hub.IsExist(className);
 }
 
-// 运行时打印 "Not a signal" 警告且连接无效，主窗口关闭无法触发退出。改用事件过滤器拦截。
-//bool SqzApplication::eventFilter(QObject *obj, QEvent *event)
-//{
-//    if (obj == m_MainObject  && event->type() == QEvent::Close) {
-//        OnMainWindowClose();
-//        // 返回 false 允许窗口继续正常关闭流程
-//        return false;
-//    }
-//    return QObject::eventFilter(obj, event);
-//}
-
 void SqzApplication::OnMainWindowClose()
 {
     QuitApp();
-}
-
-void SqzApplication::ReleaseAllResources()
-{
-    if(m_resourceReleased) return;
-    m_resourceReleased = true;
-    loginfo << " 收到退出信号，延迟释放资源";
-    auto& hub = m_hub;
-    hub.CloseAll();
 }
 
 void SqzApplication::CreateServices()
@@ -473,9 +458,9 @@ void SqzApplication::CreateViews()
         // ========== SqzWidget 类型 ==========
         if (v.ViewType == "SqzWidget")
         {
-            if (!v.AutoStart)
-                continue;
-                viewObj = hub.CreateWidget(v.ClassName, v.Props);
+            if (!v.AutoStart){continue;}
+            
+            viewObj = hub.CreateWidget(v.ClassName, v.Props);
             if (!viewObj)
             {
                 // D1：主窗口创建失败必须中止 Init
@@ -496,8 +481,7 @@ void SqzApplication::CreateViews()
                 if (win)
                 {
                     win->setAttribute(Qt::WA_DeleteOnClose);
-                    m_MainObject = win;
-                    connect(m_MainObject,&QObject::destroyed,this,&SqzApplication::QuitApp);
+                    connect(win,&QObject::destroyed,this,&SqzApplication::QuitApp);
                 }
                 else
                 {
@@ -535,10 +519,8 @@ void SqzApplication::CreateViews()
                 SqzQuick* quick = qobject_cast<SqzQuick*>(viewObj);
                 if (quick && quick->window())
                 {
-                    m_MainObject = quick;
                     QQuickWindow* win = quick->window();
-                    // Qt 5.12 支持 QQuickWindow::closing 信号
-                    connect(win, &QQuickWindow::destroy, this, &SqzApplication::QuitApp);
+                    connect(win, &QQuickWindow::destroyed, this, &SqzApplication::QuitApp);
 
                 }
                 else
@@ -558,79 +540,27 @@ void SqzApplication::CreateViews()
                     << " | 跳过该视图（合法值: SqzWidget / SqzQuick）";
             continue;
         }
-
-        // 如果需要应用属性
-        // ApplyProps(viewObj, v.Props);
     }
 }
 
-void SqzApplication::ApplyProps(QObject *obj, const QVariantMap &props)
-{
-    if (!obj) return;
-    const QMetaObject* meta = obj->metaObject();
-
-    for (auto it = props.begin(); it != props.end(); ++it)
-    {
-        const QString& propName = it.key();
-        const QVariant& value = it.value();
-        // 修复 B1：检查属性是否存在（typo 时 setProperty 返回 false 但不报错，难排查）
-        int propIdx = meta->indexOfProperty(propName.toUtf8().constData());
-        if (propIdx < 0)
-        {
-            //            logwarn << " 属性不存在,作为动态属性设置" << propName
-            //                    << " | 对象类:" << meta->className();
-            continue;
-        }
-        const QMetaProperty metaProp = meta->property(propIdx);
-
-        // 修复 B2：检查值类型是否与属性类型兼容（如把字符串写给 qreal 属性会静默失败）
-        if (!value.isValid()) {
-            logwarn << " 属性值无效:" << propName
-                    << " | 对象类:" << meta->className();
-            continue;
-        }
-        // QVariant::canConvert 不完全可靠，但能挡住明显类型不符（字符串→数字等）
-        // 对于用户自定义类型，canConvert 永远 true，所以只 warn 明显错误
-
-        QVariant::Type expectedType = metaProp.type();
-        if (!value.canConvert(metaProp.type()) &&
-                expectedType != QVariant::UserType&&
-                expectedType != QVariant::UserType)
-        {
-            logwarn << " 属性类型不兼容:" << propName
-                    << " | 期望:" << QVariant::typeToName(expectedType)
-                    << " | 实际:" << QVariant::typeToName(value.type())
-                    << " | 对象类:" << meta->className();
-            continue;
-        }
-
-        bool ok = obj->setProperty(propName.toUtf8().constData(), value);
-        if (!ok)
-        {
-            logwarn << " setProperty 失败:" << propName
-                    << " | 对象类:" << meta->className();
-        }else{
-            loginfo <<"属性配置成功" <<propName.toUtf8().constData()<<value;
-        }
-    }
-}
-
-void SqzApplication::BatchRegisterClass()
+bool SqzApplication::BatchRegisterClass()
 {
     auto& table = GlobalClassTable();
-    auto& hub = m_hub;
+    auto& hub   = m_hub;
 
     QSet<QString> usedCls;
     for (auto& s : m_Cfg.ServiceList) usedCls.insert(s.ClassName);
-    for (auto& v : m_Cfg.ViewList) usedCls.insert(v.ClassName);
+    for (auto& v : m_Cfg.ViewList)    usedCls.insert(v.ClassName);
 
-    // 检查配置中引用的类是否都已在 GlobalClassTable 注册
-    // 未注册的类到 CreateWidget/CreateObject 时才会失败，此处提前 warn 缩短排错链路
+    bool allOk = true;
     for (const QString& clsName : usedCls) {
         if (!table.contains(clsName)) {
-            logwarn << " 配置引用的类未注册:" << clsName << " | 请检查是否使用 SQZ_REG 宏注册该类";
+            logerror << " 配置引用的类未注册:" << clsName
+                     << " | 请检查是否使用 SQZ_REG 宏注册该类";
+            allOk = false;
         }
     }
+    if (!allOk) return false;
 
     for (auto iter = table.begin(); iter != table.end(); ++iter)
     {
@@ -638,18 +568,16 @@ void SqzApplication::BatchRegisterClass()
         if (!usedCls.contains(clsName)) continue;
         const auto& factory = iter.value();
 
-        if (factory.NoArgCreator)
-        {
-            // 直接读编译期标记，彻底不用new临时对象
+        if (factory.NoArgCreator) {
             if (factory.IsQuick)
                 hub.RegisterQuickClass(clsName, factory.NoArgCreator, nullptr);
             else
-                hub.RegisterNoArg(clsName, factory.NoArgCreator, nullptr, true);
+                hub.RegisterNoArg(clsName, factory.NoArgCreator, nullptr, factory.IsQObject);
         }
-        else if (factory.ArgCreator)
-        {
+        else if (factory.ArgCreator) {
             hub.RegisterWithArg(clsName, factory.ArgCreator, factory.IsQObject);
         }
     }
+    return true;
 }
 }

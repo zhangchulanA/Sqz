@@ -10,7 +10,6 @@
  *          - 自动生命周期管理：对象销毁时自动清理其所有回调
  *          - 支持多种数据类型重载（int, double, QString, QByteArray, QVariantList 等）
  *          - 支持成员函数指针的模板绑定，类型安全
- *          - 一次性监听（ReceiveOnce）：收到一次消息后自动注销
  *          - 临时屏蔽（BlockReceiver）：不删除回调，动态控制是否响应消息
  *          - 精确删除（OffById）：按回调 ID 删除单条回调，不影响同 (receiver, msgName) 的其他回调
  *
@@ -22,11 +21,6 @@
  *
  *        // 发送消息
  *        SqzBus::Send("test", "hello");
- *
- *        // 一次性监听
- *        SqzBus::ReceiveOnce(this, "once", []() {
- *            qDebug() << "只执行一次";
- *        });
  *
  *        // 临时屏蔽
  *        SqzBus::BlockReceiver(this);   // 屏蔽该对象的所有回调
@@ -249,32 +243,6 @@ public:
         });
     }
 
-    // ---------- 一次性监听 ----------
-    /**
-     * @brief 一次性监听消息（收到一次后自动注销）
-     * @param receiver 接收者对象（用于生命周期绑定和线程判断）
-     * @param msgName  消息名称
-     * @param callback 回调函数（收到消息后执行一次，然后自动注销）
-     * @return 回调唯一 ID
-     *
-     * @note 修复：原实现执行后调用 Off(receiver, msgName) 会删除该 (receiver, msgName)
-     *       下的所有回调（包括非 once 的）。新实现使用 once 标志，sendImpl 执行后
-     *       只按 id 精确删除该条回调，不影响同 (receiver, msgName) 的其他回调。
-     * @note 跨线程调用时，回调仍会在 receiver 所在线程执行。
-     */
-    static quint64 ReceiveOnce(QObject *receiver, const QString &msgName,
-                            std::function<void(const QVariant&)> callback);
-
-    /**
-     * @brief 一次性监听消息（无参数版本）
-     * @param receiver 接收者对象
-     * @param msgName  消息名称
-     * @param callback 无参回调函数
-     * @return 回调唯一 ID
-     */
-    static quint64 ReceiveOnce(QObject *receiver, const QString &msgName,
-                            std::function<void()> callback);
-
     // ---------- 清理接口 ----------
     /**
      * @brief 清空指定消息的所有回调
@@ -304,15 +272,6 @@ public:
      *       如果该消息下该对象有多个回调，会全部删除。
      */
     static void Off(QObject* obj, const QString& msgName);
-
-    /**
-     * @brief 按回调 ID 精确删除单条回调
-     * @param id Receive/ReceiveOnce 返回的回调唯一 ID
-     * @note 修复：新增接口，用于 ReceiveOnce 执行后精确删除，
-     *       不影响同 (receiver, msgName) 的其他回调。
-     *       线程安全，可在任意线程调用。
-     */
-    static void OffById(quint64 id);
 
     // ---------- 临时屏蔽接口 ----------
     /**
@@ -351,10 +310,6 @@ public:
     // ==============================
 
 private:
-    /**
-     * @brief 单条回调条目
-     * 修复：增加 id（唯一标识）和 once（一次性标志）字段
-     */
     struct CallbackItem
     {
         quint64 id = 0;                                   // 唯一标识，用于 OffById 精确删除
@@ -362,34 +317,25 @@ private:
         QObject* receiverRaw = nullptr;                   // 裸指针，onReceiverDestroyed 中比较用
                                                           // （QPointer 在 destroyed 信号时可能已置空）
         std::function<void(const QVariant&)> func;
-        bool once = false;                                // 是否一次性回调（执行后自动删除）
     };
 
-    /// 注册回调的内部实现
+    // 注册回调的内部实现
     quint64 receiveImpl(QObject *receiver, const QString &msgName,
-                     std::function<void(const QVariant&)> callback,
-                     bool once = false);
+                     std::function<void(const QVariant&)> callback);
 
-    /// 发送消息的内部实现
+    // 发送消息的内部实现
     void sendImpl(const QString &msgName, const QVariant &args);
 
-    /// 非静态 off 实现（供内部调用）
+    // 非静态 off 实现（供内部调用）
     void offImpl(QObject* obj, const QString& msgName);
 
-    /// 按 id 精确删除单条回调（供 OffById 和 sendImpl once 清理调用）
-    void offByIdImpl(quint64 id);
-
-    /// 全局回调 ID 自增生成器（线程安全）
+    // 全局回调 ID 自增生成器（线程安全）
     static std::atomic<quint64> s_nextId;
 
 private slots:
     /**
      * @brief 对象销毁时的清理槽函数
      * @param obj 被销毁的对象
-     * @note 修复：connect 改为 Qt::DirectConnection，确保在析构线程同步执行。
-     *       此时 QPointer 仍有效，items[i].receiver == obj 比较成功，清理正确。
-     *       原 AutoConnection 跨线程变 QueuedConnection，信号到达时 QPointer 已置空，
-     *       nullptr == obj → false → 清理失败 → 回调残留 → 内存泄漏。
      */
     void onReceiverDestroyed(QObject *obj);
 

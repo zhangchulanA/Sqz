@@ -19,8 +19,7 @@ SqzHub::SqzHub(QObject *parent) : QObject(parent)
 
 SqzHub::~SqzHub()
 {
-    // 析构阶段事件循环已停止，统一调用 destroyAllObjects() 立即同步销毁所有单例
-    destroyAllObjects();
+    CloseAll();
 }
 
 ClassMeta SqzHub::getMetaForClass(const QString &fullname)
@@ -34,46 +33,6 @@ ClassMeta SqzHub::getMetaForClass(const QString &fullname)
     return ClassMeta{};
 }
 
-void SqzHub::destroyAllObjects()
-{
-    QHash<QString, void*>    pool;
-    QHash<QString, QThread*> threads;
-    {
-        QWriteLocker locker(&GetFactoryLock());
-        pool.swap(m_singlePool);
-        threads.swap(m_serviceThreads);
-    }
-
-    // 1) 先给每个异步对象在其线程里同步执行 onClose，再停线程
-    for (auto it = threads.begin(); it != threads.end(); ++it) {
-        const QString fullname = it.key();
-        QThread* t = it.value();
-        void* p = pool.value(fullname, nullptr);
-        stopServiceThread(fullname, t, static_cast<QObject*>(p));
-    }
-
-    // 2) 逐个 onClose + 删除（同步对象走这里；异步对象的 onClose 已在上面执行，
-    //    为避免重复调用，这里仅对同步对象调 onClose）
-    for (auto it = pool.begin(); it != pool.end(); ++it) {
-        const QString fullname = it.key();
-        void* p = it.value();
-        ClassMeta meta = getMetaForClass(fullname);
-        QObject* obj = static_cast<QObject*>(p);
-
-        const bool isAsync = threads.contains(fullname);
-        if (!isAsync && obj) {
-            if (auto* v = qobject_cast<SqzWidget*>(obj))         v->onClose();
-            else if (auto* s = qobject_cast<SqzService*>(obj))   s->onClose();
-            else if (auto* q = qobject_cast<SqzQuick*>(obj))     q->onClose();
-            else if (auto* m = qobject_cast<SqzMainWindow*>(obj)) m->onClose();
-        }
-
-        if (meta.immediateDeleter) meta.immediateDeleter(p);
-        else SafeDelete(p, meta.isQObject, true);
-    }
-
-    // 线程对象已在 stopServiceThread 内 delete}
-}
 
 void SqzHub::stopServiceThread(const QString &fullname, QThread *thread, QObject *obj)
 {
@@ -108,6 +67,62 @@ void SqzHub::stopServiceThread(const QString &fullname, QThread *thread, QObject
     }
     delete thread;}
 
+void SqzHub::shutdownAsyncObject(const QString &fullname, QThread *thread, QObject *obj, const ClassMeta &meta)
+{
+    if (!thread) {
+        // 兜底：无线程信息，当同步对象处理
+        if (obj) {
+            if (auto* s = qobject_cast<SqzService*>(obj))         s->onClose();
+            else if (auto* v = qobject_cast<SqzWidget*>(obj))     v->onClose();
+            else if (auto* q = qobject_cast<SqzQuick*>(obj))      q->onClose();
+            else if (auto* m = qobject_cast<SqzMainWindow*>(obj)) m->onClose();
+        }
+        if (meta.immediateDeleter) meta.immediateDeleter(obj);
+        else SafeDelete(obj, meta.isQObject, true);
+        return;
+    }
+
+    // 线程已死：只能在主线程 delete（防御性分支）
+    if (!thread->isRunning()) {
+        if (obj) {
+            if (auto* s = qobject_cast<SqzService*>(obj))         s->onClose();
+            else if (auto* v = qobject_cast<SqzWidget*>(obj))     v->onClose();
+            else if (auto* q = qobject_cast<SqzQuick*>(obj))      q->onClose();
+            else if (auto* m = qobject_cast<SqzMainWindow*>(obj)) m->onClose();
+        }
+        if (meta.immediateDeleter) meta.immediateDeleter(obj);
+        else SafeDelete(obj, meta.isQObject, true);
+        delete thread;
+        return;
+    }
+
+    // 线程活着：onClose 和 delete 都投递到对象所属线程执行
+    if (obj) {
+        // 1) 线程内同步执行 onClose
+        QMetaObject::invokeMethod(obj, [obj]() {
+            if (auto* s = qobject_cast<SqzService*>(obj))         s->onClose();
+            else if (auto* v = qobject_cast<SqzWidget*>(obj))     v->onClose();
+            else if (auto* q = qobject_cast<SqzQuick*>(obj))      q->onClose();
+            else if (auto* m = qobject_cast<SqzMainWindow*>(obj)) m->onClose();
+        }, Qt::BlockingQueuedConnection);
+
+        // 2) 线程内 delete 自己（保证 QObject 在自己线程析构，线程亲和性正确）
+        QMetaObject::invokeMethod(obj, [obj]() {
+            delete obj;
+        }, Qt::BlockingQueuedConnection);
+    }
+
+    // 3) 停线程并回收
+    thread->quit();
+    if (!thread->wait(5000)) {
+        logwarn << "线程退出超时，强制终止：" << fullname
+                << " | Thread:" << thread->objectName();
+        thread->terminate();
+        thread->wait(1000);
+    }
+    delete thread;
+}
+
 bool SqzHub::IsAsyncService(const QString &ClassName) const
 {
     const QString fullname = maybeAddThreadPrefix(ClassName);
@@ -117,97 +132,97 @@ bool SqzHub::IsAsyncService(const QString &ClassName) const
 
 void *SqzHub::createInternal(const QString &ClassName, std::function<bool (void *)> validator, bool isWidget, const QVariantMap &props)
 {
-    QString fullname = maybeAddThreadPrefix(ClassName);
+    const QString fullname = maybeAddThreadPrefix(ClassName);
 
-    // 1. UI 对象必须主线程
+    // UI 对象必须主线程
     if (isWidget && QThread::currentThread() != QCoreApplication::instance()->thread()) {
         logwarn << "[SqzHub] 禁止子线程操作UI：" << fullname;
         return nullptr;
     }
 
-    // 2. 第一次检查：池中是否已有对象
-    {
-        QReadLocker locker(&GetFactoryLock());
-        if (m_singlePool.contains(fullname)) {
-            void* existing = m_singlePool[fullname];
-            if (isWidget) {
-                QWidget* w = static_cast<QWidget*>(existing);
-                w->show(); w->raise(); w->activateWindow();
-                //                ApplyPropsToObject(w,props);
-            }
-
-            return existing;
-        }
-    }
-
-    // 3. 获取元数据
+    void* raw = nullptr;
     ClassMeta meta;
+    // ==========================================================
+    // 阶段 1：创建锁内 —— 检查、构造、验证、写池、连接 destroyed
+    // 这一阶段必须原子，避免并发请求创建出两个单例。
+    // 锁内不调用任何用户代码（onInit/属性 setter 等），防止重入死锁。
+    // ==========================================================
     {
-        QReadLocker locker(&GetFactoryLock());
-        if (!m_noArgCreator.contains(fullname)) {
-            logwarn << "[SqzHub] 未注册类：" << fullname;
+        static QMutex s_createMutex;   // 文件作用域全局创建锁
+        QMutexLocker createLk(&s_createMutex);
+
+        // 检查 1：池中已存在
+        {
+            QReadLocker locker(&GetFactoryLock());
+            if (m_singlePool.contains(fullname)) {
+                void* existing = m_singlePool[fullname];
+                if (isWidget) {
+                    auto* w = static_cast<QWidget*>(existing);
+                    w->show(); w->raise(); w->activateWindow();
+                }
+                return existing;
+            }
+        }
+
+        // 检查 2：类是否注册
+        {
+            QReadLocker locker(&GetFactoryLock());
+            if (!m_noArgCreator.contains(fullname)) {
+                logwarn << "[SqzHub] 未注册类：" << fullname;
+                return nullptr;
+            }
+            meta = m_noArgCreator[fullname];
+        }
+
+        // 构造
+        raw = meta.creator();
+        if (!raw) {
+            logwarn << "[SqzHub] 创建对象失败：" << fullname;
             return nullptr;
         }
-        meta = m_noArgCreator[fullname];
-    }
 
-    // 4. 创建对象
-    void* raw = meta.creator();
-    if (!raw) {
-        logwarn << "[SqzHub] 创建对象失败：" << fullname;
-        return nullptr;
-    }
-
-    // 5. 验证类型（若 validator 返回 false 则删除并返回）
-    if (!validator(raw)) {
-        if (meta.immediateDeleter) meta.immediateDeleter(raw);
-        else SafeDelete(raw, meta.isQObject, false);
-        logwarn << "[SqzHub] 类型转换失败：" << fullname;
-        return nullptr;
-    }
-
-    // 6. 第二次检查：可能其他线程已经创建，防止重复插入
-    {
-        QWriteLocker locker(&GetFactoryLock());
-        if (m_singlePool.contains(fullname)) {
-            // 丢弃刚创建的对象，返回已有对象
+        // 类型验证
+        if (!validator(raw)) {
             if (meta.immediateDeleter) meta.immediateDeleter(raw);
             else SafeDelete(raw, meta.isQObject, false);
-            void* existing = m_singlePool[fullname];
-            if (isWidget) {
-                QWidget* w = static_cast<QWidget*>(existing);
-                w->show(); w->raise(); w->activateWindow();
-                //                ApplyPropsToObject(w,props);
-            }
-            return existing;
+            logwarn << "[SqzHub] 类型转换失败：" << fullname;
+            return nullptr;
         }
-        // 存入池
-        m_singlePool[fullname] = raw;
-    }
 
-    ApplyPropsToObject(static_cast<QWidget*>(raw),props);
-    if (meta.isQObject) {
-        // 7. 对于 QObject，连接 destroyed 信号自动从池移除
-        QObject* obj = static_cast<QObject*>(raw);
-        connect(obj, &QObject::destroyed, this, [this, fullname, raw]() {
+        // 写池 + 连接 destroyed（destroyed 的 lambda 只做池清理，不动用户代码）
+        {
             QWriteLocker locker(&GetFactoryLock());
-            // 仅当池中仍是同一对象时移除（防止 ResetObj 后旧对象销毁误删新对象）
-            if (m_singlePool.value(fullname) == raw)
-                m_singlePool.remove(fullname);
-        });
+            m_singlePool[fullname] = raw;
+            if (meta.isQObject) {
+                QObject* obj = static_cast<QObject*>(raw);
+                connect(obj, &QObject::destroyed, this, [this, fullname, raw]() {
+                    QWriteLocker locker(&GetFactoryLock());
+                    if (m_singlePool.value(fullname) == raw)
+                        m_singlePool.remove(fullname);
+                });
+            }
+        }
+    }   // ← 创建锁在此释放
 
-        // 8.新增：调用 onInit
-        if (auto* view = qobject_cast<SqzWidget*>(obj))
-            view->onInit();
-        else if (auto* svc = qobject_cast<SqzService*>(obj))
-            svc->onInit();
-        //        else if (auto* mainWin = qobject_cast<SqzMainWindow*>(obj))
-        //            mainWin->onInit();
+    // ==========================================================
+    // 阶段 2：锁外 —— 属性注入 + onInit + UI 激活
+    // 这些步骤可能触发用户代码重入 SqzHub，绝不能在创建锁内执行。
+    // 此时对象已在池中，其他线程若并发请求会直接拿到该对象（阶段 1 检查 1 命中），
+    // 但它们可能会在 onInit 完成之前就使用对象——框架层面接受这个"快速返回"语义，
+    // 或由调用方通过信号等待 ready。
+    // ==========================================================
+    if (meta.isQObject) {
+        QObject* obj = static_cast<QObject*>(raw);
 
+        ApplyPropsToObject(obj, props);
+
+        if (auto* v = qobject_cast<SqzWidget*>(obj))       v->onInit();
+        else if (auto* s = qobject_cast<SqzService*>(obj)) s->onInit();
+        // Quick 走 CreateQuick 分支，此处不涉及
     }
-    // 9. 若是窗口，显示并置前
+
     if (isWidget) {
-        QWidget* w = static_cast<QWidget*>(raw);
+        auto* w = static_cast<QWidget*>(raw);
         w->show(); w->raise(); w->activateWindow();
     }
 
@@ -418,14 +433,14 @@ QObject *SqzHub::CreateQuick(const QString &ClassName, const QString& qmlpath, c
     // 存入池
     QWriteLocker locker(&GetFactoryLock());
     if (m_singlePool.contains(fullname)) {
-        // 其他线程已创建，丢弃本对象
-        meta.immediateDeleter(raw);
         if (view->window()) {
             view->window()->show();
             view->window()->raise();
             view->window()->requestActivate();
         }
-        return qmlObj;
+        meta.immediateDeleter(raw);
+        // 返回池中已存在的对象，而不是刚被销毁的 raw
+        return static_cast<QObject*>(m_singlePool[fullname]);
     }
     m_singlePool[fullname] = raw;
 
@@ -509,7 +524,6 @@ QObject *SqzHub::CreateObjectAsync(const QString &ClassName, const QVariantMap &
     thread->setObjectName(QStringLiteral("SqzSvc-") + fullname);
 
     obj->moveToThread(thread);
-    // 注意：moveToThread 后 obj 已无 parent（外部若设过 parent 会失败，需保证无 parent）
 
     // 6. 启动线程
     thread->start();
@@ -607,7 +621,7 @@ void SqzHub::CloseObjLater(const QString& ClassName)
 {
     QString fullname = maybeAddThreadPrefix(ClassName);
 
-    QTimer::singleShot(0, this, [=](){ CloseObj(fullname); });
+    QMetaObject::invokeMethod(this, [=](){ CloseObj(fullname); }, Qt::QueuedConnection);
 }
 
 void SqzHub::DeleteTemp(const QString &ClassName, void *ptr)
@@ -741,8 +755,51 @@ void SqzHub::PrintRegClass()
 // 销毁所有单例
 void SqzHub::CloseAll()
 {
-    // 退出阶段事件循环可能即将停止，立即同步销毁（deleteLater 不可靠）
-    destroyAllObjects();
+    QHash<QString, void*>    pool;
+    QHash<QString, QThread*> threads;
+    {
+        QWriteLocker locker(&GetFactoryLock());
+        if (m_singlePool.isEmpty() && m_serviceThreads.isEmpty())
+            return;
+        pool.swap(m_singlePool);
+        threads.swap(m_serviceThreads);
+        m_quickQmlPath.clear();
+    }
+
+    // 排序：Service → Widget → Quick
+    QStringList keys = pool.keys();
+    std::sort(keys.begin(), keys.end(), [&](const QString& a, const QString& b){
+        auto rank = [&](const QString& k) {
+            QObject* o = static_cast<QObject*>(pool.value(k));
+            if (qobject_cast<SqzService*>(o))  return 0;
+            if (qobject_cast<SqzWidget*>(o))   return 1;
+            if (qobject_cast<SqzQuick*>(o))    return 2;
+            return 1;
+        };
+        int ra = rank(a), rb = rank(b);
+        return ra != rb ? ra < rb : a < b;
+    });
+
+    for (const QString& fullname : keys) {
+        void* p = pool.value(fullname, nullptr);
+        if (!p) continue;
+        ClassMeta meta = getMetaForClass(fullname);
+        QObject* obj = static_cast<QObject*>(p);
+        QThread* thread = threads.value(fullname, nullptr);
+
+        if (thread) {
+            shutdownAsyncObject(fullname, thread, obj, meta);
+        } else {
+            if (obj) {
+                if (auto* v = qobject_cast<SqzWidget*>(obj))         v->onClose();
+                else if (auto* s = qobject_cast<SqzService*>(obj))   s->onClose();
+                else if (auto* q = qobject_cast<SqzQuick*>(obj))     q->onClose();
+                else if (auto* m = qobject_cast<SqzMainWindow*>(obj)) m->onClose();
+            }
+            if (meta.immediateDeleter) meta.immediateDeleter(p);
+            else SafeDelete(p, meta.isQObject, true);
+        }
+    }
 }
 
 // 带参创建临时QObject
@@ -780,7 +837,6 @@ QQmlEngine *SqzHub::qmlEngine()
         m_qmlEngine.reset(new QQmlEngine());
 
         // 引擎级错误处理：QML 加载/运行期错误统一落日志
-        // 注意：QQmlEngine 没有 objectCreated 信号，需要改用 QQmlComponent 的 status 检查
         connect(m_qmlEngine.get(), &QQmlEngine::warnings,
                 this, [](const QList<QQmlError>& warnings) {
             for (const auto& w : warnings)

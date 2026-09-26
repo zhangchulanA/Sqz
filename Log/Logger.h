@@ -8,6 +8,9 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QAtomicInt>
+#include <atomic>
+#include <cstring>
+#include <thread>
 
 
 #define llog (qDebug()<<"["<<__LINE__<<__FUNCTION__<<"]")
@@ -20,8 +23,6 @@ inline QString LogData(const QByteArray& data){
     return  text;
 }
 
-
-
 // 日志等级枚举
 enum LogLevel {
     E_LOG_DEBUG = 0,   // 调试信息，最详细
@@ -31,21 +32,30 @@ enum LogLevel {
     E_LOG_OFF   = 4    // 关闭所有日志输出
 };
 
-// 线程安全、支持滚动切割与自动清理的日志类（单例模式）
+// 线程安全日志类（单例）。
+//
+// 崩溃捕获四层机制：
+//   1. Qt 消息处理器   —— qDebug/qWarning/qCritical/qFatal 统一走 Logger
+//   2. 崩溃环形缓冲区 —— 无锁保存最近 N 条日志，崩溃时可安全 dump
+//   3. POSIX 信号处理器 + stderr 重定向 —— 捕获 SIGSEGV/SIGABRT 等，
+//                        并转发 glibc/assert/libstdc++ 打到 stderr 的信息
+//   4. std::terminate  —— 捕获未处理 C++ 异常
+//
+// 使用顺序（main 中）：
+//   Logger::installQtMessageHandler();   // 尽早
+//   ... QApplication app ...
+//   Logger::instance().init(...);        // 内部装崩溃处理器
 class Logger
 {
 public:
-    // 获取单例实例
     static Logger& instance();
 
-    // 初始化日志系统
-    // logDir: 日志保存目录（自动创建）
+    // logDir: 日志目录（自动创建）
     // filePrefix: 日志文件名前缀
-    // maxSizeMB: 单个日志文件最大大小(MB)，超出自动分片，默认10MB
-    // enableConsole: 是否开启控制台彩色输出，默认true
-    // enableFile: 是否开启本地文件保存，默认false
-    // keepDays: 日志文件保留天数，0表示不删除，默认7天
-    // 注意：重复调用会重新初始化
+    // enableConsole: 控制台彩色输出
+    // enableFile: 本地文件保存
+    // maxSizeMB: 单文件分片大小（MB）
+    // keepDays: 保留天数，0 表示不删
     void init(const QString& logDir,
               const QString& filePrefix,
               bool   enableConsole = true,
@@ -53,123 +63,114 @@ public:
               qint64 maxSizeMB     = 10,
               int    keepDays      = 7);
 
-    // 设置全局日志最低输出等级，低于此等级的日志将被忽略
     void setLogLevel(LogLevel level);
-
-    // 强制刷新文件缓冲区，确保已写入的日志落盘
-    // 文件未打开时为空操作，内部加锁线程安全
     void flush();
 
-    // 核心日志写入接口（通常由 LoggerStream 宏调用）
-    // level: 日志等级
-    // file: 源文件名（__FILE__）
-    // line: 行号（__LINE__）
-    // function: 函数名（__FUNCTION__）
-    // msg: 格式化后的日志内容
-    // force: 是否强制输出（忽略控制台/文件开关和等级过滤）
-    // 注意：force=true 时，如果文件未打开且日志目录不为空，会自动创建文件
-    void log(LogLevel level, const char* file, int line, const char* function, const QString& msg, bool force = false);
+    // 核心写入接口（由 LoggerStream 宏调用）
+    void log(LogLevel level, const char* file, int line, const char* function,
+             const QString& msg, bool force = false);
 
-    // ---------- 纯工具函数（static，不依赖实例） ----------
+    // 安装 Qt 消息处理器，建议在 QApplication 之前调用。幂等。
+    static void installQtMessageHandler();
 
-    // 获取构建标签，用于验证编译的是哪版源码
-    static QString buildTag();
+    // 安装崩溃处理器（信号 + stderr 重定向 + std::terminate）。幂等。
+    // 由 init() 内部自动调用，也可在 main 中提前手动调用。
+    void installCrashHandlers();
 
-    // 将日志等级转换为字符串
+    // 安装 stderr 重定向（内部由 installCrashHandlers 调用）。幂等。
+    void installStderrRedirect();
+
+    // 停止 stderr 重定向线程（析构时自动调用）
+    void stopStderrRedirect();
+
+    // 外部捕获的信息（来自 stderr 管道）：只写文件 + 环形区，不重复输出到控制台
+    void logExternal(const QString& msg);
+
+    // ---------- 纯工具函数（static） ----------
     static QString levelToStr(LogLevel level);
-
-    // 获取控制台 ANSI 颜色前缀，Windows下返回空串（禁用颜色）
     static QString colorPrefix(LogLevel level);
-
-    // 获取颜色重置后缀，Windows下返回空串
     static QString colorSuffix();
-
-    // 转义日志消息中的换行符和回车符，保证单行输出
     static QString escapeNewlines(const QString& msg);
 
 private:
-    // 构造函数与析构函数私有（单例模式）
     Logger();
     ~Logger();
 
-    // 禁止拷贝和赋值
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
 
-    // ---------- 内部辅助函数 ----------
-
-    // 检查是否需要滚动文件（跨天/超大小/文件未打开）
-    // now: 当前时间
-    // 返回true表示需要创建新文件
+    // ---------- 内部辅助 ----------
     bool needRollFile(const QDateTime& now);
-
-    // 创建下一个滚动日志文件
-    // 文件名格式：前缀_日期_runN[_partM].log
-    // 打开失败时自动禁用文件输出
     void createNewRollFile();
-
-    // 关闭当前打开的日志文件并解绑文本流
-    // 供 init()/createNewRollFile()/析构复用，防止句柄泄漏
     void closeCurrentFile();
-
-    // 获取指定日期下最大的 run 序号
-    int getMaxRunForDate(const QString& date);
-
-    // 构造匹配日志文件名的正则表达式（对前缀做正则转义）
+    int  getMaxRunForDate(const QString& date);
     static QString buildRunRegex(const QString& prefix, const QString& dateSegment);
-
-    // 清理超过保留天数的旧日志文件
     void cleanOldLogs(int keepDays);
 
+    // 写入崩溃环形缓冲区（无锁）
+    static void writeCrashRing(const QString& logText);
+
+    // 直接写原始 stderr，避免与 qInstallMessageHandler 递归
+    static void writeRawStderr(const QString& msg);
+
+    // stderr 管道读线程主循环
+    void stderrReaderLoop();
+
     // ---------- 成员变量 ----------
+    QMutex      m_mutex;
+    QString     m_logDir;
+    QString     m_filePrefix;
+    QString     m_curDate;
+    qint64      m_curJulianDay;
+    int         m_runIndex;
+    int         m_partIndex;
 
-    QMutex      m_mutex;           // 互斥锁，保证线程安全
-    QString     m_logDir;          // 日志文件存储目录
-    QString     m_filePrefix;      // 日志文件名前缀
-    QString     m_curDate;         // 当前日志日期（yyyyMMdd）
-    qint64      m_curJulianDay;    // 当前日期的儒略日，用于跨天判定
-    int         m_runIndex;        // 当天程序启动序号
-    int         m_partIndex;       // 单次运行内分片序号
+    QFile       m_logFile;
+    QTextStream m_fileStream;
+    LogLevel    m_logLevel;
+    qint64      m_maxFileSize;
+    bool        m_enableConsole;
+    bool        m_enableFile;
 
-    QFile       m_logFile;         // 当前打开的日志文件对象
-    QTextStream m_fileStream;      // 文件流，UTF-8编码
-    LogLevel    m_logLevel;        // 全局日志过滤等级
-    qint64      m_maxFileSize;     // 单日志文件最大字节数
-    bool        m_enableConsole;   // 控制台输出开关
-    bool        m_enableFile;      // 文件保存开关
+    int         m_flushCounter;
+    static const int FLUSH_INTERVAL = 1;
 
-    int         m_flushCounter;    // 文件 flush 计数器
-    static const int FLUSH_INTERVAL = 1; // 每64条日志执行一次flush
+    QAtomicInt  m_destroyed;
 
-    QAtomicInt  m_destroyed;       // 析构标志位
+public:
 
-    friend class LoggerTest;
+    // ---------- 崩溃捕获 ----------
+    static const int CRASH_RING_SIZE = 256;   // 环形槽位
+    static const int CRASH_LINE_MAX  = 1024;  // 单条最大字节
+
+    struct CrashSlot {
+        char buf[CRASH_LINE_MAX];
+        int  len;
+        CrashSlot() : len(0) { buf[0] = '\0'; }
+    };
+
+    static CrashSlot         s_ring[CRASH_RING_SIZE];
+    static std::atomic<int>  s_ringHead;
+    static int               s_crashFd;
+    static std::atomic<bool> s_crashHandlersInstalled;
+    static bool              s_qtHandlerInstalled;
 };
 
-// ==================== 流式宏接口 ====================
-
-// 普通日志宏（受 enableConsole 和 enableFile 控制，受等级过滤影响）
+// ==================== 流式宏 ====================
 #define logdebug  LoggerStream(E_LOG_DEBUG, __FILE__, __FUNCTION__, __LINE__)
 #define loginfo   LoggerStream(E_LOG_INFO,  __FILE__, __FUNCTION__, __LINE__)
 #define logwarn   LoggerStream(E_LOG_WARN,  __FILE__, __FUNCTION__, __LINE__)
 #define logerror  LoggerStream(E_LOG_ERROR, __FILE__, __FUNCTION__, __LINE__)
 
-// 强制日志宏（忽略 enableConsole、enableFile 和等级过滤，自动初始化文件）
 #define fdebug  LoggerStream(E_LOG_DEBUG, __FILE__, __FUNCTION__, __LINE__, true)
 #define finfo   LoggerStream(E_LOG_INFO,  __FILE__, __FUNCTION__, __LINE__, true)
 #define fwarn   LoggerStream(E_LOG_WARN,  __FILE__, __FUNCTION__, __LINE__, true)
 #define ferror  LoggerStream(E_LOG_ERROR, __FILE__, __FUNCTION__, __LINE__, true)
 
-// 流式日志临时对象，用于支持 << 语法
+// 流式日志临时对象，支持 << 语法
 class LoggerStream
 {
 public:
-    // 构造函数
-    // lvl: 日志等级
-    // file: 源文件名
-    // function: 函数名
-    // line: 行号
-    // force: 是否强制输出
     explicit LoggerStream(LogLevel lvl, const char* file, const char* function, int line, bool force = false)
         : m_level(lvl)
         , m_file(file)
@@ -178,17 +179,15 @@ public:
         , m_force(force)
         , m_debug(&m_buffer)
     {
-        m_debug.noquote(); // 禁止 QDebug 自动添加引号
+        m_debug.noquote();
     }
 
-    // 析构函数：将缓冲区内容提交给 Logger
     ~LoggerStream()
     {
         QString content = m_buffer.trimmed();
         Logger::instance().log(m_level, m_file, m_line, m_function, content, m_force);
     }
 
-    // 通用模板：支持所有可通过 QDebug 输出的类型
     template<typename T>
     LoggerStream& operator<<(const T& val)
     {
@@ -196,20 +195,16 @@ public:
         return *this;
     }
 
-    // 忽略 QTextStream 操纵符（如 endl），避免编译错误
-    LoggerStream& operator<<(QTextStreamFunction /*manip*/)
-    {
-        return *this;
-    }
+    LoggerStream& operator<<(QTextStreamFunction /*manip*/) { return *this; }
 
 private:
-    LogLevel     m_level;      // 本条日志的等级
-    const char*  m_file;       // 源文件名指针
-    int          m_line;       // 行号
-    const char*  m_function;   // 函数名指针
-    bool         m_force;      // 强制输出标志
-    QString      m_buffer;     // 内部字符串缓冲区
-    QDebug       m_debug;      // QDebug 对象
+    LogLevel     m_level;
+    const char*  m_file;
+    int          m_line;
+    const char*  m_function;
+    bool         m_force;
+    QString      m_buffer;
+    QDebug       m_debug;
 };
 
 #endif // Logger_H
